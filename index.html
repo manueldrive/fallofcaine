@@ -71,6 +71,7 @@
   body.talking #bottomBar, body.talking #hint, body.talking #propBtn { opacity: 0 !important; pointer-events: none !important; }
   /* portraits: the illustrated face carries the conversation; the 3D scene dims and softens behind it */
   #scene { transition: filter .5s ease; } body.talking #scene { filter: brightness(.5) saturate(.8) blur(1.5px); }
+  #grain { transition: opacity .5s; } body.talking #grain { opacity: .025 !important; }   /* the grain fights the softened scene, so it nearly goes */
   #dlgFace { position: fixed; z-index: 8; right: -2vw; bottom: 0; height: min(92vh, 62vw); aspect-ratio: 1; background: center / cover no-repeat; opacity: 0; transform: translateX(4%); transition: opacity .5s, transform .6s cubic-bezier(.2,.9,.25,1); pointer-events: none;
     -webkit-mask-image: linear-gradient(to left, #000 45%, transparent 90%); mask-image: linear-gradient(to left, #000 45%, transparent 90%); }
   #dlgShade { position: fixed; inset: 0; z-index: 8; pointer-events: none; opacity: 0; transition: opacity .5s; background: linear-gradient(to right, rgba(0,0,0,.6) 20%, transparent 62%); }
@@ -78,8 +79,11 @@
   body.talking.hasFace #dlg { padding-right: 44%; }
   #dlg.speaking ~ #dlgFace, body.speaking #dlgFace { animation: dlgBreathe 4s ease-in-out infinite; } @keyframes dlgBreathe { 50% { transform: translateY(-3px) scale(1.006); } }
   @media (max-aspect-ratio: 1/1) {
-    #dlgFace { height: 52vh; right: -14vw; bottom: 34vh; -webkit-mask-image: radial-gradient(ellipse 62% 62% at 50% 45%, #000 55%, transparent 100%); mask-image: radial-gradient(ellipse 62% 62% at 50% 45%, #000 55%, transparent 100%); }
-    #dlgShade { background: linear-gradient(to top, rgba(0,0,0,.6) 30%, transparent 70%); }
+    /* phone: she takes the full width, centred, and melts into the subtitle below */
+    #dlgFace { height: auto; width: min(100vw, 64vh); left: 0; right: 0; margin: 0 auto; bottom: 28vh; transform: translateY(3%);
+      -webkit-mask-image: linear-gradient(to bottom, #000 60%, transparent 97%), linear-gradient(to right, transparent 0%, #000 14%, #000 86%, transparent 100%); -webkit-mask-composite: source-in;
+      mask-image: linear-gradient(to bottom, #000 60%, transparent 97%), linear-gradient(to right, transparent 0%, #000 14%, #000 86%, transparent 100%); mask-composite: intersect; }
+    #dlgShade { background: linear-gradient(to top, rgba(0,0,0,.85) 30%, rgba(0,0,0,.55) 70%, rgba(0,0,0,.4)); }
     body.talking.hasFace #dlg { padding-right: max(6%, 22px); }
   }
   #dlg .who { font: 600 11px/1 'Courier New', monospace; letter-spacing: .38em; text-transform: uppercase; color: #e2b23a; display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
