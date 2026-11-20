@@ -63,6 +63,22 @@
   #propBtn { position: fixed; bottom: calc(118px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%) translateY(8px); opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; z-index: 7; font: 600 13px/1 'Courier New', monospace; letter-spacing: .14em; text-transform: uppercase; color: #111; background: #e2b23a; border: 0; border-radius: 999px; padding: 11px 18px; box-shadow: 0 6px 18px rgba(0,0,0,.45); cursor: pointer; -webkit-tap-highlight-color: transparent; }
   #propBtn.show { opacity: 1; pointer-events: auto; transform: translateX(-50%); }
   #propBtn.held { background: rgba(0,0,0,.7); color: #eee; border: 1px solid rgba(255,255,255,.25); }
+  /* conversations: noir subtitle */
+  #lbTop { position: fixed; left: 0; right: 0; top: 0; height: 9vh; background: #000; transform: translateY(-100%); transition: transform .45s ease; z-index: 8; pointer-events: none; }
+  #dlgCatch { position: fixed; inset: 0; z-index: 8; display: none; }
+  #dlg { position: fixed; left: 0; right: 0; bottom: 0; z-index: 9; padding: 80px max(6%, 22px) calc(26px + env(safe-area-inset-bottom, 0px)); background: linear-gradient(to top, #000 0%, rgba(0,0,0,.9) 45%, rgba(0,0,0,.7) 70%, transparent 100%); opacity: 0; transform: translateY(20px); transition: opacity .35s, transform .35s; pointer-events: none; font-family: 'Special Elite', 'Courier New', monospace; }
+  body.talking #lbTop { transform: none; } body.talking #dlgCatch { display: block; } body.talking #dlg { opacity: 1; transform: none; pointer-events: auto; }
+  body.talking #bottomBar, body.talking #hint, body.talking #propBtn { opacity: 0 !important; pointer-events: none !important; }
+  #dlg .who { font: 600 11px/1 'Courier New', monospace; letter-spacing: .38em; text-transform: uppercase; color: #e2b23a; display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  #dlg .who::after { content: ''; height: 1px; width: 46px; background: #e2b23a; opacity: .6; }
+  #dlg .line { font-size: clamp(16px, 2.1vw, 21px); line-height: 1.5; color: #ece6d2; max-width: 780px; min-height: 3em; text-shadow: 0 2px 8px #000; }
+  #dlg .replies { list-style: none; margin: 12px 0 0; padding: 0; }
+  #dlg .replies li { font-size: clamp(14px, 1.5vw, 16px); line-height: 1.4; color: rgba(236,230,210,.55); padding: 7px 0; cursor: pointer; opacity: 0; transform: translateY(6px); transition: opacity .25s, transform .25s, color .15s; }
+  #dlg .replies.show li { opacity: 1; transform: none; } #dlg .replies.show li:nth-child(2) { transition-delay: .07s; } #dlg .replies.show li:nth-child(3) { transition-delay: .14s; }
+  #dlg .replies li b { color: rgba(226,178,58,.65); font-weight: 400; margin-right: 12px; }
+  #dlg .replies li:hover { color: #ece6d2; } #dlg .replies li:hover b { color: #e2b23a; }
+  #dlg .tap { position: absolute; right: max(6%, 22px); bottom: calc(22px + env(safe-area-inset-bottom, 0px)); font: 600 10px/1 'Courier New', monospace; letter-spacing: .2em; text-transform: uppercase; color: #ece6d2; opacity: 0; }
+  #dlg .tap.show { animation: dlgBlink 1.2s infinite; } @keyframes dlgBlink { 0%, 100% { opacity: .7; } 50% { opacity: .25; } }
   #phoneFlash { position: fixed; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 6; }
   #devToast { position: fixed; left: 50%; top: 18px; transform: translateX(-50%); z-index: 5; background: rgba(0,0,0,.8); color: #e2b23a; border: 1px solid #e2b23a; padding: 6px 14px; font: 14px 'Bebas Neue', Impact, sans-serif; letter-spacing: .3em; opacity: 0; transition: opacity .3s; pointer-events: none; }
   #panel h4 { margin: 0 0 8px; color: #777; font: 11px Arial, sans-serif; letter-spacing: .3em; text-transform: uppercase; font-weight: normal; }
@@ -91,6 +107,7 @@
 <div id="hint">Walk</div>
 <div id="devToast"></div>
 <div id="phoneFlash"></div>
+<div id="dlgCatch"></div><div id="lbTop"></div><div id="dlg"><div class="who"></div><div class="line"></div><ul class="replies"></ul><div class="tap">tap ▸</div></div>
 <button id="propBtn" type="button"></button>
 
 <div id="bottomBar">
@@ -473,6 +490,29 @@ function buildOffice() {
   // corkboard on back wall
   const corkFrame = add(new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.95, 0.04), darkWood)); corkFrame.position.set(1.6, 1.85, RZ + 0.03);
   const corkFace = add(new THREE.Mesh(new THREE.PlaneGeometry(1.15, 0.85), mat({ map: cork, roughness: .95, emissive: 0xe2b23a, emissiveIntensity: 0 })), false); corkFace.position.set(1.6, 1.85, RZ + 0.055);
+  // photos Caine sent to Vera end up pinned here, polaroid-style, after she's had them in hand
+  const pinGroup = new THREE.Group(); group.add(pinGroup); const pinnedMeshes = new Map(); let pinTick = 0;
+  const PIN_SLOTS = [[-0.38, 0.24], [0.02, 0.27], [0.38, 0.22], [-0.2, -0.02], [0.2, 0.0], [-0.4, -0.25], [0.0, -0.27], [0.4, -0.24], [-0.05, 0.1], [0.3, -0.1], [-0.3, 0.08], [0.12, -0.15]];
+  const polaroidM = mat({ color: 0xece6d6, roughness: .9 }), pinM = mat({ color: 0xb02020, roughness: .35 });
+  function syncPins() {
+    if (typeof PhoneUI === 'undefined') return;
+    const list = PhoneUI.photos.filter(p => p.pinned).slice(0, PIN_SLOTS.length);
+    for (const [p, g] of pinnedMeshes) if (!list.includes(p)) { pinGroup.remove(g); pinnedMeshes.delete(p); }
+    list.forEach(p => {
+      let g = pinnedMeshes.get(p);
+      if (!g) {
+        const used = new Set([...pinnedMeshes.values()].map(m => m.userData.slot)); const slot = PIN_SLOTS.findIndex((_, i) => !used.has(i)); if (slot < 0) return;
+        g = new THREE.Group(); g.userData.slot = slot;
+        const back = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 0.19), polaroidM); g.add(back);
+        const tex = new THREE.CanvasTexture(p.cv); tex.colorSpace = THREE.SRGBColorSpace; tex.userData.ver = p.ver;
+        const pic = new THREE.Mesh(new THREE.PlaneGeometry(0.17, 0.1275), mat({ map: tex, roughness: .6 })); pic.position.set(0, 0.015, 0.001); g.add(pic); g.userData.tex = tex;
+        const pin = new THREE.Mesh(new THREE.SphereGeometry(0.012, 10, 8), pinM); pin.position.set(0, 0.08, 0.01); pin.castShadow = true; g.add(pin);
+        const [sx, sy] = PIN_SLOTS[slot]; g.position.set(1.6 + sx, 1.85 + sy, RZ + 0.062 + slot * 0.0006); g.rotation.z = (Math.random() - 0.5) * 0.22;
+        pinGroup.add(g); pinnedMeshes.set(p, g);
+      }
+      if (g.userData.tex.userData.ver !== p.ver) { g.userData.tex.userData.ver = p.ver; g.userData.tex.needsUpdate = true; }
+    });
+  }
 
   // pictures
   for (const [x, y, w, h] of [[-0.05, 2.55, 0.4, 0.5], [0.95, 2.6, 0.32, 0.26]]) {
@@ -736,6 +776,7 @@ function buildOffice() {
     },
     update(dt, now) {
       officePulse(now);
+      if ((pinTick++ % 20) === 0) syncPins();
       const f = 0.96 + Math.sin(now * 17) * 0.015 + Math.sin(now * 5.3) * 0.02;
       floorLamp.intensity = lampBase * f; deskLamp.intensity = deskBase * (0.98 + Math.sin(now * 13) * 0.01);
       shaftMat.uniforms.uTime.value = now;
@@ -1129,6 +1170,32 @@ function buildPrecinct() {
     R.root.position.set(-5.3, 0, 5.6); R.root.rotation.y = Math.PI; poseSeated(R); group.add(R.root); npcs.push({ R, pose: 'read', t: 0 });
   }
   rect(-6.0, -4.6, 4.65, 5.35);
+  // --- the front desk, just outside his office door: Vera (placeholder) at her typewriter, back to the wall under the HOMICIDE plate
+  const VX = -6.6, VZ = -1.5;
+  let veraHead;
+  {
+    const g = new THREE.Group(); g.position.set(VX, 0, VZ); group.add(g);
+    box(1.5, 0.05, 0.72, wood, 0, 0.76, 0, g); box(0.42, 0.74, 0.66, wood, -0.52, 0.37, 0, g); box(0.42, 0.74, 0.66, wood, 0.52, 0.37, 0, g);
+    box(0.64, 0.5, 0.03, darkWood, 0, 0.5, 0.33, g);
+    for (let i = 0; i < 3; i++) box(0.1, 0.02, 0.02, brass, 0.52, 0.2 + i * 0.22, -0.34, g);
+    dressDesk(g, 1.5, 0.72, 0.785, true);
+    const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.11), new THREE.MeshBasicMaterial({ map: signTex('FRONT DESK', '#d6b468', '#1a110a', 'bold 70px Georgia') })); plate.position.set(0, 0.62, 0.35); g.add(plate);
+    // her own little lamp, so she reads in the gloom
+    box(0.12, 0.02, 0.12, brass, -0.55, 0.795, -0.18, g); box(0.015, 0.3, 0.015, brass, -0.55, 0.95, -0.18, g);
+    const shade = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.13, 0.12, 16, 1, true), mat({ color: 0x1f4a2a, roughness: .3, side: THREE.DoubleSide, emissive: 0x0c2a14, emissiveIntensity: .6 })); shade.position.set(-0.55, 1.1, -0.18); g.add(shade);
+    const vl = new THREE.PointLight(0xffc27a, 2.2, 3.2, 1.8); vl.position.set(-0.5, 1.05, -0.1); vl.castShadow = false; g.add(vl);
+    swivelChair(VX, VZ - 0.72, 0); circ(VX, VZ - 0.72, 0.28); rect(VX - 0.76, VX + 0.76, VZ - 0.37, VZ + 0.37);
+    const R = makePerson({ coat: 0x5a2630, pants: 0x26262c, skin: 0xb09078, hat: 'none', badge: false });
+    R.chest.scale.x = 0.86;
+    const hair = mat({ color: 0x24170f, roughness: .55 }), gold = mat({ color: 0xc8a050, roughness: .3, metalness: .8 });
+    const hp = (geo, m, x, y, z) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.castShadow = true; R.head.add(o); return o; };
+    for (const sd of [-1, 1]) { const roll = hp(new THREE.TorusGeometry(0.048, 0.03, 8, 16), hair, sd * 0.062, 0.115, 0.015); roll.rotation.y = Math.PI / 2; }   // victory rolls
+    hp(new THREE.SphereGeometry(0.075, 12, 10), hair, 0, 0.02, -0.08).scale.set(1.1, 0.9, 0.8);   // the back, pinned up
+    for (const sd of [-1, 1]) hp(new THREE.SphereGeometry(0.012, 8, 6), gold, sd * 0.1, -0.03, 0.01);   // earrings
+    hp(new THREE.BoxGeometry(0.035, 0.009, 0.01), mat({ color: 0x8a1c22, roughness: .4 }), 0, -0.045, 0.108);   // lipstick
+    R.root.position.set(VX, 0, VZ - 0.72); poseSeated(R); group.add(R.root); npcs.push({ R, pose: 'vera', t: 0 });
+    veraHead = R.head;
+  }
   // two cops chatting at the water cooler
   for (const [x, z, face, pose, skin] of [[WCX - 0.62, WCZ + 0.55, 1.2, 'cup', 0x8c7a68], [WCX + 0.6, WCZ + 0.7, -1.4, 'talk', 0x5e4636]]) {
     const R = makePerson({ skin }); R.root.position.set(x, 0, z); R.root.rotation.y = face; group.add(R.root);
@@ -1182,6 +1249,7 @@ function buildPrecinct() {
     groundY() { return 0; },
     start: { x: 7.6, z: 5.2, heading: Math.PI },
     spawns: { office: { x: doorX, z: OZ + 0.65, heading: 0 }, lot: { x: 7.2, z: 4.4, heading: Math.PI } },
+    props: [{ id: 'vera', talk: 'vera', mesh: veraHead, label: 'Talk to Vera', reach: 1.9 }],
     portals: [{ x: doorX, z: OZ + 0.75, to: 'office', spawn: 'precinct', label: 'Your office' }, { x: 8.3, z: 5.3, to: 'lot', spawn: 'precinct', label: 'Parking lot' }],
     patrol: [
       { p: [7.6, 0.8] },
@@ -1211,6 +1279,16 @@ function buildPrecinct() {
       for (const n of npcs) {
         const { R } = n; n.t += dt; const t = n.t;
         R.chest.rotation.x = 0.04 + Math.sin(t * 1.3) * 0.01;
+        if (n.pose === 'vera') {
+          const talking = typeof Dialogue !== 'undefined' && Dialogue.with === 'vera', L = THREE.MathUtils.lerp, k = Math.min(1, dt * 5);
+          n.look = L(n.look || 0, talking ? 1 : 0, k);
+          const ty = Math.sin(t * 14) * 0.03 * (1 - n.look);
+          R.armL.sh.rotation.x = L(-0.6 + ty, -0.45, n.look); R.armR.sh.rotation.x = L(-0.6 - ty, -0.45, n.look); R.armL.el.rotation.x = R.armR.el.rotation.x = L(-1.0, -0.75, n.look); R.armL.sh.rotation.z = 0.2; R.armR.sh.rotation.z = -0.2;
+          const a = THREE.MathUtils.clamp(Math.atan2(pos.x - R.root.position.x, pos.z - R.root.position.z) - R.root.rotation.y, -1.1, 1.1);
+          R.head.rotation.y = L(Math.sin(t * 0.31) * 0.12, a * 0.8, n.look); R.chest.rotation.y = a * 0.25 * n.look;
+          R.head.rotation.x = L(0.22 + Math.sin(t * 0.7) * 0.03, -0.08, n.look);
+          continue;
+        }
         if (n.pose === 'type') {
           R.armL.sh.rotation.x = -0.6 + Math.sin(t * 14) * 0.03; R.armR.sh.rotation.x = -0.6 + Math.sin(t * 14 + 1.7) * 0.03;
           R.armL.el.rotation.x = R.armR.el.rotation.x = -1.0; R.armL.sh.rotation.z = 0.22; R.armR.sh.rotation.z = -0.22;
@@ -2754,6 +2832,7 @@ function loadScene(key, { instant = false, spawn = null } = {}) {
   loading = true;
   const go = () => {
     if (S) { S.onExit && S.onExit(); scene.remove(S.group); }
+    window.__closeTalk && window.__closeTalk();   // leaving a scene ends any conversation
     S = built[key] || (built[key] = BUILDERS[key]());
     currentKey = key;
     scene.add(S.group); scene.fog = S.fog; renderer.toneMappingExposure = S.exposure;
@@ -3098,8 +3177,8 @@ const APPS = ['Messages', 'Camera', 'Photos', 'Notes', 'Map', 'Snake'];
 const aim = { pitch: 0, fov: 32 };   // camera app: where Caine points the lens, and how far it's zoomed
 // the camera roll: thumbnails kept as small canvases, saved between visits as jpegs
 const photos = [];
-try { (JSON.parse(localStorage.getItem('caineRoll') || '[]')).forEach(p => { const im = new Image(); const c = document.createElement('canvas'); c.width = 240; c.height = 180; im.onload = () => c.getContext('2d').drawImage(im, 0, 0); im.src = p.src; photos.push({ cv: c, where: p.where, when: p.when }); }); } catch (e) {}
-function saveRoll() { try { localStorage.setItem('caineRoll', JSON.stringify(photos.slice(0, 24).map(p => ({ src: p.cv.toDataURL('image/jpeg', 0.7), where: p.where, when: p.when })))); } catch (e) {} }
+try { (JSON.parse(localStorage.getItem('caineRoll') || '[]')).forEach(p => { const im = new Image(); const c = document.createElement('canvas'); c.width = 240; c.height = 180; const e = { cv: c, where: p.where, when: p.when, sent: !!p.sent, pinned: !!p.pinned, ver: 0 }; im.onload = () => { c.getContext('2d').drawImage(im, 0, 0); e.ver++; }; im.src = p.src; photos.push(e); }); } catch (e) {}
+function saveRoll() { try { localStorage.setItem('caineRoll', JSON.stringify(photos.slice(0, 24).map(p => ({ src: p.cv.toDataURL('image/jpeg', 0.7), where: p.where, when: p.when, sent: p.sent, pinned: p.pinned })))); } catch (e) {} }
 const ph = { app: 'home', pSel: 0, sel: 1, filed: 0, filedNow: false, unread: 1, snapT: -9, list: 0, scroll: 0, open: null, mapX: 300, mapY: 230 };
 const MONO = '"Courier New", monospace', CREAM = '#ece6d2', INK = '#1c2230';
 const THREADS = [
@@ -3143,6 +3222,12 @@ function snakeStep() {
   snake.body.unshift(n); if (n[0] === snake.food[0] && n[1] === snake.food[1]) { snake.score++; snakeFood(); } else snake.body.pop();
 }
 // input from the trackball / keys: dir is 'u','d','l','r'; 'ok' selects; 'back' goes back
+function sendToDesk(p) {   // the photo goes to Vera at the front desk; she pins it up next time you stop by
+  if (!p || p.sent) return; p.sent = true; p.sentT = performance.now() / 1000; saveRoll();
+  if (!THREADS.some(t => t.from === 'VERA' && t.unread)) { const d = new Date(), hh = d.getHours() % 12 || 12, mm = String(d.getMinutes()).padStart(2, '0');
+    THREADS.unshift({ from: 'VERA', time: hh + ':' + mm + (d.getHours() < 12 ? 'a' : 'p'), unread: true, body: ['Got it, Detective.', 'Stop by the desk and', "I'll put it on your board."] }); }
+  ph.unread = THREADS.filter(t => t.unread).length;
+}
 function phoneInput(k) {
   const a = ph.app;
   if (k === 'back') { if (a === 'home') { PhoneUI.close(); return; } if (a === 'thread') { ph.app = 'msgs'; } else if (a === 'note') { ph.app = 'notes'; } else if (a === 'photo') { ph.app = 'photos'; } else { ph.app = 'home'; } ph.scroll = 0; return; }
@@ -3162,7 +3247,7 @@ function phoneInput(k) {
   if (a === 'note' || a === 'thread') { if (k === 'u') ph.scroll = Math.max(0, ph.scroll - 1); if (k === 'd') ph.scroll++; return; }
   if (a === 'camera') { if (k === 'ok') { snap(); ph.filedNow = true; ph.filed++; } return; }
   if (a === 'photos') { const n = photos.length; if (!n) return; if (k === 'l') ph.pSel = Math.max(0, ph.pSel - 1); if (k === 'r') ph.pSel = Math.min(n - 1, ph.pSel + 1); if (k === 'u') ph.pSel = Math.max(0, ph.pSel - 3); if (k === 'd') ph.pSel = Math.min(n - 1, ph.pSel + 3); if (k === 'ok') ph.app = 'photo'; return; }
-  if (a === 'photo') { const n = photos.length; if (k === 'l' || k === 'u') ph.pSel = Math.max(0, ph.pSel - 1); if (k === 'r' || k === 'd') ph.pSel = Math.min(n - 1, ph.pSel + 1); if (k === 'ok') ph.app = 'photos'; return; }
+  if (a === 'photo') { const n = photos.length; if (k === 'l' || k === 'u') ph.pSel = Math.max(0, ph.pSel - 1); if (k === 'r' || k === 'd') ph.pSel = Math.min(n - 1, ph.pSel + 1); if (k === 'ok') sendToDesk(photos[ph.pSel]); return; }
   if (a === 'map') { const st = 24; if (k === 'l') ph.mapX -= st; if (k === 'r') ph.mapX += st; if (k === 'u') ph.mapY -= st; if (k === 'd') ph.mapY += st; ph.mapX = Math.max(0, Math.min(640, ph.mapX)); ph.mapY = Math.max(0, Math.min(460, ph.mapY));
     if (k === 'ok') { const near = PINS.reduce((b, p) => Math.hypot(p.x - ph.mapX, p.y - ph.mapY) < Math.hypot(b.x - ph.mapX, b.y - ph.mapY) ? p : b); ph.mapX = near.x; ph.mapY = near.y; } return; }
   if (a === 'snake') { const D = { u: [0, -1], d: [0, 1], l: [-1, 0], r: [1, 0] }[k]; if (D && !(D[0] === -snake.dir[0] && D[1] === -snake.dir[1])) snake.next = D; if (k === 'ok' && !snake.alive) snakeReset(); }
@@ -3230,14 +3315,15 @@ function drawHudTo(g, W, t) {
     if (!photos.length) { g.fillStyle = '#8a8676'; g.font = '14px ' + MONO; g.textAlign = 'center'; g.fillText('No photos yet.', W / 2, 110); g.fillText('Open Camera and tap to snap.', W / 2, 132); foot('back'); }
     else { const row0 = Math.max(0, Math.floor(ph.pSel / 3) - 1);
       for (let i = row0 * 3; i < Math.min(photos.length, row0 * 3 + 6); i++) { const c = i % 3, r = Math.floor(i / 3) - row0, x = 8 + c * 104, y = 26 + r * 98;
-        g.drawImage(photos[i].cv, x, y, 96, 72); if (i === ph.pSel) { g.strokeStyle = ACCENT; g.lineWidth = 3; g.strokeRect(x - 2, y - 2, 100, 76); }
+        g.drawImage(photos[i].cv, x, y, 96, 72); if (photos[i].sent) { g.fillStyle = ACCENT; g.fillRect(x + 78, y + 2, 16, 14); g.fillStyle = '#111'; g.font = 'bold 11px ' + MONO; g.textAlign = 'center'; g.fillText(photos[i].pinned ? '📌' : '✓', x + 86, y + 13); } if (i === ph.pSel) { g.strokeStyle = ACCENT; g.lineWidth = 3; g.strokeRect(x - 2, y - 2, 100, 76); }
         g.fillStyle = i === ph.pSel ? CREAM : '#8a8676'; g.font = '10px ' + MONO; g.textAlign = 'center'; g.fillText(photos[i].where.slice(0, 15), x + 48, y + 86); }
       foot((ph.pSel + 1) + ' / ' + photos.length + ' · tap to view · back'); }
   } else if (a === 'photo') {
     const p = photos[ph.pSel]; g.fillStyle = '#000'; g.fillRect(0, 0, W, 240);
     if (p) { g.imageSmoothingEnabled = true; g.drawImage(p.cv, 0, 0, W, 240); g.imageSmoothingEnabled = false;
       g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(0, 0, W, 20); g.fillStyle = CREAM; g.font = '12px ' + MONO; g.textAlign = 'left'; g.fillText(p.where, 6, 14); g.textAlign = 'right'; g.fillText(p.when, W - 6, 14);
-      foot('◀ ' + (ph.pSel + 1) + ' / ' + photos.length + ' ▶ · back'); }
+      if (p.sent) { const sent = performance.now() / 1000 - (p.sentT || 0) < 1.4; g.save(); g.translate(W - 74, 186); g.rotate(-0.12); g.strokeStyle = g.fillStyle = sent ? ACCENT : 'rgba(226,178,58,.75)'; g.lineWidth = 3; g.strokeRect(-52, -18, 104, 32); g.font = 'bold 15px ' + MONO; g.textAlign = 'center'; g.fillText(p.pinned ? 'ON BOARD' : 'SENT', 0, 4); g.restore(); }
+      foot(p.sent ? (p.pinned ? 'pinned on your board · ◀ ▶ · back' : 'sent to Vera ✓ · ◀ ▶ · back') : 'click: send to Vera · ◀ ' + (ph.pSel + 1) + ' / ' + photos.length + ' ▶'); }
   } else if (a === 'map') {
     g.fillStyle = '#1b2333'; g.fillRect(0, 0, W, 240);
     const vx = ph.mapX - W / 2, vy = ph.mapY - 121; g.drawImage(cityMap, -vx, -vy + 20);
@@ -3276,7 +3362,7 @@ function drawHudTo(g, W, t) {
   function snap() { try { capture(); } catch (e) { console.warn(e); } ph.snapT = pt; const f = document.getElementById('phoneFlash'); f.style.transition = 'none'; f.style.opacity = .9; requestAnimationFrame(() => { f.style.transition = 'opacity .5s'; f.style.opacity = 0; }); }
   let open = false, k = 0;
   const btn = document.getElementById('phoneBtn');
-  function setOpen(v) { if (v && inHand) { inHand = null; document.getElementById('propBtn').classList.remove('held'); } open = v; btn.classList.toggle('on', v); if (v) { held.clear(); route = []; ph.app = 'home'; } }
+  function setOpen(v) { if (v && typeof Dialogue !== 'undefined' && Dialogue.isOpen) Dialogue.close(); if (v && inHand) { inHand = null; document.getElementById('propBtn').classList.remove('held'); } open = v; btn.classList.toggle('on', v); if (v) { held.clear(); route = []; ph.app = 'home'; } }
   btn.addEventListener('click', () => setOpen(!open));
   // --- feel: a tiny click sound and a buzz where the device allows it
   let actx = null;
@@ -3509,6 +3595,7 @@ function drawHudTo(g, W, t) {
   const GROUP = { notebook: book, map: mapG };
   const wp = new THREE.Vector3();
   function pickUp(pr) {
+    if (pr.talk) { const w = pr; heading = Math.atan2(pr.mesh.getWorldPosition(wp).x - pos.x, wp.z - pos.z); faceTarget = null; Dialogue.open({ vera: VERA }[pr.talk], { with: pr.id, target: pr.mesh }); propBtn.classList.remove('show'); return; }
     if (open) setOpen(false);
     inHand = pr; pv.yaw = pv.pitch = 0; pv.zoom = 1;
     held.clear(); route = []; faceTarget = null;
@@ -3560,12 +3647,12 @@ function drawHudTo(g, W, t) {
   function updateProps(dt) {
     // anything on this scene's desk he's close enough to reach?
     nearProp = null;
-    if (!inHand && !open && !S.drive && S.props && !loading) {
+    if (!inHand && !open && !S.drive && S.props && !loading && !Dialogue.isOpen) {
       let best = 1.05;
       for (const pr of S.props) { pr.mesh.getWorldPosition(wp); const d = Math.hypot(wp.x - pos.x, wp.z - pos.z) - (pr.reach ? pr.reach - 1.05 : 0); if (d < best) { best = d; nearProp = pr; } }
     }
-    if (S.props) for (const pr of S.props) { const m = Array.isArray(pr.mesh.material) ? pr.mesh.material[2] : pr.mesh.material; m.emissiveIntensity = pr === nearProp ? (pr.view ? 0.06 : 0.18) + Math.sin(pt * 5) * (pr.view ? 0.04 : 0.12) : 0; if (!pr.view) pr.mesh.visible = !(inHand === pr && kp > 0.35); }
-    if (!inHand) { if (nearProp) { propBtn.textContent = ({ map: '🗺 ', notebook: '📓 ', board: '🔍 ' }[nearProp.id] || '') + nearProp.label; propBtn.classList.add('show'); } else propBtn.classList.remove('show'); }
+    if (S.props) for (const pr of S.props) { if (pr.talk) continue; const m = Array.isArray(pr.mesh.material) ? pr.mesh.material[2] : pr.mesh.material; m.emissiveIntensity = pr === nearProp ? (pr.view ? 0.06 : 0.18) + Math.sin(pt * 5) * (pr.view ? 0.04 : 0.12) : 0; if (!pr.view) pr.mesh.visible = !(inHand === pr && kp > 0.35); }
+    if (!inHand) { if (nearProp) { propBtn.textContent = ({ map: '🗺 ', notebook: '📓 ', board: '🔍 ' }[nearProp.id] || (nearProp.talk ? '💬 ' : '')) + nearProp.label; propBtn.classList.add('show'); } else propBtn.classList.remove('show'); }
     kp += ((inHand ? 1 : 0) - kp) * Math.min(1, dt * 6);
     const portrait = innerWidth < innerHeight;
     for (const id in GROUP) {
@@ -3620,7 +3707,8 @@ function drawHudTo(g, W, t) {
     pHemi.color.lerp(tgtSky, a); pHemi.groundColor.lerp(tgtGround, a); pHemi.intensity += (tgtHemi - pHemi.intensity) * a;
   }
   return {
-    get isOpen() { return open || !!inHand; }, poseCaine, povCamera, close: () => setOpen(false), toggle: () => setOpen(!open),
+    get isOpen() { return open || !!inHand || (typeof Dialogue !== 'undefined' && Dialogue.isOpen); },
+    photos, saveRoll, poseCaine, povCamera, close: () => setOpen(false), toggle: () => setOpen(!open),
     render(dt) {
       pt += dt; k += ((open ? 1 : 0) - k) * Math.min(1, dt * 8);
       updateProps(dt);
@@ -3638,6 +3726,122 @@ function drawHudTo(g, W, t) {
       if (ph.app === 'camera' && k > 0.6) { if (lens.fov !== aim.fov) { lens.fov = aim.fov; lens.updateProjectionMatrix(); } if (S.drive) { lens.position.copy(camera.position); lens.quaternion.copy(camera.quaternion); } else { lens.position.copy(eye); lens.quaternion.copy(povQ); } const mv = man.visible; man.visible = false; renderer.setRenderTarget(RT); renderer.render(scene, lens); renderer.setRenderTarget(null); man.visible = mv; }
       renderer.autoClear = false; renderer.clearDepth(); renderer.render(pScene, pCam); renderer.autoClear = true;
     },
+  };
+})();
+
+/* =========================================================
+   CONVERSATIONS — the noir-subtitle dialogue box. Any character can use it: a script is a set of
+   nodes, each with a line and up to three replies. Letterbox bars come in, the HUD steps aside,
+   1/2/3 or a tap picks a reply, Enter/Space/tap skips the typing.
+   ========================================================= */
+const Dialogue = (() => {
+  const box = document.getElementById('dlg'), whoEl = box.querySelector('.who'), lineEl = box.querySelector('.line'), ul = box.querySelector('.replies'), tap = box.querySelector('.tap');
+  const catcher = document.getElementById('dlgCatch');
+  let script = null, node = null, full = '', shown = 0, timer = null, talkingWith = null, onEnd = null, replies = [];
+  // a two-shot while you talk: the camera eases round to frame both of you, over his shoulder
+  let target = null, side = 0, shotK = 0; const A = new THREE.Vector3(), B = new THREE.Vector3(), C = new THREE.Vector3(), L = new THREE.Vector3(), shotQ = new THREE.Quaternion(), m4 = new THREE.Matrix4();
+  function cam(dt) {
+    shotK += ((script && target ? 1 : 0) - shotK) * Math.min(1, dt * 2.5); if (shotK < 0.002 || !target) return;
+    target.getWorldPosition(B); A.set(pos.x, pos.y + 1.55, pos.z);
+    const dx = B.x - A.x, dz = B.z - A.z, d = Math.hypot(dx, dz) || 1, nx = -dz / d, nz = dx / d;
+    if (!side) { const ok = (sg) => { const x = (A.x + B.x) / 2 + nx * sg * 2.1 - dx / d * 0.9, z = (A.z + B.z) / 2 + nz * sg * 2.1 - dz / d * 0.9; return !(S.blocked && S.blocked(x, z)); };
+      const near = Math.sign(((camera.position.x - A.x) * nx + (camera.position.z - A.z) * nz)) || 1; side = ok(near) ? near : ok(-near) ? -near : near; }
+    C.set((A.x + B.x) / 2 + nx * side * 2.1 - dx / d * 0.9, Math.max(A.y, B.y) + 0.55, (A.z + B.z) / 2 + nz * side * 2.1 - dz / d * 0.9);
+    L.lerpVectors(A, B, 0.62); L.y -= 0.12;
+    m4.lookAt(C, L, THREE.Object3D.DEFAULT_UP); shotQ.setFromRotationMatrix(m4);
+    const e = shotK * shotK * (3 - 2 * shotK); camera.position.lerp(C, e); camera.quaternion.slerp(shotQ, e);
+  }
+  function open(scr, opts = {}) {
+    if (PhoneUI.isOpen) PhoneUI.close();
+    script = scr; talkingWith = opts.with || null; onEnd = opts.onEnd || null; target = opts.target || null; side = 0;
+    held.clear(); route = [];
+    document.body.classList.add('talking');
+    say(opts.start || 'start');
+  }
+  function close() {
+    if (!script) return; clearInterval(timer); script = null; node = null; const w = talkingWith; talkingWith = null;
+    document.body.classList.remove('talking'); box.classList.remove('done');
+    onEnd && onEnd(w);
+  }
+  function say(id) {
+    const n = typeof script[id] === 'function' ? script[id]() : script[id];
+    if (!n) return close();
+    n.do && n.do(); node = n;
+    whoEl.textContent = n.who || script.who || '';
+    full = n.line; shown = 0; lineEl.textContent = ''; ul.innerHTML = ''; ul.classList.remove('show'); tap.classList.remove('show'); box.classList.remove('done');
+    clearInterval(timer); timer = setInterval(() => { shown = Math.min(full.length, shown + 1); lineEl.textContent = full.slice(0, shown); if (shown >= full.length) finish(); }, 26);
+  }
+  function finish() {
+    clearInterval(timer); shown = full.length; lineEl.textContent = full; box.classList.add('done');
+    replies = (node.replies || []).filter(r => !r.if || r.if());
+    if (!replies.length) { tap.textContent = node.next ? 'tap ▸' : 'tap to close ▸'; tap.classList.add('show'); return; }
+    ul.innerHTML = replies.map((r, i) => `<li data-i="${i}"><b>${i + 1}</b>${r.t}</li>`).join('');
+    ul.querySelectorAll('li').forEach(li => li.addEventListener('click', e => { e.stopPropagation(); pick(+li.dataset.i); }));
+    requestAnimationFrame(() => ul.classList.add('show'));
+  }
+  function pick(i) { const r = replies[i]; if (!r) return; r.do && r.do(); r.go ? say(r.go) : close(); }
+  function advance() { if (!script) return; if (shown < full.length) { finish(); return; } if (!replies.length) { node.next ? say(node.next) : close(); } }
+  catcher.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); advance(); });
+  box.addEventListener('pointerdown', e => { if (e.target.closest('li')) return; e.stopPropagation(); advance(); });
+  addEventListener('keydown', e => {
+    if (!script) return;
+    if (/^Digit[1-3]$/.test(e.code) || /^Numpad[1-3]$/.test(e.code)) { if (shown >= full.length) pick(+e.code.slice(-1) - 1); }
+    else if (e.code === 'Enter' || e.code === 'Space' || e.code === 'KeyE') advance();
+    else if (e.code === 'Escape') close();
+    e.preventDefault(); e.stopImmediatePropagation();
+  }, true);
+  window.__closeTalk = close;
+  return { open, close, cam, get isOpen() { return !!script; }, get with() { return talkingWith; } };
+})();
+
+/* ---------------------------------------------------------
+   VERA — the front desk outside Caine's office. PLACEHOLDER name and lines: rewrite freely.
+   Each node: { line, replies: [{ t: reply text, go: next node, if: () => show only when true, do: () => side effect }] }.
+   Leave replies empty to end on that line (or add next: 'node' to continue after a tap).
+   --------------------------------------------------------- */
+const VERA = (() => {
+  let visits = 0; try { visits = +localStorage.getItem('caineVera') || 0; } catch (e) {}
+  const queued = () => PhoneUI.photos.filter(p => p.sent && !p.pinned), pinned = () => PhoneUI.photos.filter(p => p.pinned);
+  const plural = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
+  const COMMENT = {   // what she says about where the newest photo was taken
+    Alley: "The alley off Ninth again? You know nobody sweeps back there.",
+    'Parking lot': "Our own parking lot. Either you're very thorough or very bored.",
+    Cemetery: "The cemetery, Detective? At that hour?",
+    Doorway: "That doorway gives me the shivers. I don't know why.",
+    Precinct: "That's the squad room. I work here, Detective. I've seen it.",
+    Warehouse: "The warehouse. Bring a flashlight next time, half of these are shadows.",
+  };
+  const pick = (a) => a[Math.random() * a.length | 0];
+  return {
+    who: 'Vera · Front desk',
+    start: () => ({
+      do: () => { visits++; try { localStorage.setItem('caineVera', visits); } catch (e) {} },
+      line: visits <= 1 ? "You must be Caine. They said you'd be the one who looks like he hasn't slept. I'm Vera — I keep the desk, the files, and the coffee." :
+        queued().length ? pick(["There you are. Your phone's been busy — I've got pictures piling up on my desk.", "Evening, Detective. You've been sending me things."]) :
+        pick(["Another late one, Detective? Coffee's been on since six. It's terrible, but it's hot.", "Detective. You look like the rain followed you in.", "Back again. The Chief's door has been closed all night, if you're wondering."]),
+      replies: [
+        { t: `I sent you some photos.`, go: 'photos', if: () => queued().length > 0 },
+        { t: 'Anything come in for me?', go: 'msg' },
+        { t: "What's on the board?", go: 'board', if: () => pinned().length > 0 && !queued().length },
+        { t: 'Just passing through.', go: 'bye' },
+      ],
+    }),
+    msg: () => pick([
+      { line: "A man called twice. Wouldn't leave a name — said you'd know. Voice like gravel in a coffee can.", replies: [{ t: 'Did he leave a number?', go: 'num' }, { t: 'Thanks, Vera.', go: 'end' }] },
+      { line: "Rush came by looking for you. He said, and I quote, 'tell him I covered.' Covered what, he didn't say.", replies: [{ t: 'Thanks, Vera.', go: 'end' }] },
+      { line: "Nothing but the Chief's laundry and a parking ticket with your name on it. I put it in the drawer where tickets go to die.", replies: [{ t: 'You\'re a saint.', go: 'end' }] },
+    ]),
+    num: { line: "Just a word. \"Coquina.\" I wrote it down twice so I'd stop hearing it.", replies: [{ t: 'Pin it to the board.', go: 'end' }] },
+    photos: () => {
+      const q = queued(), newest = q[0], c = COMMENT[newest && newest.where] || "I won't ask where you were.";
+      return { do: () => { q.forEach(p => p.pinned = true); PhoneUI.saveRoll(); },
+        line: `Got ${plural(q.length, 'photo')}. ${c} They're on your board now.`,
+        replies: [{ t: 'Thanks, Vera.', go: 'end' }, { t: 'Any thoughts?', go: 'thoughts' }] };
+    },
+    thoughts: { line: "Me? I type and I file. But if I were a detective, I'd ask why the same street keeps turning up.", replies: [{ t: 'Noted.', go: 'end' }] },
+    board: () => ({ line: `${plural(pinned().length, 'photo')} up, and that red string is getting ideas.`, replies: [{ t: 'Thanks, Vera.', go: 'end' }] }),
+    bye: { line: "Suit yourself. The coffee will still be terrible later.", replies: [] },
+    end: () => ({ line: pick(["Go home sometime, Detective. The city'll still be crooked in the morning.", "Don't let it eat you, Caine.", "I'll be here. Somebody has to be."]), replies: [] }),
   };
 })();
 
@@ -3889,6 +4093,7 @@ renderer.setAnimationLoop(() => {
   if (!paused) { if (!S.drive) updateWalker(dt, now); S.update && S.update(dt, now); Pigeons.update(dt, now); }
   PhoneUI.poseCaine();
   updateCamera(dt);
+  Dialogue.cam(dt);
   PhoneUI.povCamera();
   drawGrain();
   renderer.render(scene, camera);
