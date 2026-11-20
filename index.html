@@ -2978,7 +2978,9 @@ function keyWalk(dt) {
    Grain + loop
    ========================================================= */
 const grain = document.getElementById('grain'), gctx = grain.getContext('2d'), gimg = gctx.createImageData(200, 200);
+let grainTick = 0;
 function drawGrain() {
+  if ((grainTick = (grainTick + 1) % 3) && typeof PhoneUI !== 'undefined' && PhoneUI.isOpen) return;   // with the phone up, the grain shifts slower so it reads as texture, not flicker
   const d = gimg.data;
   for (let i = 0; i < d.length; i += 4) { const v = Math.random() * 255; d[i] = d[i + 1] = d[i + 2] = v; d[i + 3] = 255; }
   gctx.putImageData(gimg, 0, 0);
@@ -3581,7 +3583,7 @@ function drawHudTo(g, W, t) {
     render(dt) {
       pt += dt; k += ((open ? 1 : 0) - k) * Math.min(1, dt * 8);
       updateProps(dt);
-      grain.style.opacity = (0.09 * (1 - Math.min(1, Math.max(k, kp)) * 0.9)).toFixed(3);
+      grain.style.opacity = (0.09 * (1 - Math.min(1, Math.max(k, kp)) * 0.5)).toFixed(3);   // keep about half the grain so it doesn't go clinically clean
       phone.visible = k > 0.01;
       if (!phone.visible) { if (book.visible || mapG.visible) { renderer.autoClear = false; renderer.clearDepth(); renderer.render(pScene, pCam); renderer.autoClear = true; } return; }
       const portrait = innerWidth < innerHeight;
