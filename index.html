@@ -74,7 +74,7 @@
 <canvas id="grain" width="200" height="200"></canvas>
 <div id="vignette"></div>
 <div id="fade"></div>
-<div id="hint">WASD or arrows to walk · glowing circles take you places</div>
+<div id="hint">Walk</div>
 <div id="bottomBar">
 <div id="logo"><i>The Fall of</i><b>CAINE</b></div>
 <div id="topRight">
@@ -2900,7 +2900,7 @@ const joyEnd = e => {
   joy.on = false; joy.id = null; joy.x = joy.y = 0; joyEl.classList.remove('on'); knob.style.transform = '';
 };
 canvas.addEventListener('pointerup', joyEnd); canvas.addEventListener('pointercancel', joyEnd);
-if (matchMedia('(pointer: coarse)').matches) document.getElementById('hint').textContent = 'Drag to walk · glowing circles take you places';
+if (matchMedia('(pointer: coarse)').matches) document.getElementById('hint').textContent = 'Walk';
 function keyWalk(dt) {
   portalCooldown = Math.max(0, portalCooldown - dt);
   if (!portalArmed && S && !loading && !(S.portals || []).some(q => Math.hypot(q.x - pos.x, q.z - pos.z) < 1.4)) portalArmed = true;
