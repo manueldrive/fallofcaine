@@ -12,7 +12,10 @@
   #vignette { position: fixed; inset: 0; pointer-events: none;
     background: radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0) 45%, rgba(0,0,0,.75) 100%); }
   .bar { position: fixed; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-  #topRight { position: fixed; right: 16px; top: 14px; z-index: 3; display: flex; gap: 8px; align-items: stretch; }
+  #bottomBar { position: fixed; left: 0; right: 0; bottom: 0; height: 64px; z-index: 3; display: flex; align-items: center; justify-content: space-between;
+    padding: 0 16px calc(env(safe-area-inset-bottom, 0px)); box-sizing: content-box; pointer-events: none;
+    background: linear-gradient(to top, rgba(0,0,0,.85), rgba(0,0,0,.55) 70%, rgba(0,0,0,0)); }
+  #topRight { display: flex; gap: 8px; align-items: stretch; pointer-events: auto; }
   #musicBtn { background: rgba(0,0,0,.55); color: #ddd; border: 1px solid #666; padding: 0 12px; font: 15px 'Bebas Neue', Impact, sans-serif; letter-spacing: .2em;
     cursor: pointer; display: flex; align-items: center; gap: 8px; user-select: none; -webkit-user-select: none; touch-action: none; position: relative; overflow: hidden; }
   #musicBtn:hover { border-color: #ddd; color: #fff; }
@@ -21,7 +24,7 @@
   #musicBtn .hold { position: absolute; left: 0; bottom: 0; height: 2px; width: 0; background: #ddd; }
   #musicBtn.holding .hold { width: 100%; transition: width .5s linear; }
   @keyframes eq { 0%,100% { height: 3px } 50% { height: 12px } }
-  #songs { position: fixed; right: 16px; top: 54px; z-index: 4; background: rgba(8,8,8,.95); border: 1px solid #444; padding: 8px; min-width: 210px; transition: opacity .2s; }
+  #songs { position: fixed; right: 16px; bottom: calc(72px + env(safe-area-inset-bottom, 0px)); z-index: 4; background: rgba(8,8,8,.95); border: 1px solid #444; padding: 8px; min-width: 210px; transition: opacity .2s; }
   #songs.closed { opacity: 0; pointer-events: none; }
   #songs h4 { margin: 2px 4px 8px; color: #777; font: 11px Arial, sans-serif; letter-spacing: .3em; text-transform: uppercase; font-weight: normal; }
   #songs button { display: block; width: 100%; text-align: left; background: none; border: 0; color: #bbb; font: 17px 'Bebas Neue', Impact, sans-serif; letter-spacing: .2em; padding: 7px 8px; cursor: pointer; }
@@ -45,20 +48,20 @@
   #joy.on { opacity: 1; }
   #joy i { position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%; background: rgba(240,236,226,.75); }
   canvas#scene { touch-action: none; }
-  #panel { position: fixed; right: 16px; top: 54px; z-index: 3; width: min(300px, calc(100vw - 32px)); max-height: calc(100vh - 80px); overflow: auto;
+  #panel { position: fixed; right: 16px; bottom: calc(72px + env(safe-area-inset-bottom, 0px)); z-index: 3; width: min(300px, calc(100vw - 32px)); max-height: calc(100vh - 100px); overflow: auto;
     background: rgba(8,8,8,.92); border: 1px solid #444; padding: 14px 14px 6px; box-sizing: border-box; transition: opacity .25s, transform .25s; }
-  #panel.closed { opacity: 0; transform: translateY(-6px); pointer-events: none; }
+  #panel.closed { opacity: 0; transform: translateY(6px); pointer-events: none; }
   #panel h4 { margin: 0 0 8px; color: #777; font: 11px Arial, sans-serif; letter-spacing: .3em; text-transform: uppercase; font-weight: normal; }
   #panel .bar { position: static; margin-bottom: 14px; }
   #panel .bar button { flex: 1 1 auto; }
-  #logo { position: fixed; left: 2.5vw; top: 3vh; text-align: center; pointer-events: none; color: #f3f1ea; line-height: .86; opacity: .75; z-index: 2; }
-  #logo i { display: block; font: 400 clamp(15px, 1.5vw, 26px) 'Great Vibes', cursive; text-shadow: 0 .1em .4em rgba(0,0,0,.8); }
-  #logo b { display: block; font: 400 clamp(30px, 3.2vw, 56px) 'Bebas Neue', Impact, sans-serif; letter-spacing: .03em;
+  #logo { text-align: center; pointer-events: none; color: #f3f1ea; line-height: .86; opacity: .85; }
+  #logo i { display: block; font: 400 clamp(12px, 1.1vw, 17px) 'Great Vibes', cursive; text-shadow: 0 .1em .4em rgba(0,0,0,.8); }
+  #logo b { display: block; font: 400 clamp(24px, 2.2vw, 34px) 'Bebas Neue', Impact, sans-serif; letter-spacing: .03em;
     text-shadow: 1px 1px 0 #8d8c90, 2px 2px 0 #737276, 3px 3px 0 #5a595d, 4px 5px 10px rgba(0,0,0,.7); }
   .bar button { background: rgba(0,0,0,.55); color: #bbb; border: 1px solid #555; padding: 7px 12px; font: inherit; font-size: 13px;
     letter-spacing: .08em; text-transform: uppercase; cursor: pointer; }
   .bar button.on { border-color: #ddd; color: #fff; }
-  #hint { position: fixed; bottom: 18px; left: 16px; right: 16px; text-align: center; color: #999; font-size: 13px; letter-spacing: .15em;
+  #hint { position: fixed; bottom: calc(78px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%); width: max-content; max-width: calc(100% - 32px); box-sizing: border-box; text-align: center; color: #ddd; background: rgba(0,0,0,.65); padding: 7px 14px; font-size: 13px; letter-spacing: .15em;
     text-transform: uppercase; pointer-events: none; transition: opacity 1.5s; }
   #fade { position: fixed; inset: 0; background: #000; pointer-events: none; opacity: 1; transition: opacity .6s; }
 </style>
@@ -71,12 +74,14 @@
 <canvas id="grain" width="200" height="200"></canvas>
 <div id="vignette"></div>
 <div id="fade"></div>
+<div id="hint">WASD or arrows to walk · glowing circles take you places</div>
+<div id="bottomBar">
 <div id="logo"><i>The Fall of</i><b>CAINE</b></div>
-<div id="hint">WASD or arrow keys to walk · click the floor to send him · walk into a glowing door to go through</div>
 <div id="topRight">
   <button id="musicBtn" title="Tap: music on/off · hold: pick a song" aria-label="Music"><svg class="note" viewBox="0 0 24 24" fill="currentColor"><path d="M9 17.5a3 3 0 1 1-2-2.83V5l11-2v11.5a3 3 0 1 1-2-2.83V6.2L9 7.5z"/></svg><svg class="x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 4l16 16"/></svg><span class="hold"></span></button>
   <button id="camToggle" title="Camera: overhead (C to switch)" aria-label="Switch camera"></button>
   <button id="menuBtn" aria-label="Menu" title="Menu (M)">☰</button>
+</div>
 </div>
 <div id="whereTo"><p id="whereQ">Where to?</p><button data-i="0"></button><button data-i="1"></button></div>
 <div id="joy"><i></i></div>
@@ -2435,7 +2440,7 @@ function buildDrive() {
       for (const A of [armL, armR]) { A.sh.rotation.x = -0.95; A.el.rotation.x = -0.6; }
       armL.sh.rotation.z = 0.32; armR.sh.rotation.z = -0.1;
       applyMood(M);
-      const h = document.getElementById('hint'); h.textContent = 'Arrow keys or WASD to drive · click the left or right of the screen to change lanes'; h.style.opacity = 1;
+      const h = document.getElementById('hint'); h.textContent = matchMedia('(pointer: coarse)').matches ? 'Tap left or right to change lanes' : 'Arrows or WASD to drive'; h.style.opacity = 1;
       clearTimeout(self._ht); self._ht = setTimeout(() => h.style.opacity = 0, 7000);
     },
     onExit() { scene.add(man); man.rotation.set(0, 0, 0); armL.sh.rotation.z = 0.08; armR.sh.rotation.z = -0.08; canvas.style.filter = ''; keys.clear(); },
@@ -2895,7 +2900,7 @@ const joyEnd = e => {
   joy.on = false; joy.id = null; joy.x = joy.y = 0; joyEl.classList.remove('on'); knob.style.transform = '';
 };
 canvas.addEventListener('pointerup', joyEnd); canvas.addEventListener('pointercancel', joyEnd);
-if (matchMedia('(pointer: coarse)').matches) document.getElementById('hint').textContent = 'Drag anywhere to walk · tap to send him somewhere · step on a glowing marker to go through';
+if (matchMedia('(pointer: coarse)').matches) document.getElementById('hint').textContent = 'Drag to walk · glowing circles take you places';
 function keyWalk(dt) {
   portalCooldown = Math.max(0, portalCooldown - dt);
   if (!S || S.drive || loading || paused || (!held.size && !joy.on)) return;

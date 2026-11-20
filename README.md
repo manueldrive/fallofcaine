@@ -9,7 +9,7 @@ A pulp noir walkabout in Coquina City, built with three.js. It's a single page w
 - **Click the floor:** send him somewhere.
 - **On phones:** drag anywhere to walk (a joystick appears under your thumb). Tap to send him somewhere.
 - **Glowing markers:** walk onto one to go through a door or get in your car.
-- **C** or the camera button (top right, between music and menu): switch between the overhead and over-the-shoulder cameras.
+- **C** or the camera button (bottom bar, between music and menu): switch between the overhead and over-the-shoulder cameras.
 - **☰** (or M / Esc): jump to a location, change the camera, pause, set the mood.
 - **Music button:** tap to mute, hold to pick a song.
 - **Driving:** arrow keys / WASD steer. Pick a destination with **Q** or **E**.
