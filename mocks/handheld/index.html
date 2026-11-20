@@ -460,7 +460,7 @@ function foldMap(k) {   // k: 0 folded → 1 open
 
 // ---------- modes ----------
 let mode = 'phone'; const MODES = {
-  phone: { g: phone, act: 'OK', note: 'Traced from your reference: chrome band, rocker keys, trackball ring, smile-curved keys with the number pad. Lo-fi button toggles the pixel + sepia look. His phone runs everything: Messages, Camera (snap clues), Notes (the case file), Map (pan the city, pins and leads) and Snake. Arrow keys = trackball, Enter = click, Esc = back.' },
+  phone: { g: phone, act: 'OK', note: 'Traced from your reference: chrome band, rocker keys, trackball ring, smile-curved keys with the number pad. His phone runs everything: Messages, Camera (snap clues), Notes (the case file), Map (pan the city, pins and leads) and Snake. Arrow keys = trackball, Enter = click, Esc = back.' },
   side: { g: side, act: 'OK', note: 'Sidekick version: held sideways in both hands. The screen swivels a half turn to uncover the keyboard — same home screen, camera and texts, in a wide, low-res frame.' },
   notebook: { g: book, act: 'Turn page', note: 'Pocket notebook: handwriting fills in as the pencil moves; pages curl when they turn. Q&A, ledgers, his thoughts.' },
   map: { g: mapG, act: 'Fold', note: 'Folded street map: unfolds panel by panel. Circled leads and question marks in the one accent color.' },
@@ -516,7 +516,7 @@ function layout() {
   mapG.userData.pos = new THREE.Vector3(0, -0.01, -0.3 * (portrait ? 1.45 : 1)); mapG.userData.rot = new THREE.Euler(-0.35, 0, 0);
 }
 layout(); addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); layout(); });
-lofi = true; applyLofi();
+applyLofi();
 
 const clock = new THREE.Clock(), aim = new THREE.Vector3();
 renderer.setAnimationLoop(() => {
