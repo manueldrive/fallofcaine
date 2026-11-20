@@ -3287,10 +3287,13 @@ function drawHudTo(g, W, t) {
   const pGlow = new THREE.PointLight(0x9fb4e0, 0, 0.9, 2); pGlow.position.set(0, 0.03, 0.08); prop.add(pGlow);
   prop.position.set(0.01, -0.34, 0.03); prop.rotation.set(-1.25, 0, 0.15); prop.scale.setScalar(0.9); prop.visible = false; armR.el.add(prop);
   const L = THREE.MathUtils.lerp;
+  // the walk cycle rewrites the x rotations every frame; the shoulder's z (and y) it never touches, so blend those from their rest values
+  const rest = { z: armR.sh.rotation.z, y: armR.sh.rotation.y }; let posed = false;
   function poseCaine() {
     prop.visible = k > 0.15; pGlow.intensity = 0.35 * k;
-    if (k < 0.01 || S.drive) return;
-    armR.sh.rotation.x = L(armR.sh.rotation.x, -0.72, k); armR.sh.rotation.z = L(armR.sh.rotation.z, 0.32, k); armR.sh.rotation.y = L(armR.sh.rotation.y, 0, k);
+    if (k < 0.01 || S.drive) { if (posed) { armR.sh.rotation.z = rest.z; armR.sh.rotation.y = rest.y; posed = false; } return; }
+    posed = true;
+    armR.sh.rotation.x = L(armR.sh.rotation.x, -0.72, k); armR.sh.rotation.z = L(rest.z, 0.32, k); armR.sh.rotation.y = L(rest.y, 0, k);
     armR.el.rotation.x = L(armR.el.rotation.x, -1.55, k);
     armL.sh.rotation.x = L(armL.sh.rotation.x, -0.2, k); armL.el.rotation.x = L(armL.el.rotation.x, -0.5, k);
     head.rotation.x = L(head.rotation.x, 0.5, k); chest.rotation.x = L(chest.rotation.x, 0.08, k);
