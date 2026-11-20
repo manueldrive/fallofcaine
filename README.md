@@ -11,7 +11,7 @@ A pulp noir walkabout in Coquina City, built with three.js. It's a single page w
 - **Glowing markers:** walk onto one to go through a door or get in your car.
 - **C** or the camera button (bottom bar, between music and menu): switch between the overhead and over-the-shoulder cameras.
 - **☰** (or M / Esc): jump to a location, change the camera, pause, set the mood.
-- **Phone** (bottom bar, or **P**): Caine's phone comes up. Tap the screen to open apps and items; drag the trackball to scroll and tap it to click; the back key goes back and the red end key puts the phone away (the green key opens Messages, the menu key goes home). Drag the map to pan, mouse wheel scrolls. Keys work too: arrows / WASD, Enter, Esc. Clicks give a little tick (and a buzz on phones that support it). Messages, Camera (snaps what Caine sees), Notes, Map (shows where you are) and Snake.
+- **Phone** (bottom bar, or **P**): Caine's phone comes up. Tap the screen to open apps and items; drag the trackball to scroll and tap it to click; the back key goes back and the red end key puts the phone away (the green key opens Messages, the menu key goes home). Drag the map to pan, mouse wheel scrolls. Hold it how you like: drag the phone's body to tilt it, pinch (or ctrl + scroll / trackpad pinch) to bring it closer, double tap the body to reset. While the phone is up the view moves into Caine's eyes, so the camera app shows what he sees. Keys work too: arrows / WASD, Enter, Esc. Clicks give a little tick (and a buzz on phones that support it). Messages, Camera (snaps what Caine sees), Notes, Map (shows where you are) and Snake.
 - **Music button:** tap to mute, hold to pick a song.
 - **Driving:** arrow keys / WASD steer. Pick a destination with **Q** or **E**.
 
