@@ -61,6 +61,8 @@
   #phoneBtn:hover, #phoneBtn.on { border-color: #e2b23a; color: #f4d27a; }
   #phoneBtn svg { width: 22px; height: 22px; }
   #propBtn { position: fixed; bottom: calc(118px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%) translateY(8px); opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; z-index: 7; font: 600 13px/1 'Courier New', monospace; letter-spacing: .14em; text-transform: uppercase; color: #111; background: #e2b23a; border: 0; border-radius: 999px; padding: 11px 18px; box-shadow: 0 6px 18px rgba(0,0,0,.45); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  #boardTip { position: fixed; bottom: calc(168px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%); z-index: 7; max-width: calc(100% - 32px); width: max-content; text-align: center; font: 600 11px/1.4 'Courier New', monospace; letter-spacing: .12em; text-transform: uppercase; color: #ece6d2; background: rgba(0,0,0,.65); padding: 8px 14px; border-radius: 999px; opacity: 0; pointer-events: none; transition: opacity .3s; }
+  #boardTip.show { opacity: 1; }
   #propBtn.show { opacity: 1; pointer-events: auto; transform: translateX(-50%); }
   #propBtn.held { background: rgba(0,0,0,.7); color: #eee; border: 1px solid rgba(255,255,255,.25); }
   /* conversations: noir subtitle */
@@ -126,6 +128,7 @@
 <div id="phoneFlash"></div>
 <div id="dlgCatch"></div><div id="lbTop"></div><div id="dlgShade"></div><div id="dlgFace"></div><div id="dlg"><div class="who"></div><div class="line"></div><ul class="replies"></ul><div class="tap">tap ▸</div></div>
 <button id="propBtn" type="button"></button>
+<div id="boardTip"></div>
 
 <div id="bottomBar">
 <div id="logo"><i>The Fall of</i><b>CAINE</b></div>
@@ -407,22 +410,12 @@ function buildOffice() {
     }
     noise(g, s, 16);
   });
-  const cork = canvasTex(1024, (g, s) => {
+  const cork = canvasTex(1024, (g, s) => {   // bare cork: everything on the board is something Caine found
     g.fillStyle = 'rgb(150,108,66)'; g.fillRect(0, 0, s, s); noise(g, s, 60);
-    const pins = [];
-    for (let i = 0; i < 11; i++) {
-      const x = 80 + Math.random() * (s - 240), y = 80 + Math.random() * (s - 260), w = 110 + Math.random() * 90, h = 130 + Math.random() * 70;
-      g.save(); g.translate(x + w / 2, y + h / 2); g.rotate((Math.random() - .5) * .25);
-      const photo = Math.random() < .4;
-      g.fillStyle = photo ? 'rgb(40,40,40)' : 'rgb(225,215,190)'; g.fillRect(-w / 2, -h / 2, w, h);
-      if (photo) { g.fillStyle = 'rgb(120,120,120)'; g.beginPath(); g.arc(0, -10, w * .2, 0, Math.PI * 2); g.fill(); g.fillRect(-w * .3, h * .1, w * .6, h * .3); }
-      else { g.fillStyle = 'rgba(30,30,30,.6)'; for (let l = 0; l < 7; l++) g.fillRect(-w / 2 + 12, -h / 2 + 18 + l * 15, (w - 24) * (.5 + Math.random() * .5), 4); }
-      g.restore(); pins.push([x + w / 2, y + 14]);
-    }
-    g.strokeStyle = 'rgb(170,20,20)'; g.lineWidth = 4;
-    for (let i = 0; i < 9; i++) { const a = pins[i], b = pins[(i * 3 + 2) % pins.length]; g.beginPath(); g.moveTo(...a); g.lineTo(...b); g.stroke(); }
-    for (const [x, y] of pins) { g.fillStyle = 'rgb(200,30,30)'; g.beginPath(); g.arc(x, y, 9, 0, Math.PI * 2); g.fill(); }
+    for (let i = 0; i < 40; i++) { g.fillStyle = 'rgba(40,24,10,.35)'; g.beginPath(); g.arc(40 + Math.random() * (s - 80), 40 + Math.random() * (s - 80), 2.5, 0, 7); g.fill(); }   // old pin holes
+    stains(g, s, 12, .12);
   });
+
   const chalk = canvasTex(512, (g, s) => {
     g.fillStyle = 'rgb(30,38,34)'; g.fillRect(0, 0, s, s); noise(g, s, 12);
     g.strokeStyle = 'rgba(220,220,210,.55)'; g.lineWidth = 2;
@@ -507,29 +500,89 @@ function buildOffice() {
   // corkboard on back wall
   const corkFrame = add(new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.95, 0.04), darkWood)); corkFrame.position.set(1.6, 1.85, RZ + 0.03);
   const corkFace = add(new THREE.Mesh(new THREE.PlaneGeometry(1.15, 0.85), mat({ map: cork, roughness: .95, emissive: 0xe2b23a, emissiveIntensity: 0 })), false); corkFace.position.set(1.6, 1.85, RZ + 0.055);
-  // photos Caine sent to Vera end up pinned here, polaroid-style, after she's had them in hand
-  const pinGroup = new THREE.Group(); group.add(pinGroup); const pinnedMeshes = new Map(); let pinTick = 0;
-  const PIN_SLOTS = [[-0.38, 0.24], [0.02, 0.27], [0.38, 0.22], [-0.2, -0.02], [0.2, 0.0], [-0.4, -0.25], [0.0, -0.27], [0.4, -0.24], [-0.05, 0.1], [0.3, -0.1], [-0.3, 0.08], [0.12, -0.15]];
-  const polaroidM = mat({ color: 0xece6d6, roughness: .9 }), pinM = mat({ color: 0xb02020, roughness: .35 });
+  // the board: starts as bare cork. Photos Vera pins up and note cards from leads appear here; when you study the board you can drag them about and run red string between them
+  const pinGroup = new THREE.Group(); group.add(pinGroup); const stringGroup = new THREE.Group(); group.add(stringGroup);
+  const pinnedMeshes = new Map(); let pinTick = 0, stringVer = -1, selected = null;
+  const BX = 1.6, BY = 1.85, BZ = RZ + 0.062, HW = 0.46, HH = 0.32;
+  const PIN_SLOTS = [[-0.38, 0.24], [0.02, 0.27], [0.38, 0.22], [-0.2, -0.02], [0.2, 0.0], [-0.4, -0.25], [0.0, -0.27], [0.4, -0.24], [-0.05, 0.1], [0.3, -0.1], [-0.3, 0.08], [0.12, -0.15], [-0.15, -0.18], [0.25, 0.14]];
+  const polaroidM = mat({ color: 0xece6d6, roughness: .9 }), pinM = mat({ color: 0xb02020, roughness: .35 }), selM = new THREE.MeshBasicMaterial({ color: 0xe2b23a }), stringM = mat({ color: 0xa31616, roughness: .6 });
+  function noteTex(text, sub) {
+    const c = document.createElement('canvas'); c.width = 256; c.height = 180; const g = c.getContext('2d');
+    const draw = () => { g.fillStyle = '#efe6cc'; g.fillRect(0, 0, 256, 180); g.strokeStyle = 'rgba(80,110,150,.35)'; g.lineWidth = 2; for (let y = 52; y < 180; y += 30) { g.beginPath(); g.moveTo(10, y); g.lineTo(246, y); g.stroke(); }
+      g.strokeStyle = 'rgba(170,60,60,.45)'; g.beginPath(); g.moveTo(0, 36); g.lineTo(256, 36); g.stroke();
+      g.fillStyle = '#1f2a44'; g.textAlign = 'center'; g.font = '700 40px Caveat, cursive'; g.fillText(text, 128, 100); g.font = '500 24px Caveat, cursive'; g.fillStyle = '#4a5468'; g.fillText(sub || '', 128, 140); };
+    draw(); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+    document.fonts && document.fonts.load('700 40px Caveat').then(() => { draw(); t.needsUpdate = true; }).catch(() => {});
+    return t;
+  }
+  function placeFor(id) {
+    const saved = Board.pos(id); if (saved) return saved;
+    const taken = [...pinnedMeshes.values()].map(m => [m.position.x - BX, m.position.y - BY]);
+    const slot = PIN_SLOTS.find(([x, y]) => !taken.some(([a, b]) => Math.hypot(a - x, b - y) < 0.12)) || [(Math.random() - 0.5) * 0.8, (Math.random() - 0.5) * 0.5];
+    const p = [slot[0], slot[1], (Math.random() - 0.5) * 0.22]; Board.setPos(id, ...p); return p;
+  }
+  function makeItem(it) {
+    const g = new THREE.Group(); g.userData.id = it.id;
+    const sel = new THREE.Mesh(new THREE.PlaneGeometry(0.215, 0.205), selM); sel.position.z = -0.001; sel.visible = false; g.add(sel); g.userData.sel = sel;
+    if (it.kind === 'photo') {
+      g.add(new THREE.Mesh(new THREE.PlaneGeometry(0.2, 0.19), polaroidM));
+      const tex = new THREE.CanvasTexture(it.p.cv); tex.colorSpace = THREE.SRGBColorSpace; tex.userData.ver = it.p.ver; g.userData.tex = tex; g.userData.p = it.p;
+      const pic = new THREE.Mesh(new THREE.PlaneGeometry(0.17, 0.1275), mat({ map: tex, roughness: .6 })); pic.position.set(0, 0.015, 0.001); g.add(pic);
+    } else {
+      const card = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 0.14), mat({ map: noteTex(it.text, it.sub), roughness: .9 })); g.add(card); sel.scale.set(1.02, 0.76, 1);
+    }
+    const pin = new THREE.Mesh(new THREE.SphereGeometry(0.012, 10, 8), pinM); pin.position.set(0, it.kind === 'photo' ? 0.08 : 0.055, 0.012); pin.castShadow = true; g.add(pin); g.userData.pin = pin;
+    const [x, y, r] = placeFor(it.id); g.position.set(BX + x, BY + y, BZ + pinnedMeshes.size * 0.0006); g.rotation.z = r;
+    pinGroup.add(g); pinnedMeshes.set(it.id, g); stringVer = -1;
+  }
+  const pa = new THREE.Vector3(), pb = new THREE.Vector3();
+  function rebuildStrings() {
+    for (const m of [...stringGroup.children]) { m.geometry.dispose(); stringGroup.remove(m); }
+    for (const [a, b] of Board.strings()) {
+      const A = pinnedMeshes.get(a), B = pinnedMeshes.get(b); if (!A || !B) continue;
+      A.userData.pin.getWorldPosition(pa); B.userData.pin.getWorldPosition(pb); pa.z += 0.004; pb.z += 0.004;
+      const mid = pa.clone().lerp(pb, 0.5); mid.y -= Math.min(0.04, pa.distanceTo(pb) * 0.08); mid.z += 0.003;
+      const tube = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([pa.clone(), mid, pb.clone()]), 16, 0.0022, 5), stringM); tube.castShadow = true; stringGroup.add(tube);
+    }
+    stringVer = Board.ver;
+  }
   function syncPins() {
     if (typeof PhoneUI === 'undefined') return;
-    const list = PhoneUI.photos.filter(p => p.pinned).slice(0, PIN_SLOTS.length);
-    for (const [p, g] of pinnedMeshes) if (!list.includes(p)) { pinGroup.remove(g); pinnedMeshes.delete(p); }
-    list.forEach(p => {
-      let g = pinnedMeshes.get(p);
-      if (!g) {
-        const used = new Set([...pinnedMeshes.values()].map(m => m.userData.slot)); const slot = PIN_SLOTS.findIndex((_, i) => !used.has(i)); if (slot < 0) return;
-        g = new THREE.Group(); g.userData.slot = slot;
-        const back = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 0.19), polaroidM); g.add(back);
-        const tex = new THREE.CanvasTexture(p.cv); tex.colorSpace = THREE.SRGBColorSpace; tex.userData.ver = p.ver;
-        const pic = new THREE.Mesh(new THREE.PlaneGeometry(0.17, 0.1275), mat({ map: tex, roughness: .6 })); pic.position.set(0, 0.015, 0.001); g.add(pic); g.userData.tex = tex;
-        const pin = new THREE.Mesh(new THREE.SphereGeometry(0.012, 10, 8), pinM); pin.position.set(0, 0.08, 0.01); pin.castShadow = true; g.add(pin);
-        const [sx, sy] = PIN_SLOTS[slot]; g.position.set(1.6 + sx, 1.85 + sy, RZ + 0.062 + slot * 0.0006); g.rotation.z = (Math.random() - 0.5) * 0.22;
-        pinGroup.add(g); pinnedMeshes.set(p, g);
-      }
-      if (g.userData.tex.userData.ver !== p.ver) { g.userData.tex.userData.ver = p.ver; g.userData.tex.needsUpdate = true; }
-    });
+    const list = Board.items();
+    for (const [id, g] of pinnedMeshes) if (!list.some(it => it.id === id)) { pinGroup.remove(g); pinnedMeshes.delete(id); stringVer = -1; }
+    for (const it of list) { const g = pinnedMeshes.get(it.id); if (!g) makeItem(it); else if (g.userData.tex && g.userData.tex.userData.ver !== it.p.ver) { g.userData.tex.userData.ver = it.p.ver; g.userData.tex.needsUpdate = true; } }
+    if (stringVer !== Board.ver) { pinGroup.updateMatrixWorld(true); rebuildStrings(); }
   }
+  // studying the board: tap a pin to pick it up for string, tap another to tie (or untie) them; drag a pin to move it
+  const bRay = new THREE.Raycaster(), bNdc = new THREE.Vector2(), bPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), -BZ), bHit = new THREE.Vector3();
+  let bDrag = null;
+  const tip = document.getElementById('boardTip');
+  function rayAt(cx, cy) { bNdc.set(cx / innerWidth * 2 - 1, -(cy / innerHeight) * 2 + 1); camera.updateMatrixWorld(); bRay.setFromCamera(bNdc, camera); }
+  function select(id) { if (selected) pinnedMeshes.get(selected) && (pinnedMeshes.get(selected).userData.sel.visible = false); selected = id; if (id && pinnedMeshes.get(id)) pinnedMeshes.get(id).userData.sel.visible = true; showTip(); }
+  function showTip(msg) { if (!tip) return; tip.textContent = msg || (!pinnedMeshes.size ? 'Nothing on the board yet. Send Vera photos, follow leads.' : selected ? 'Now tap another pin to run string to it — or tap it again to let go' : 'Drag pins to move them · tap two pins to tie red string'); }
+  const boardUI = {
+    enter() { tip && tip.classList.add('show'); select(null); },
+    exit() { tip && tip.classList.remove('show'); select(null); bDrag = null; },
+    down(cx, cy) {
+      rayAt(cx, cy); const h = bRay.intersectObjects([...pinnedMeshes.values()], true)[0]; if (!h) return false;
+      let g = h.object; while (g.parent !== pinGroup) g = g.parent;
+      bRay.ray.intersectPlane(bPlane, bHit); bDrag = { g, id: g.userData.id, ox: g.position.x - bHit.x, oy: g.position.y - bHit.y, moved: false };
+      g.position.z = BZ + 0.012; return true;
+    },
+    move(cx, cy) {
+      if (!bDrag) return; rayAt(cx, cy); if (!bRay.ray.intersectPlane(bPlane, bHit)) return;
+      bDrag.g.position.x = THREE.MathUtils.clamp(bHit.x + bDrag.ox, BX - HW, BX + HW); bDrag.g.position.y = THREE.MathUtils.clamp(bHit.y + bDrag.oy, BY - HH, BY + HH); bDrag.moved = true;
+      pinGroup.updateMatrixWorld(true); rebuildStrings();
+    },
+    up(tapped) {
+      if (!bDrag) { if (tapped) select(null); return; }
+      const { g, id } = bDrag; bDrag = null; g.position.z = BZ + 0.002 + [...pinnedMeshes.keys()].indexOf(id) * 0.0006;
+      if (!tapped) { Board.setPos(id, g.position.x - BX, g.position.y - BY, g.rotation.z); return; }
+      if (!selected) { select(id); return; }
+      if (selected === id) { select(null); return; }
+      const tied = Board.toggleString(selected, id); select(null); rebuildStrings(); showTip(tied ? 'Tied. Tap two pins again to add more string.' : 'String cut.');
+    },
+  };
 
   // pictures
   for (const [x, y, w, h] of [[-0.05, 2.55, 0.4, 0.5], [0.95, 2.6, 0.32, 0.26]]) {
@@ -770,7 +823,7 @@ function buildOffice() {
     start: { x: doorX, z: RZ + 0.45, heading: 0 },
     spawns: { precinct: { x: doorX, z: RZ + 0.45, heading: 0 } },
     portals: [{ x: doorX, z: RZ + 0.45, to: 'precinct', spawn: 'office', label: 'Squad room' }],
-    props: [{ id: 'notebook', mesh: notebookProp, label: 'Read notebook' }, { id: 'map', mesh: mapProp, label: 'Open map' }, { id: 'board', mesh: corkFace, label: 'Study the board', reach: 1.5, view: { x: 1.6, y: 1.85, z: RZ + 0.055, dist: 1.05, panX: 0.42, panY: 0.3 } }],
+    props: [{ id: 'notebook', mesh: notebookProp, label: 'Read notebook' }, { id: 'map', mesh: mapProp, label: 'Open map' }, { id: 'board', mesh: corkFace, label: 'Study the board', reach: 1.5, ui: boardUI, view: { x: 1.6, y: 1.85, z: RZ + 0.055, dist: 1.05, panX: 0.42, panY: 0.3 } }],
     patrol: [
       { p: [2.6, 0.3] },
       { p: [-2.85, -0.3], wait: 2.6, face: -Math.PI / 2 },      // look out the window
@@ -3194,8 +3247,8 @@ const APPS = ['Messages', 'Camera', 'Photos', 'Notes', 'Map', 'Snake'];
 const aim = { pitch: 0, fov: 32 };   // camera app: where Caine points the lens, and how far it's zoomed
 // the camera roll: thumbnails kept as small canvases, saved between visits as jpegs
 const photos = [];
-try { (JSON.parse(localStorage.getItem('caineRoll') || '[]')).forEach(p => { const im = new Image(); const c = document.createElement('canvas'); c.width = 240; c.height = 180; const e = { cv: c, where: p.where, when: p.when, sent: !!p.sent, pinned: !!p.pinned, ver: 0 }; im.onload = () => { c.getContext('2d').drawImage(im, 0, 0); e.ver++; }; im.src = p.src; photos.push(e); }); } catch (e) {}
-function saveRoll() { try { localStorage.setItem('caineRoll', JSON.stringify(photos.slice(0, 24).map(p => ({ src: p.cv.toDataURL('image/jpeg', 0.7), where: p.where, when: p.when, sent: p.sent, pinned: p.pinned })))); } catch (e) {} }
+try { (JSON.parse(localStorage.getItem('caineRoll') || '[]')).forEach(p => { const im = new Image(); const c = document.createElement('canvas'); c.width = 240; c.height = 180; const e = { id: p.id || 'p' + [...(p.src || '')].reduce((h, ch, i) => i % 7 ? h : (h * 31 + ch.charCodeAt(0)) >>> 0, 7).toString(36), cv: c, where: p.where, when: p.when, sent: !!p.sent, pinned: !!p.pinned, ver: 0 }; im.onload = () => { c.getContext('2d').drawImage(im, 0, 0); e.ver++; }; im.src = p.src; photos.push(e); }); } catch (e) {}
+function saveRoll() { try { localStorage.setItem('caineRoll', JSON.stringify(photos.slice(0, 24).map(p => ({ id: p.id, src: p.cv.toDataURL('image/jpeg', 0.7), where: p.where, when: p.when, sent: p.sent, pinned: p.pinned })))); } catch (e) {} }
 const ph = { app: 'home', pSel: 0, sel: 1, filed: 0, filedNow: false, unread: 1, snapT: -9, list: 0, scroll: 0, open: null, mapX: 300, mapY: 230 };
 const MONO = '"Courier New", monospace', CREAM = '#ece6d2', INK = '#1c2230';
 const THREADS = [
@@ -3374,7 +3427,7 @@ function drawHudTo(g, W, t) {
     for (let y = 0; y < 180; y++) id.data.set(snapBuf.subarray((179 - y) * 960, (180 - y) * 960), y * 960);
     cg.putImageData(id, 0, 0);
     const d = new Date(), hh = d.getHours() % 12 || 12, mm = String(d.getMinutes()).padStart(2, '0');
-    photos.unshift({ cv: c, where: youPin() || currentKey, when: hh + ':' + mm + (d.getHours() < 12 ? 'a' : 'p') }); if (photos.length > 24) photos.pop(); ph.pSel = 0; saveRoll();
+    photos.unshift({ id: 'p' + Date.now().toString(36), cv: c, where: youPin() || currentKey, when: hh + ':' + mm + (d.getHours() < 12 ? 'a' : 'p') }); if (photos.length > 24) photos.pop(); ph.pSel = 0; saveRoll();
   }
   function snap() { try { capture(); } catch (e) { console.warn(e); } ph.snapT = pt; const f = document.getElementById('phoneFlash'); f.style.transition = 'none'; f.style.opacity = .9; requestAnimationFrame(() => { f.style.transition = 'opacity .5s'; f.style.opacity = 0; }); }
   let open = false, k = 0;
@@ -3619,9 +3672,9 @@ function drawHudTo(g, W, t) {
     pr.mesh.getWorldPosition(wp); heading = Math.atan2(wp.x - pos.x, wp.z - pos.z);
     if (pr.id === 'notebook' && nb.turn < 0) nb.chars = 0;
     if (pr.id === 'map') { mp.open = 0; mp.want = 1; }
-    propBtn.textContent = pr.view ? '✕ Step back' : '✕ Put down'; propBtn.classList.add('held', 'show'); haptic('click');
+    propBtn.textContent = pr.view ? '✕ Step back' : '✕ Put down'; pr.ui && pr.ui.enter(); propBtn.classList.add('held', 'show'); haptic('click');
   }
-  function putDown() { if (!inHand) return; inHand = null; propBtn.classList.remove('held'); haptic('click'); }
+  function putDown() { if (!inHand) return; inHand.ui && inHand.ui.exit(); inHand = null; propBtn.classList.remove('held'); haptic('click'); }
   function propAction() {
     if (!inHand) return; haptic('click');
     if (inHand.view) { pv.zoom = pv.zoom > 1.4 ? 1 : 2.1; return; }
@@ -3635,20 +3688,21 @@ function drawHudTo(g, W, t) {
   addEventListener('pointerdown', e => {
     if (!inHand || e.target !== canvas) return; e.stopImmediatePropagation(); e.preventDefault();
     pTouches.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (pTouches.size === 2) { const [a, b] = [...pTouches.values()]; pPinch0 = Math.hypot(a.x - b.x, a.y - b.y); pZoom0 = pv.zoom; pDrag.on = false; return; }
-    pDrag.on = true; pDrag.x = e.clientX; pDrag.y = e.clientY; pDrag.moved = 0; try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+    if (pTouches.size === 2) { const [a, b] = [...pTouches.values()]; pPinch0 = Math.hypot(a.x - b.x, a.y - b.y); pZoom0 = pv.zoom; if (pDrag.on && pDrag.board) inHand.ui.up(false); pDrag.on = false; return; }
+    pDrag.on = true; pDrag.x = e.clientX; pDrag.y = e.clientY; pDrag.moved = 0; pDrag.board = !!(inHand.ui && inHand.ui.down(e.clientX, e.clientY)); try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
   }, true);
   addEventListener('pointermove', e => {
     if (!inHand) return;
     if (pTouches.has(e.pointerId)) { pTouches.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (pTouches.size === 2 && pPinch0) { const [a, b] = [...pTouches.values()]; pv.zoom = Math.max(0.8, Math.min(inHand.view ? 3 : 1.9, pZoom0 * Math.hypot(a.x - b.x, a.y - b.y) / pPinch0)); return; } }
     if (!pDrag.on) return; e.stopImmediatePropagation();
     const dx = e.clientX - pDrag.x, dy = e.clientY - pDrag.y; pDrag.x = e.clientX; pDrag.y = e.clientY; pDrag.moved += Math.abs(dx) + Math.abs(dy);
+    if (pDrag.board) { if (pDrag.moved >= 8) inHand.ui.move(e.clientX, e.clientY); return; }
     if (inHand.view) { const s = 0.004 / pv.zoom; pv.yaw = Math.max(-1, Math.min(1, pv.yaw + dx * s)); pv.pitch = Math.max(-1, Math.min(1, pv.pitch + dy * s)); return; }
     pv.yaw = Math.max(-0.6, Math.min(0.6, pv.yaw + dx * 0.006)); pv.pitch = Math.max(-0.5, Math.min(0.5, pv.pitch + dy * 0.005));
   }, true);
   const pLift = e => { pTouches.delete(e.pointerId); if (pTouches.size < 2) pPinch0 = 0; };
   addEventListener('pointercancel', pLift, true);
-  addEventListener('pointerup', e => { if (!inHand) return; pLift(e); if (!pDrag.on) return; pDrag.on = false; e.stopImmediatePropagation(); if (pDrag.moved < 8) propAction(); }, true);
+  addEventListener('pointerup', e => { if (!inHand) return; pLift(e); if (!pDrag.on) return; pDrag.on = false; e.stopImmediatePropagation(); if (inHand.ui) { inHand.ui.up(pDrag.moved < 8); return; } if (pDrag.moved < 8) propAction(); }, true);
   canvas.addEventListener('wheel', e => { if (!inHand) return; e.preventDefault(); pv.zoom = Math.max(0.8, Math.min(inHand.view ? 3 : 1.9, pv.zoom * Math.exp(-e.deltaY * 0.002))); }, { passive: false });
   addEventListener('keydown', e => {
     if (!inHand) { if (nearProp && !open && (e.code === 'KeyE' || e.code === 'Enter') && !e.repeat) { pickUp(nearProp); e.preventDefault(); e.stopImmediatePropagation(); } return; }
@@ -3743,6 +3797,27 @@ function drawHudTo(g, W, t) {
       if (ph.app === 'camera' && k > 0.6) { if (lens.fov !== aim.fov) { lens.fov = aim.fov; lens.updateProjectionMatrix(); } if (S.drive) { lens.position.copy(camera.position); lens.quaternion.copy(camera.quaternion); } else { lens.position.copy(eye); lens.quaternion.copy(povQ); } const mv = man.visible; man.visible = false; renderer.setRenderTarget(RT); renderer.render(scene, lens); renderer.setRenderTarget(null); man.visible = mv; }
       renderer.autoClear = false; renderer.clearDepth(); renderer.render(pScene, pCam); renderer.autoClear = true;
     },
+  };
+})();
+
+/* =========================================================
+   THE MURDER BOARD — what's pinned up (photos Vera put there, note cards from leads), where each sits, and the red string between them.
+   Starts empty; everything on it is something the player found. Saved between visits.
+   ========================================================= */
+const Board = (() => {
+  let st = { notes: [], pos: {}, strings: [] }, ver = 0;
+  try { Object.assign(st, JSON.parse(localStorage.getItem('caineBoard') || '{}')); } catch (e) {}
+  const save = () => { ver++; try { localStorage.setItem('caineBoard', JSON.stringify(st)); } catch (e) {} };
+  const key = (a, b) => a < b ? a + '|' + b : b + '|' + a;
+  return {
+    get ver() { return ver; },
+    items() { return [...PhoneUI.photos.filter(p => p.pinned).map(p => ({ id: p.id, kind: 'photo', p })), ...st.notes.map(n => ({ id: n.id, kind: 'note', text: n.text, sub: n.sub }))]; },
+    addNote(text, sub) { if (st.notes.some(n => n.text === text)) return false; st.notes.push({ id: 'n' + Date.now().toString(36), text, sub: sub || '' }); save(); return true; },
+    pos(id) { return st.pos[id]; },
+    setPos(id, x, y, r) { st.pos[id] = [+x.toFixed(3), +y.toFixed(3), +(r || 0).toFixed(3)]; save(); },
+    strings() { return st.strings.map(k => k.split('|')); },
+    toggleString(a, b) { const k = key(a, b), i = st.strings.indexOf(k); if (i >= 0) st.strings.splice(i, 1); else st.strings.push(k); save(); return i < 0; },
+    prune(ids) { const set = new Set(ids), n = st.strings.length; st.strings = st.strings.filter(k => k.split('|').every(x => set.has(x))); if (st.strings.length !== n) save(); },
   };
 })();
 
@@ -3851,7 +3926,8 @@ const VERA = (() => {
       { line: "Rush came by looking for you. He said, and I quote, 'tell him I covered.' Covered what, he didn't say.", replies: [{ t: 'Thanks, Vera.', go: 'end' }] },
       { line: "Nothing but the Chief's laundry and a parking ticket with your name on it. I put it in the drawer where tickets go to die.", replies: [{ t: 'You\'re a saint.', go: 'end' }] },
     ]),
-    num: { line: "Just a word. \"Coquina.\" I wrote it down twice so I'd stop hearing it.", replies: [{ t: 'Pin it to the board.', go: 'end' }] },
+    num: { line: "Just a word. \"Coquina.\" I wrote it down twice so I'd stop hearing it.", replies: [{ t: 'Pin it to the board.', go: 'pinned', do: () => Board.addNote('"COQUINA"', 'caller, no name · twice') }] },
+    pinned: { line: "Done. It's on your board, right where you'll trip over it.", replies: [] },
     photos: () => {
       const q = queued(), newest = q[0], c = COMMENT[newest && newest.where] || "I won't ask where you were.";
       return { do: () => { q.forEach(p => p.pinned = true); PhoneUI.saveRoll(); },
