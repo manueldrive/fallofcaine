@@ -3652,12 +3652,19 @@ const Pigeons = (() => {
     tail: new THREE.BoxGeometry(0.075, 0.01, 0.1), leg: new THREE.CylinderGeometry(0.0045, 0.0045, 0.07, 5), bar: new THREE.BoxGeometry(0.02, 0.004, 0.07),
   };
   G.beak.rotateX(Math.PI / 2); G.leg.translate(0, -0.035, 0);
+  const flat = (pts) => { const sh = new THREE.Shape(); sh.moveTo(pts[0][0], pts[0][1]); for (const q of pts.slice(1)) sh.lineTo(q[0], q[1]); const g = new THREE.ShapeGeometry(sh); g.rotateX(Math.PI / 2); return g; };   // (x = out along the span, y = forward)
+  const WING = {
+    inner: flat([[0, 0.05], [0.135, 0.04], [0.135, -0.075], [0.02, -0.085], [0, -0.06]]),
+    outer: flat([[0, 0.04], [0.09, 0.03], [0.1, -0.06], [0, -0.075]]),
+    tip: flat([[0.09, 0.03], [0.15, 0.0], [0.19, -0.035], [0.15, -0.055], [0.1, -0.06]]),
+  };
+  [...Object.values(WING)].forEach(g => g.computeVertexNormals());
   const M = {
     neck: new THREE.MeshStandardMaterial({ color: 0x4a5c58, roughness: .38, metalness: .45, emissive: 0x24142e, emissiveIntensity: .12 }),
     beak: new THREE.MeshStandardMaterial({ color: 0x2a2624, roughness: .5 }), eye: new THREE.MeshStandardMaterial({ color: 0xd8702a, roughness: .3, emissive: 0x3a1a08 }),
     leg: new THREE.MeshStandardMaterial({ color: 0xa04a44, roughness: .6 }), bar: new THREE.MeshStandardMaterial({ color: 0x24262a, roughness: .8 }),
   };
-  const plumage = [0x6e737c, 0x626772, 0x787c84, 0x555960, 0x7c7874, 0x6a625c].map(c => ({ body: new THREE.MeshStandardMaterial({ color: c, roughness: .85 }), dark: new THREE.MeshStandardMaterial({ color: new THREE.Color(c).multiplyScalar(0.55), roughness: .85 }) }));
+  const plumage = [0x6e737c, 0x626772, 0x787c84, 0x555960, 0x7c7874, 0x6a625c].map(c => ({ body: new THREE.MeshStandardMaterial({ color: c, roughness: .85, side: THREE.DoubleSide }), dark: new THREE.MeshStandardMaterial({ color: new THREE.Color(c).multiplyScalar(0.45), roughness: .85, side: THREE.DoubleSide }) }));
   const mesh = (g, m, x, y, z) => { const o = new THREE.Mesh(g, m); o.position.set(x, y, z); o.castShadow = true; return o; };
   function makeBird() {
     const P = plumage[Math.random() * plumage.length | 0], root = new THREE.Group(), body = new THREE.Group(); root.add(body);
@@ -3673,11 +3680,18 @@ const Pigeons = (() => {
       const piv = new THREE.Group(); piv.position.set(s * 0.055, 0.16, 0.03); body.add(piv);
       const w = mesh(G.wing, P.body, s * 0.012, -0.012, -0.06); w.scale.set(0.22, 0.5, 1.35); piv.add(w);
       for (const dz of [-0.03, 0.0]) piv.add(mesh(G.bar, M.bar, s * 0.028, 0.0, dz - 0.06));   // the two dark wing bars
-      wings.push({ piv, s });
+      // the real wing for flying: an inner arm and a pointed outer hand (dark primaries), hinged so the tip lags the beat
+      const fw = new THREE.Group(); fw.position.set(s * 0.04, 0.165, 0.035); fw.scale.x = s; body.add(fw);
+      const inner = new THREE.Mesh(WING.inner, P.body); inner.castShadow = true; fw.add(inner);
+      const elbow = new THREE.Group(); elbow.position.x = 0.13; fw.add(elbow);
+      const outer = new THREE.Mesh(WING.outer, P.body); outer.castShadow = true; elbow.add(outer);
+      const tip = new THREE.Mesh(WING.tip, P.dark); tip.castShadow = true; elbow.add(tip);
+      fw.visible = false;
+      wings.push({ piv, s, fw, elbow });
     }
     const legs = [];
     for (const s of [-1, 1]) { const l = mesh(G.leg, M.leg, s * 0.024, 0.07, 0.0); body.add(l); legs.push(l); }
-    return { root, body, head, wings, legs, state: 'idle', t: 0, next: Math.random() * 2, phase: Math.random() * 6, target: null, vel: new THREE.Vector3(), from: null };
+    return { root, body, head, wings, legs, tail, state: 'idle', t: 0, next: Math.random() * 2, phase: Math.random() * 6, beat: Math.random() * 6, open: 0, target: null, vel: new THREE.Vector3(), yaw: 0, pitch: 0, bank: 0, turn: 0 };
   }
   let forS = null, grp = null, flock = [], nextIn = 0, lastFlutter = 0;
   const rand = (a, b) => a + Math.random() * (b - a);
@@ -3689,7 +3703,13 @@ const Pigeons = (() => {
     for (let i = 0; i < n; i++) {
       let x = c.x, z = c.z; for (let t = 0; t < 12; t++) { const a = rand(0, 6.3), r = rand(0.15, 1.1); if (free(c.x + Math.cos(a) * r, c.z + Math.sin(a) * r)) { x = c.x + Math.cos(a) * r; z = c.z + Math.sin(a) * r; break; } }
       const b = makeBird(), y = S.groundY(x, z); b.root.rotation.y = rand(0, 6.3); b.home = { x, z };
-      if (landing) { b.state = 'land'; b.t = -i * rand(0.1, 0.35); b.dur = rand(2.6, 3.4); const a = from + rand(-0.4, 0.4); b.from = new THREE.Vector3(x + Math.cos(a) * 14, y + rand(6, 9), z + Math.sin(a) * 14); b.to = new THREE.Vector3(x, y, z); b.root.position.copy(b.from); }
+      if (landing) { b.state = 'land'; b.t = -i * rand(0.15, 0.4); const a = from + rand(-0.3, 0.3), side = rand(-1, 1) * 4;
+        const dir = new THREE.Vector3(Math.cos(a), 0, Math.sin(a)), perp = new THREE.Vector3(-dir.z, 0, dir.x);
+        b.path = [new THREE.Vector3(x, y, z).addScaledVector(dir, 18).addScaledVector(perp, side).setY(y + rand(7, 10)),
+                  new THREE.Vector3(x, y, z).addScaledVector(dir, 9).addScaledVector(perp, side * 0.6).setY(y + rand(4, 5.5)),
+                  new THREE.Vector3(x, y, z).addScaledVector(dir, 2.2).setY(y + 1.1),
+                  new THREE.Vector3(x, y, z)];
+        b.dur = rand(3.4, 4.2); b.root.position.copy(b.path[0]); b.root.visible = false; }
       else b.root.position.set(x, y, z);
       grp.add(b.root); flock.push(b);
     }
@@ -3716,27 +3736,57 @@ const Pigeons = (() => {
         for (const o of flock) if (Math.hypot(o.root.position.x - p.x, o.root.position.z - p.z) < 3) scare(o, o === b ? 0 : rand(0.05, 0.4));
         fled = true;
       }
-      // wings: folded on the ground, beating in the air
       const flying = b.state === 'flee' || b.state === 'land';
-      for (const w of b.wings) w.piv.rotation.z = flying ? -w.s * (1.0 + Math.sin(b.phase * (b.state === 'land' && b.t > b.dur - 0.5 ? 9 : 24)) * 0.95) : -w.s * 0.04;
-      for (const l of b.legs) l.visible = !(b.state === 'flee' && b.t > 0.3);
-      if (b.state === 'flee') {
-        if (b.t < 0) continue;
-        b.vel.y += dt * 1.2; b.vel.x *= 1 + dt * 0.4; b.vel.z *= 1 + dt * 0.4; p.addScaledVector(b.vel, dt);
-        b.root.rotation.y = Math.atan2(b.vel.x, b.vel.z); b.body.rotation.x = -0.5; b.head.rotation.x = 0.3;
-        if (b.t > 5) { grp.remove(b.root); flock.splice(i, 1); }
+      if (flying) {
+        if (b.t < 0) { if (b.state === 'land') b.root.visible = false; continue; }
+        let flap = 8, amp = 1, sweep = 0, glide = false, legsOut = false;
+        if (b.state === 'flee') {
+          // burst off the ground, climb steep, then level into a quick climbing flight that wanders a little
+          if (!b.fi) { b.fi = 1; b.yaw = Math.atan2(b.vel.x, b.vel.z); b.turn = rand(-0.5, 0.5); }
+          const hs = Math.min(6.5, 1.6 + b.t * 4.5), climb = b.t < 0.45 ? 3.4 : 1.6 + Math.sin(b.t * 0.8) * 0.4;
+          b.yaw += b.turn * dt; if (Math.random() < dt * 0.6) b.turn = rand(-0.6, 0.6);
+          b.vel.set(Math.sin(b.yaw) * hs, climb, Math.cos(b.yaw) * hs); p.addScaledVector(b.vel, dt);
+          flap = b.t < 0.5 ? 11 : 8; amp = b.t < 0.5 ? 1.15 : 0.95; legsOut = b.t < 0.25;
+          glide = b.t > 1.6 && Math.sin(b.t * 2.3 + b.phase) > 0.75;
+          if (b.t > 6) { grp.remove(b.root); flock.splice(i, 1); continue; }
+        } else {
+          // gliding in on a curve, flapping in bursts, then flaring nose-up with legs out to touch down
+          b.root.visible = true;
+          const k = Math.min(1, b.t / b.dur), u = 1 - Math.pow(1 - k, 1.8), [P0, P1, P2, P3] = b.path, w = 1 - u;
+          const nx = w * w * w * P0.x + 3 * w * w * u * P1.x + 3 * w * u * u * P2.x + u * u * u * P3.x, ny = w * w * w * P0.y + 3 * w * w * u * P1.y + 3 * w * u * u * P2.y + u * u * u * P3.y, nz = w * w * w * P0.z + 3 * w * w * u * P1.z + 3 * w * u * u * P2.z + u * u * u * P3.z;
+          b.vel.set(nx - p.x, ny - p.y, nz - p.z).divideScalar(Math.max(dt, 1e-3)); p.set(nx, ny, nz);
+          if (b.vel.lengthSq() > 0.01) b.yaw = Math.atan2(b.vel.x, b.vel.z) * 1 + 0;
+          glide = k > 0.25 && k < 0.7 && Math.sin(b.t * 3 + b.phase) > -0.2;
+          if (k > 0.8) { flap = 10; amp = 1.1; sweep = 0.45; legsOut = true; glide = false; }
+          if (k >= 1) { b.state = 'idle'; b.t = 0; b.next = rand(0.8, 2); b.yaw = b.root.rotation.y; }
+        }
+        // orientation follows the flight: pitch with the climb, bank into turns (flaring pitches right up)
+        const vh = Math.hypot(b.vel.x, b.vel.z); let pitch = -Math.atan2(b.vel.y, Math.max(vh, 0.5)) * 0.6;
+        if (b.state === 'land' && b.t / b.dur > 0.8) pitch = -0.9; if (b.state === 'flee' && b.t < 0.4) pitch = -0.75;
+        let dy = ((b.yaw - b.root.rotation.y + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI; b.root.rotation.y += dy * Math.min(1, dt * 7);
+        b.pitch += (pitch - b.pitch) * Math.min(1, dt * 6); b.bank += (THREE.MathUtils.clamp(-dy * 2.5, -0.6, 0.6) - b.bank) * Math.min(1, dt * 4);
+        b.body.rotation.set(b.pitch, 0, b.bank); b.head.rotation.x = -b.pitch * 0.7;
+        // wings: unfold fast, beat with a quick downstroke and a lagging tip; glide holds them in a shallow V
+        b.open = Math.min(1, b.open + dt * 9); b.beat += dt * flap * Math.PI * 2;
+        const ph = b.beat, down = Math.sin(ph) + 0.28 * Math.sin(2 * ph);
+        for (const wg of b.wings) {
+          wg.piv.visible = false; wg.fw.visible = true; wg.fw.scale.set(wg.s * (0.35 + 0.65 * b.open), 1, 1);
+          const root = glide ? 0.22 : 0.15 + down * 0.85 * amp, el = glide ? -0.08 : Math.sin(ph - 0.7) * 0.55 * amp;
+          wg.fw.rotation.set(0, -wg.s * ((glide ? 0 : Math.cos(ph) * 0.12) + sweep), wg.s * root);   // (z: up/down beat; y: sweep forward while flaring)
+          wg.elbow.rotation.set(0, 0, el);
+        }
+        b.tail.scale.x = legsOut ? 1.7 : 1.15;
+        for (const l of b.legs) { l.visible = legsOut; l.rotation.x = legsOut ? 0.5 : 0; }
         continue;
       }
-      if (b.state === 'land') {
-        if (b.t < 0) { b.root.visible = false; continue; } b.root.visible = true;
-        const k = Math.min(1, b.t / b.dur), e = 1 - Math.pow(1 - k, 2.4);
-        p.lerpVectors(b.from, b.to, e); p.y = THREE.MathUtils.lerp(b.from.y, b.to.y, 1 - Math.pow(1 - k, 1.6)) + Math.sin(k * Math.PI) * 0.6;
-        b.root.rotation.y = Math.atan2(b.to.x - b.from.x, b.to.z - b.from.z); b.body.rotation.x = k > 0.85 ? THREE.MathUtils.lerp(-0.3, 0.35, (k - 0.85) / 0.15) : -0.25;
-        if (k >= 1) { b.state = 'idle'; b.t = 0; b.next = rand(0.8, 2); b.body.rotation.x = 0; }
-        continue;
+      if (b.open > 0) {   // just landed: fold the wings back in
+        b.open = Math.max(0, b.open - dt * 4);
+        for (const wg of b.wings) { wg.fw.visible = b.open > 0.05; wg.piv.visible = b.open < 0.6; wg.fw.scale.set(wg.s * Math.max(0.05, b.open), 1, 1); wg.fw.rotation.set(0, 0, wg.s * 0.6 * b.open); wg.elbow.rotation.set(0, 0, -1.2 * (1 - b.open)); }
+        b.tail.scale.x = 1 + 0.7 * b.open; b.body.rotation.z *= 0.8; b.pitch *= 0.85; b.body.rotation.x = b.pitch;
+        for (const l of b.legs) l.visible = true;
       }
       // on the ground
-      p.y = S.groundY(p.x, p.z); b.body.rotation.x *= 0.8;
+      p.y = S.groundY(p.x, p.z); if (b.open <= 0) b.body.rotation.x *= 0.8;
       if (b.state === 'walk') {
         const dx = b.target.x - p.x, dz = b.target.z - p.z, d = Math.hypot(dx, dz);
         if (d < 0.03 || b.t > 4) { b.state = 'idle'; b.t = 0; b.next = rand(0.6, 2.2); }
