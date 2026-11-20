@@ -57,10 +57,11 @@
   #panel.closed { opacity: 0; transform: translateY(6px); pointer-events: none; }
   #panel .ideaLink { flex: 1 1 auto; display: block; text-align: center; color: #e2b23a; border: 1px solid #555; padding: 8px 10px; text-decoration: none; font: 15px 'Bebas Neue', Impact, sans-serif; letter-spacing: .2em; }
   #panel .ideaLink:hover { border-color: #e2b23a; }
+  #devToast { position: fixed; left: 50%; top: 18px; transform: translateX(-50%); z-index: 5; background: rgba(0,0,0,.8); color: #e2b23a; border: 1px solid #e2b23a; padding: 6px 14px; font: 14px 'Bebas Neue', Impact, sans-serif; letter-spacing: .3em; opacity: 0; transition: opacity .3s; pointer-events: none; }
   #panel h4 { margin: 0 0 8px; color: #777; font: 11px Arial, sans-serif; letter-spacing: .3em; text-transform: uppercase; font-weight: normal; }
   #panel .bar { position: static; margin-bottom: 14px; }
   #panel .bar button { flex: 1 1 auto; }
-  #logo { text-align: center; pointer-events: none; color: #f3f1ea; line-height: .86; opacity: .85; }
+  #logo { text-align: center; pointer-events: auto; cursor: default; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; color: #f3f1ea; line-height: .86; opacity: .85; }
   #logo i { display: block; font: 400 clamp(12px, 1.1vw, 17px) 'Great Vibes', cursive; text-shadow: 0 .1em .4em rgba(0,0,0,.8); }
   #logo b { display: block; font: 400 clamp(24px, 2.2vw, 34px) 'Bebas Neue', Impact, sans-serif; letter-spacing: .03em;
     text-shadow: 1px 1px 0 #8d8c90, 2px 2px 0 #737276, 3px 3px 0 #5a595d, 4px 5px 10px rgba(0,0,0,.7); }
@@ -81,6 +82,7 @@
 <div id="vignette"></div>
 <div id="fade"></div>
 <div id="hint">Walk</div>
+<div id="devToast"></div>
 <div id="bottomBar">
 <div id="logo"><i>The Fall of</i><b>CAINE</b></div>
 <div id="topRight">
@@ -101,8 +103,8 @@
     <button id="camStreet">Over the shoulder</button>
     <button id="pauseBtn">Pause</button>
   </div>
-  <h4>Ideas</h4>
-  <div class="bar"><a class="ideaLink" href="mocks/handheld/" target="_blank" rel="noopener">Handheld mocks ↗</a></div>
+  <div id="devSec" hidden><h4>Dev</h4>
+  <div class="bar"><a class="ideaLink" href="mocks/handheld/" target="_blank" rel="noopener">Dev mode ↗</a></div></div>
   <h4 id="moodsH">Mood</h4>
   <div class="bar"><span id="moods" style="display:contents"></span></div>
 </div>
@@ -2876,6 +2878,22 @@ function driveChoice(dt) {
   drv.t += dt;
   if (drv.t > 2.5 && !whereTo.classList.contains('show')) whereTo.classList.add('show');
   if (drv.chosen && drv.chosen !== 'gone') { drv.left -= dt; if (drv.left <= 0) { const to = drv.chosen; drv.chosen = 'gone'; whereTo.classList.remove('show'); DEST[to].go(); } }
+}
+
+// --- dev mode: three quick taps on the logo show or hide the Dev section in the menu
+{
+  const devSec = document.getElementById('devSec'), toast = document.getElementById('devToast'), logo = document.getElementById('logo');
+  let on = false; try { on = localStorage.getItem('caineDev') === '1'; } catch (e) {}
+  devSec.hidden = !on;
+  let taps = 0, tapT = 0, toastT = 0;
+  logo.addEventListener('pointerdown', e => {
+    e.preventDefault(); e.stopPropagation();
+    const now = performance.now(); taps = now - tapT < 800 ? taps + 1 : 1; tapT = now;
+    if (taps < 3) return;
+    taps = 0; on = !on; devSec.hidden = !on;
+    try { localStorage.setItem('caineDev', on ? '1' : '0'); } catch (e) {}
+    toast.textContent = on ? 'Dev mode on' : 'Dev mode off'; toast.style.opacity = 1; clearTimeout(toastT); toastT = setTimeout(() => toast.style.opacity = 0, 1400);
+  });
 }
 
 // --- keyboard walking (overhead: camera-relative · over the shoulder: turn with left/right)
