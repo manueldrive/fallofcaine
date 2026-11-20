@@ -17,6 +17,10 @@ A pulp noir walkabout in Coquina City, built with three.js. It's a single page w
 ## The map
 Doorway → Alley → Parking lot → Precinct (back door) or your car → drive to the Cemetery or the Warehouse, and from there back to the Precinct.
 
+## Concept mocks
+- [Handheld mocks](mocks/handheld/): the phone (BlackBerry-style and Sidekick-style), the pocket notebook and the folded city map, built in three.js. Also linked from the in-game ☰ menu under Ideas.
+
 ## Files
 - `index.html`: the whole game
 - `music/`: soundtrack (Theme, Investigate, Intense, Unsure End)
+- `mocks/handheld/`: concept mock for the phone, notebook and map

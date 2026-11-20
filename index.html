@@ -55,6 +55,8 @@
   #panel { position: fixed; right: 16px; bottom: calc(72px + env(safe-area-inset-bottom, 0px)); z-index: 3; width: min(300px, calc(100vw - 32px)); max-height: calc(100vh - 100px); overflow: auto;
     background: rgba(8,8,8,.92); border: 1px solid #444; padding: 14px 14px 6px; box-sizing: border-box; transition: opacity .25s, transform .25s; }
   #panel.closed { opacity: 0; transform: translateY(6px); pointer-events: none; }
+  #panel .ideaLink { flex: 1 1 auto; display: block; text-align: center; color: #e2b23a; border: 1px solid #555; padding: 8px 10px; text-decoration: none; font: 15px 'Bebas Neue', Impact, sans-serif; letter-spacing: .2em; }
+  #panel .ideaLink:hover { border-color: #e2b23a; }
   #panel h4 { margin: 0 0 8px; color: #777; font: 11px Arial, sans-serif; letter-spacing: .3em; text-transform: uppercase; font-weight: normal; }
   #panel .bar { position: static; margin-bottom: 14px; }
   #panel .bar button { flex: 1 1 auto; }
@@ -99,6 +101,8 @@
     <button id="camStreet">Over the shoulder</button>
     <button id="pauseBtn">Pause</button>
   </div>
+  <h4>Ideas</h4>
+  <div class="bar"><a class="ideaLink" href="mocks/handheld/" target="_blank" rel="noopener">Handheld mocks ↗</a></div>
   <h4 id="moodsH">Mood</h4>
   <div class="bar"><span id="moods" style="display:contents"></span></div>
 </div>
