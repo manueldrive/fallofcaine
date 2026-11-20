@@ -1561,7 +1561,10 @@ function buildLot() {
   };
   fence(X0 + 3.6, Z1, X1, Z1); fence(X1, Z1, X1, Z0);
   // alley mouth: brick returns + a lantern
-  const ret = add(new THREE.Mesh(new THREE.BoxGeometry(3.2, 2.4, 0.6), bm)); ret.position.set(X0 + 1.6, 1.2, Z1 + 0.3);
+  // two brick pillars frame the way back into the alley, with the dark alley beyond
+  for (const px of [X0 - 0.1, X0 + 3.5]) { const pl = add(new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.6, 0.6), bm)); pl.position.set(px, 0.8, Z1 + 0.2); }
+  const lamp2 = add(new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 8), new THREE.MeshBasicMaterial({ color: 0xffd8a0 })), false); lamp2.position.set(X0 + 3.5, 1.75, Z1 + 0.2);
+  const cob = add(new THREE.Mesh(new THREE.PlaneGeometry(3.0, 5), mat({ color: 0x2a2a2a, roughness: .9 })), false); cob.rotation.x = -Math.PI / 2; cob.position.set(X0 + 1.7, 0.002, Z1 + 2.6);
   // cars: the detective's convertible, plus two strangers
   const myCar = makeCar({ color: 0x1c1c1c, convertible: true, seat: 0x9a7a5a }); myCar.g.position.set(5.6, 0, -3.5); group.add(myCar.g);
   const c2 = makeCar({ color: 0x3a4a5a }); c2.g.position.set(11.2 - 2.8, 0, -3.6); group.add(c2.g);
@@ -1589,7 +1592,7 @@ function buildLot() {
   for (let i = 0; i < RN; i++) { const x = X0 + Math.random() * (X1 - X0), y = Math.random() * 10, z = Z0 + Math.random() * (Z1 - Z0); ra.set([x, y, z, x + 0.02, y - 0.35, z + 0.03], i * 6); }
   rg.setAttribute('position', new THREE.BufferAttribute(ra, 3));
   const rain = new THREE.LineSegments(rg, new THREE.LineBasicMaterial({ color: 0x9aa0a8, transparent: true, opacity: .32 })); group.add(rain);
-  const pDoor = portalMarker(group, doorX, Z0 + 1.0), pCar = portalMarker(group, carMarkX, carMarkZ), pAlley = portalMarker(group, X0 + 1.7, Z1 - 0.6);
+  const pDoor = portalMarker(group, doorX, Z0 + 1.0), pCar = portalMarker(group, carMarkX, carMarkZ), pAlley = portalMarker(group, X0 + 1.7, Z1 - 1.0);
   return {
     group,
     name: 'The Parking Lot',
@@ -1607,14 +1610,14 @@ function buildLot() {
       return false;
     },
     groundY() { return 0; },
-    start: { x: X0 + 1.7, z: Z1 - 1.8, heading: Math.PI },
-    spawns: { alley: { x: X0 + 1.7, z: Z1 - 1.8, heading: Math.PI }, precinct: { x: doorX, z: Z0 + 2.0, heading: 0 }, car: { x: 3.4, z: -1.6, heading: -Math.PI / 2 } },
+    start: { x: X0 + 1.7, z: Z1 - 2.6, heading: Math.PI },
+    spawns: { alley: { x: X0 + 1.7, z: Z1 - 2.6, heading: Math.PI }, precinct: { x: doorX, z: Z0 + 2.0, heading: 0 }, car: { x: 3.4, z: -1.6, heading: -Math.PI / 2 } },
     portals: [
       { x: doorX, z: Z0 + 1.0, to: 'precinct', spawn: 'lot', label: 'Precinct' },
       { x: carMarkX, z: carMarkZ, to: 'drive', spawn: 'lot', label: 'Your car' },
-      { x: X0 + 1.7, z: Z1 - 0.6, to: 'alley', spawn: 'lot', label: 'Alley' },
+      { x: X0 + 1.7, z: Z1 - 1.0, to: 'alley', spawn: 'lot', label: 'Alley' },
     ],
-    patrol: [{ p: [X0 + 1.7, Z1 - 1.8] }],
+    patrol: [{ p: [X0 + 1.7, Z1 - 2.6] }],
     overhead(pos, outPos, outLook) { outPos.set(pos.x * 0.85 + 0.6, 11, pos.z + 8); outLook.set(pos.x * 0.9, 0, pos.z - 1); },
     camOK(v) { return v.x > X0 + 0.4 && !(v.z > Z1 - 0.4 && v.x < X0 + 3.8); },
     camClamp(v) { v.x = THREE.MathUtils.clamp(v.x, X0 + 0.4, X1 + 4); v.z = THREE.MathUtils.clamp(v.z, Z0 + 0.6, v.x < X0 + 3.8 ? Z1 - 0.4 : Z1 + 12); },
