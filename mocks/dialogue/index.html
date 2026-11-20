@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Fall of Caine · Dialogue box mocks</title>
+<link rel="icon" href="../../favicon.svg">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Caveat:wght@500;700&family=Special+Elite&display=swap">
+<style>
+  :root { --gold: #e2b23a; --cream: #ece6d2; --ink: #1c2230; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #0c0c0d; color: #ddd; font-family: 'Courier New', monospace; }
+  header { padding: 18px 18px 6px; max-width: 1140px; margin: 0 auto; }
+  header h1 { font: 400 28px/1 'Bebas Neue', sans-serif; letter-spacing: .08em; margin: 0 0 4px; color: var(--cream); }
+  header p { margin: 0; font-size: 13px; color: #8d8a80; line-height: 1.5; }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; max-width: 1140px; margin: 12px auto 10px; padding: 0 18px; }
+  .seg { display: inline-flex; border: 1px solid #333; border-radius: 999px; overflow: hidden; }
+  .seg button { background: none; border: 0; color: #aaa; font: 600 12px/1 'Courier New', monospace; letter-spacing: .12em; text-transform: uppercase; padding: 10px 14px; cursor: pointer; }
+  .seg button.on { background: var(--gold); color: #111; }
+  .note { max-width: 1140px; margin: 0 auto 6px; padding: 0 18px; font-size: 12px; color: #77746c; min-height: 18px; }
+  .wrap { display: flex; justify-content: center; padding: 0 18px 28px; }
+  .stage { position: relative; overflow: hidden; background: #000 center / cover no-repeat; border-radius: 10px; box-shadow: 0 20px 60px rgba(0,0,0,.6); user-select: none; -webkit-user-select: none; }
+  .stage.wide { width: min(1100px, 100%); aspect-ratio: 16 / 9; background-image: url(bg-wide.jpg); }
+  .stage.phone { width: min(390px, 100%); aspect-ratio: 390 / 844; max-height: 82vh; background-image: url(bg-phone.jpg); border-radius: 34px; border: 8px solid #1b1b1d; }
+  .stage::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,.55)); }
+  .replay { position: absolute; top: 10px; right: 10px; z-index: 9; background: rgba(0,0,0,.6); color: #ddd; border: 1px solid rgba(255,255,255,.2); border-radius: 999px; font: 600 11px/1 'Courier New', monospace; letter-spacing: .12em; padding: 8px 12px; cursor: pointer; text-transform: uppercase; }
+  .tap { position: absolute; z-index: 3; font: 600 10px/1 'Courier New', monospace; letter-spacing: .2em; text-transform: uppercase; opacity: 0; transition: opacity .3s; pointer-events: none; }
+  .tap.show { opacity: .7; animation: blink 1.2s infinite; }
+  @keyframes blink { 50% { opacity: .25; } }
+  .dlg { position: absolute; z-index: 5; }
+  .replies { list-style: none; margin: 0; padding: 0; }
+  .replies li { cursor: pointer; opacity: 0; transform: translateY(6px); transition: opacity .25s, transform .25s, background .15s, color .15s; }
+  .replies.show li { opacity: 1; transform: none; }
+  .replies.show li:nth-child(2) { transition-delay: .07s; } .replies.show li:nth-child(3) { transition-delay: .14s; }
+
+  /* ---------- 1) NOIR SUBTITLE ---------- */
+  .s1 .dlg { left: 0; right: 0; bottom: 0; padding: 70px 8% 26px; background: linear-gradient(to top, rgba(0,0,0,.92) 0%, rgba(0,0,0,.82) 55%, transparent 100%); }
+  .s1 .who { font: 600 11px/1 'Courier New', monospace; letter-spacing: .38em; text-transform: uppercase; color: var(--gold); display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .s1 .who::after { content: ''; height: 1px; width: 46px; background: var(--gold); opacity: .6; }
+  .s1 .line { font: 400 clamp(15px, 2.1vw, 21px)/1.5 'Special Elite', monospace; color: var(--cream); max-width: 760px; min-height: 2.9em; text-shadow: 0 2px 8px #000; }
+  .s1 .replies { margin-top: 14px; }
+  .s1 .replies li { font: 400 clamp(13px, 1.5vw, 15px)/1.4 'Special Elite', monospace; color: rgba(236,230,210,.5); padding: 6px 0; }
+  .s1 .replies li b { color: rgba(226,178,58,.6); font-weight: 400; margin-right: 12px; }
+  .s1 .replies li:hover, .s1 .replies li.hl { color: var(--cream); }
+  .s1 .replies li:hover b, .s1 .replies li.hl b { color: var(--gold); }
+  .s1 .tap { right: 8%; bottom: 22px; color: var(--cream); }
+  .phone.s1 .dlg { padding: 90px 22px 28px; }
+
+  /* ---------- 2) CASE-FILE CARD ---------- */
+  .s2 .dlg { left: 50%; bottom: 4%; width: min(620px, 88%); transform: translateX(-50%) translateY(130%) rotate(-1.4deg); transition: transform .55s cubic-bezier(.2,.9,.25,1.1); }
+  .s2 .dlg.in { transform: translateX(-50%) translateY(0) rotate(-1.4deg); }
+  .s2 .card { position: relative; padding: 30px 30px 20px 34px; color: #2a2318;
+    background: repeating-linear-gradient(to bottom, transparent 0 29px, rgba(70,100,140,.18) 29px 30px), radial-gradient(circle at 20% 10%, rgba(255,255,255,.25), transparent 60%), #dcc89c;
+    background-position: 0 52px, 0 0, 0 0; box-shadow: 0 14px 30px rgba(0,0,0,.6), inset 0 0 40px rgba(120,90,40,.25); border-radius: 2px; }
+  .s2 .card::before { content: ''; position: absolute; left: 22px; top: 0; bottom: 0; width: 1px; background: rgba(170,60,60,.4); }
+  .s2 .tab { position: absolute; top: -22px; left: 26px; background: #cdb685; padding: 6px 14px 8px; font: 400 13px/1 'Special Elite', monospace; letter-spacing: .1em; border-radius: 4px 4px 0 0; box-shadow: 0 -2px 6px rgba(0,0,0,.25); }
+  .s2 .clip { position: absolute; top: -16px; right: 34px; width: 18px; height: 52px; border: 3px solid #9a9a9a; border-radius: 9px; border-bottom-color: transparent; box-shadow: 1px 1px 2px rgba(0,0,0,.4); }
+  .s2 .stamp { position: absolute; right: 64px; top: -14px; background: #dcc89c; font: 400 13px/1 'Special Elite', monospace; color: rgba(160,30,30,.55); border: 2px solid rgba(160,30,30,.5); padding: 4px 8px; transform: rotate(8deg); letter-spacing: .15em; }
+  .s2 .line { font: 400 clamp(15px, 2vw, 19px)/1.58 'Special Elite', monospace; min-height: 3.2em; margin: 0 70px 10px 0; }
+  .s2 .replies li { font: 600 clamp(19px, 2.4vw, 24px)/1.25 'Caveat', cursive; color: #2b3a5a; padding: 3px 0 3px 28px; position: relative; }
+  .s2 .replies li::before { content: ''; position: absolute; left: 2px; top: 9px; width: 13px; height: 13px; border: 2px solid #2b3a5a; border-radius: 2px; transform: rotate(-4deg); }
+  .s2 .replies li:hover::after, .s2 .replies li.hl::after { content: '✓'; position: absolute; left: 3px; top: -4px; font: 700 26px/1 'Caveat', cursive; color: #9a1f22; }
+  .s2 .replies li:hover, .s2 .replies li.hl { color: #12203d; }
+  .s2 .tap { right: 30px; bottom: 12px; color: #6b5a3a; }
+  .phone.s2 .dlg { width: 92%; bottom: 3%; } .phone.s2 .card { padding: 26px 18px 16px 30px; } .phone.s2 .line { margin-right: 0; margin-top: 18px; } .phone.s2 .stamp { top: 10px; font-size: 11px; }
+
+  /* ---------- 3) COMIC PANEL ---------- */
+  .s3 .dlg { right: 4%; top: 9%; width: min(430px, 46%); transform: scale(.6) rotate(-3deg); opacity: 0; transform-origin: 20% 100%; transition: transform .35s cubic-bezier(.2,1.6,.4,1), opacity .2s; }
+  .s3 .dlg.in { transform: scale(1) rotate(-1deg); opacity: 1; }
+  .s3 .panel { position: relative; background: #f1ead8; border: 4px solid #0d0d0d; box-shadow: 9px 9px 0 #0d0d0d; padding: 0 0 16px; }
+  .s3 .head { display: flex; align-items: center; gap: 12px; background: var(--gold); border-bottom: 4px solid #0d0d0d; padding: 8px 12px; }
+  .s3 .portrait { width: 62px; height: 62px; flex: none; border: 3px solid #0d0d0d; background: #f1ead8; overflow: hidden; margin: -2px 0; }
+  .s3 .who { font: 400 32px/1 'Bebas Neue', sans-serif; letter-spacing: .06em; color: #0d0d0d; }
+  .s3 .who small { display: block; font: 600 10px/1.2 'Courier New', monospace; letter-spacing: .2em; }
+  .s3 .line { font: 400 clamp(15px, 1.8vw, 18px)/1.5 'Special Elite', monospace; color: #111; padding: 14px 16px 6px; min-height: 4.6em; }
+  .s3 .tail { position: absolute; left: -30px; bottom: 22px; width: 0; height: 0; border-top: 16px solid transparent; border-bottom: 16px solid transparent; border-right: 30px solid #0d0d0d; }
+  .s3 .tail::after { content: ''; position: absolute; left: 7px; top: -10px; border-top: 10px solid transparent; border-bottom: 10px solid transparent; border-right: 19px solid #f1ead8; }
+  .s3 .replies { padding: 0 14px; display: grid; gap: 8px; }
+  .s3 .replies li { border: 3px solid #0d0d0d; background: #fff; padding: 8px 10px; font: 400 21px/1 'Bebas Neue', sans-serif; letter-spacing: .05em; color: #0d0d0d; box-shadow: 3px 3px 0 #0d0d0d; }
+  .s3 .replies li:hover, .s3 .replies li.hl { background: #0d0d0d; color: var(--gold); }
+  .s3 .tap { right: 18px; bottom: 6px; color: #0d0d0d; }
+  .phone.s3 .dlg { width: 88%; right: 6%; top: auto; bottom: 5%; } .phone.s3 .tail { left: 40px; top: -30px; bottom: auto; border-left: 16px solid transparent; border-right: 16px solid transparent; border-bottom: 30px solid #0d0d0d; border-top: 0; }
+  .phone.s3 .tail::after { left: -10px; top: 7px; border-left: 10px solid transparent; border-right: 10px solid transparent; border-bottom: 19px solid #f1ead8; border-top: 0; }
+
+  .pick { max-width: 1140px; margin: 0 auto 40px; padding: 0 18px; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+  .pick div { border: 1px solid #262626; border-radius: 10px; padding: 14px; font-size: 13px; line-height: 1.5; color: #aaa; }
+  .pick b { display: block; color: var(--cream); font: 400 20px/1 'Bebas Neue', sans-serif; letter-spacing: .06em; margin-bottom: 6px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Dialogue box — three directions</h1>
+  <p>Same sample conversation in each style, over a real frame from the precinct. Tap the box to skip the typing, then pick a reply. Her name and lines are placeholders.</p>
+</header>
+<div class="bar">
+  <div class="seg" id="styles"><button data-s="s1" class="on">1 · Noir subtitle</button><button data-s="s2">2 · Case card</button><button data-s="s3">3 · Comic panel</button></div>
+  <div class="seg" id="devices"><button data-d="wide" class="on">Desktop</button><button data-d="phone">Phone</button></div>
+</div>
+<div class="note" id="note"></div>
+<div class="wrap"><div class="stage wide s1" id="stage"><button class="replay" id="replay">↺ Replay</button><div id="mount"></div></div></div>
+<div class="pick">
+  <div><b>1 · Noir subtitle</b>Like film subtitles: a dark band, cream typewriter text, gold name. Never covers the scene. Quietest of the three.</div>
+  <div><b>2 · Case card</b>A manila index card slides up. Her line is typed, your replies are pencil notes you tick. Matches the notebook and desk props.</div>
+  <div><b>3 · Comic panel</b>A bold inked panel pops beside her with a little portrait and chunky reply buttons. Pulpiest, loudest of the three.</div>
+</div>
+<script>
+const SCRIPT = {
+  start: { line: "Another late one, Detective? Coffee's been on since six. It's terrible, but it's hot.", replies: [["Anything come in for me?", 'msg'], ["Send these to the board, would you?", 'board'], ["Not now, Vera.", 'bye']] },
+  msg: { line: "A man called twice. Wouldn't leave a name — said you'd know. Voice like gravel in a coffee can.", replies: [["Did he leave a number?", 'num'], ["Thanks, Vera.", 'end']] },
+  num: { line: "Just a word. \"Coquina.\" I wrote it down twice so I'd stop hearing it.", replies: [["Pin it to the board.", 'end']] },
+  board: { line: "Pinned and labeled. You've got a type, Detective — dark alleys and people who don't want their picture taken.", replies: [["Thanks, Vera.", 'end']] },
+  bye: { line: "Suit yourself. The coffee will still be terrible later.", replies: [] },
+  end: { line: "Go home sometime, Detective. The city'll still be crooked in the morning.", replies: [] },
+};
+const PORTRAIT = `<svg viewBox="0 0 62 62" width="62" height="62"><rect width="62" height="62" fill="#f1ead8"/><path d="M31 9c-11 0-17 7-17 16 0 4 1 7 3 9-3 2-4 5-3 8 2-1 3-1 4 0 0 3 2 5 4 6l-1 6c-8 2-13 5-15 8h50c-2-3-7-6-15-8l-1-6c3-2 5-5 5-9 1-1 2-1 4 0 1-3 0-6-3-8 2-2 3-5 3-9 0-9-7-13-18-13z" fill="#0d0d0d"/><path d="M19 22c2-8 9-10 14-9 7 1 11 5 10 12-3-5-8-7-13-6-4 1-8 2-11 3z" fill="#2a2a2a"/><circle cx="20" cy="38" r="2" fill="#e2b23a"/><path d="M36 33c2 1 3 1 4 0" stroke="#f1ead8" stroke-width="1.4" fill="none" opacity=".35"/></svg>`;
+const TEMPL = {
+  s1: () => `<div class="dlg"><div class="who">Vera · Front desk</div><div class="line"></div><ul class="replies"></ul><div class="tap">tap ▸</div></div>`,
+  s2: () => `<div class="dlg"><div class="card"><div class="tab">INTERVIEW · VERA</div><div class="clip"></div><div class="stamp">FRONT DESK</div><div class="line"></div><ul class="replies"></ul><div class="tap">tap ▸</div></div></div>`,
+  s3: () => `<div class="dlg"><div class="panel"><div class="tail"></div><div class="head"><div class="portrait">${PORTRAIT}</div><div class="who">VERA<small>FRONT DESK</small></div></div><div class="line"></div><ul class="replies"></ul><div class="tap">tap ▸</div></div></div>`,
+};
+const stage = document.getElementById('stage'), mount = document.getElementById('mount');
+let style = 's1', node = 'start', typing = null, full = '', shown = 0;
+function render() {
+  stage.className = `stage ${document.querySelector('#devices .on').dataset.d} ${style}`;
+  mount.innerHTML = TEMPL[style]();
+  const dlg = mount.querySelector('.dlg');
+  requestAnimationFrame(() => requestAnimationFrame(() => dlg.classList.add('in')));
+  dlg.addEventListener('click', e => { if (e.target.closest('li')) return; if (shown < full.length) finish(); else if (!SCRIPT[node].replies.length) restart(); });
+  say(node);
+}
+function say(id) {
+  node = id; const n = SCRIPT[id], line = mount.querySelector('.line'), ul = mount.querySelector('.replies'), tap = mount.querySelector('.tap');
+  full = n.line; shown = 0; line.textContent = ''; ul.innerHTML = ''; ul.classList.remove('show'); tap.classList.remove('show'); clearInterval(typing);
+  typing = setInterval(() => { shown = Math.min(full.length, shown + 1); line.textContent = full.slice(0, shown); if (shown >= full.length) finish(); }, 26);
+}
+function finish() {
+  clearInterval(typing); shown = full.length; const n = SCRIPT[node], ul = mount.querySelector('.replies'), tap = mount.querySelector('.tap');
+  mount.querySelector('.line').textContent = full;
+  if (!n.replies.length) { tap.textContent = 'tap to close ▸'; tap.classList.add('show'); return; }
+  ul.innerHTML = n.replies.map(([t], i) => `<li data-i="${i}">${style === 's1' ? `<b>${i + 1}</b>` : ''}${t}</li>`).join('');
+  ul.querySelectorAll('li').forEach(li => li.addEventListener('click', e => { e.stopPropagation(); say(n.replies[+li.dataset.i][1]); }));
+  requestAnimationFrame(() => ul.classList.add('show'));
+}
+function restart() { node = 'start'; render(); }
+document.getElementById('replay').onclick = restart;
+document.querySelectorAll('#styles button').forEach(b => b.onclick = () => { document.querySelectorAll('#styles button').forEach(x => x.classList.toggle('on', x === b)); style = b.dataset.s; node = 'start'; render(); });
+document.querySelectorAll('#devices button').forEach(b => b.onclick = () => { document.querySelectorAll('#devices button').forEach(x => x.classList.toggle('on', x === b)); render(); });
+addEventListener('keydown', e => { const n = SCRIPT[node]; if (/^[1-3]$/.test(e.key) && shown >= full.length && n.replies[+e.key - 1]) say(n.replies[+e.key - 1][1]); else if (e.key === 'Enter' || e.key === ' ') { if (shown < full.length) finish(); else if (!n.replies.length) restart(); } });
+if (matchMedia('(max-width: 700px)').matches) document.querySelector('#devices [data-d="phone"]').click(); else render();
+</script>
+</body>
+</html>
