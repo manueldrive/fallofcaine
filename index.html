@@ -2992,7 +2992,7 @@ loadScene('doorway', { instant: true });
 const PhoneUI = (() => {
   const ACCENT = '#e2b23a';
   const pScene = new THREE.Scene();
-  const pCam = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 0.01, 2);
+  const pCam = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 0.03, 1);
   pScene.add(new THREE.HemisphereLight(0x9aa4b8, 0x111111, 0.9));
   const key = new THREE.DirectionalLight(0xffe6c8, 1.6); key.position.set(0.4, 0.6, 0.8); pScene.add(key);
   const rim = new THREE.DirectionalLight(0x8fa6d8, 0.8); rim.position.set(-0.6, 0.2, -0.4); pScene.add(rim);
@@ -3025,9 +3025,9 @@ const [sbx, sby] = P(462, 460);
   const glass = ext(roundedShape(433 * PX, 358 * PX, 0.0014, 0.0014), 0.0004, 0.0002, pmat({ color: 0x050506, roughness: .08, metalness: .3 })); glass.position.set(sbx, sby, FZ + 0.0004); phone.add(glass); }
 const SW = 405 * PX, SH = SW * 0.75, [scx, scy] = P(462, 470);
 const RT = new THREE.WebGLRenderTarget(512, 384, { samples: 4, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter }); RT.texture.colorSpace = THREE.SRGBColorSpace; RT.texture.anisotropy = 4;
-const screen = new THREE.Mesh(new THREE.PlaneGeometry(SW, SH), new THREE.MeshBasicMaterial({ map: RT.texture, toneMapped: false })); screen.position.set(scx, scy, FZ + 0.0008); phone.add(screen);
+const screen = new THREE.Mesh(new THREE.PlaneGeometry(SW, SH), new THREE.MeshBasicMaterial({ map: RT.texture, toneMapped: false })); screen.position.set(scx, scy, FZ + 0.0011); screen.renderOrder = 5; phone.add(screen);
 const hud = ctex(320, 240, () => {}); hud.magFilter = THREE.NearestFilter; hud.minFilter = THREE.LinearFilter; hud.generateMipmaps = false;
-const hudM = new THREE.Mesh(new THREE.PlaneGeometry(SW, SH), new THREE.MeshBasicMaterial({ map: hud, transparent: true, toneMapped: false })); hudM.position.set(scx, scy, FZ + 0.0009); phone.add(hudM);
+const hudM = new THREE.Mesh(new THREE.PlaneGeometry(SW, SH), new THREE.MeshBasicMaterial({ map: hud, transparent: true, toneMapped: false, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })); hudM.renderOrder = 6; hudM.position.set(scx, scy, FZ + 0.0013); phone.add(hudM);
 const glow = new THREE.PointLight(0x9fb4d8, 0.05, 0.25, 2); glow.position.set(0, 0.03, 0.03); phone.add(glow);
 // nav row: call · menu · trackball in its chrome ring · back · end, each a curved rocker key
 const navY = 712;
