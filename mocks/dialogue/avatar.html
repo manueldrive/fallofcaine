@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Fall of Caine · Subtitles with portraits</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Special+Elite&display=swap">
+<style>
+  :root { --gold: #e2b23a; --cream: #ece6d2; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #0c0c0d; color: #ddd; font-family: 'Courier New', monospace; }
+  header { padding: 18px 18px 6px; max-width: 1140px; margin: 0 auto; }
+  header h1 { font: 400 28px/1 'Bebas Neue', sans-serif; letter-spacing: .08em; margin: 0 0 4px; color: var(--cream); }
+  header p { margin: 0; font-size: 13px; color: #8d8a80; line-height: 1.5; }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; max-width: 1140px; margin: 12px auto 14px; padding: 0 18px; }
+  .seg { display: inline-flex; border: 1px solid #333; border-radius: 999px; overflow: hidden; flex-wrap: wrap; }
+  .seg button { background: none; border: 0; color: #aaa; font: 600 12px/1 'Courier New', monospace; letter-spacing: .12em; text-transform: uppercase; padding: 10px 14px; cursor: pointer; }
+  .seg button.on { background: var(--gold); color: #111; }
+  .wrap { display: flex; justify-content: center; padding: 0 18px 24px; }
+  .stage { position: relative; overflow: hidden; background: #000 center / cover no-repeat; border-radius: 10px; box-shadow: 0 20px 60px rgba(0,0,0,.6); user-select: none; -webkit-user-select: none; container-type: inline-size; }
+  .stage.wide { width: min(1100px, 100%); aspect-ratio: 16 / 9; background-image: url(bg-wide.jpg); }
+  .stage.phone { width: min(390px, 100%); aspect-ratio: 390 / 844; max-height: 82vh; background-image: url(bg-phone.jpg); border-radius: 34px; border: 8px solid #1b1b1d; }
+  .lb { position: absolute; left: 0; right: 0; top: 0; height: 9%; background: #000; z-index: 4; }
+  .replay { position: absolute; top: 10px; right: 10px; z-index: 9; background: rgba(0,0,0,.6); color: #ddd; border: 1px solid rgba(255,255,255,.2); border-radius: 999px; font: 600 11px/1 'Courier New', monospace; letter-spacing: .12em; padding: 8px 12px; cursor: pointer; text-transform: uppercase; }
+
+  /* the subtitle itself (same as the game) */
+  .dlg { position: absolute; left: 0; right: 0; bottom: 0; z-index: 5; padding: 70px 7% 24px; background: linear-gradient(to top, #000 0%, rgba(0,0,0,.92) 50%, rgba(0,0,0,.7) 75%, transparent 100%); font-family: 'Special Elite', monospace; }
+  .who { font: 600 11px/1 'Courier New', monospace; letter-spacing: .38em; text-transform: uppercase; color: var(--gold); display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .who::after { content: ''; height: 1px; width: 46px; background: var(--gold); opacity: .6; }
+  .line { font-size: clamp(15px, 2cqi, 21px); line-height: 1.5; color: var(--cream); max-width: 760px; min-height: 3em; text-shadow: 0 2px 8px #000; }
+  .replies { list-style: none; margin: 12px 0 0; padding: 0; }
+  .replies li { font-size: clamp(13px, 1.45cqi, 15px); line-height: 1.4; color: rgba(236,230,210,.55); padding: 6px 0; cursor: pointer; opacity: 0; transform: translateY(6px); transition: opacity .25s, transform .25s, color .15s; }
+  .replies.show li { opacity: 1; transform: none; } .replies.show li:nth-child(2) { transition-delay: .07s; } .replies.show li:nth-child(3) { transition-delay: .14s; }
+  .replies li b { color: rgba(226,178,58,.65); font-weight: 400; margin-right: 12px; } .replies li:hover { color: var(--cream); } .replies li:hover b { color: var(--gold); }
+  .tap { position: absolute; right: 7%; bottom: 20px; font: 600 10px/1 'Courier New', monospace; letter-spacing: .2em; text-transform: uppercase; color: var(--cream); opacity: 0; }
+  .tap.show { animation: blink 1.2s infinite; } @keyframes blink { 0%,100% { opacity: .7; } 50% { opacity: .25; } }
+  .face { position: absolute; z-index: 4; pointer-events: none; transition: opacity .4s, transform .5s cubic-bezier(.2,.9,.25,1); }
+  .speaking .face { animation: breathe 4s ease-in-out infinite; }
+  @keyframes breathe { 50% { transform: var(--t, none) translateY(-2px) scale(1.006); } }
+
+  /* A — portrait rising out of the dark, bottom-left, bleeding into the band */
+  .A .face { left: 1.5%; bottom: 0; height: 74%; aspect-ratio: 1; background: url(vera.jpg) center / cover; -webkit-mask-image: radial-gradient(ellipse 60% 62% at 52% 42%, #000 55%, transparent 100%); mask-image: radial-gradient(ellipse 60% 62% at 52% 42%, #000 55%, transparent 100%); }
+  .A .dlg { padding-left: calc(1.5% + 52cqh + 2%); padding-left: max(30%, 260px); }
+  .phone.A .face { height: 46%; left: -6%; bottom: 26%; }
+  .phone.A .dlg { padding-left: 22px; padding-top: 30px; }
+
+  /* B — small framed photo in the band, like a file mugshot */
+  .B .face { position: relative; float: left; width: clamp(74px, 11cqi, 120px); aspect-ratio: 1; margin: 2px 22px 8px 0; background: url(vera-face.jpg) center / cover; border: 2px solid rgba(226,178,58,.75); box-shadow: 0 0 0 4px #000, 0 6px 20px rgba(0,0,0,.8); filter: saturate(.9) contrast(1.05); }
+  .B .text { overflow: hidden; }
+  .B .replies { clear: none; }
+  .phone.B .face { width: 62px; margin-right: 12px; } .phone.B .text { overflow: visible; }
+
+  /* C — big portrait on the right, half in shadow, the text on the left */
+  .C .face { right: -2%; bottom: 0; height: 92%; aspect-ratio: 1; background: url(vera.jpg) center / cover; -webkit-mask-image: linear-gradient(to left, #000 45%, transparent 88%), linear-gradient(to top, transparent 0%, #000 22%); -webkit-mask-composite: source-in; mask-image: linear-gradient(to left, #000 45%, transparent 88%); }
+  .C .dlg { padding-right: 46%; background: linear-gradient(to top, #000 0%, rgba(0,0,0,.9) 45%, transparent 100%); }
+  .C .shade { position: absolute; inset: 0; z-index: 3; background: linear-gradient(to right, rgba(0,0,0,.65) 20%, transparent 60%); pointer-events: none; }
+  .phone.C .face { height: 50%; right: -12%; bottom: 36%; }
+  .phone.C .dlg { padding-right: 22px; padding-left: 22px; }
+  .phone.C .shade { background: linear-gradient(to top, rgba(0,0,0,.6) 30%, transparent 70%); }
+
+  .pick { max-width: 1140px; margin: 0 auto 40px; padding: 0 18px; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+  .pick div { border: 1px solid #262626; border-radius: 10px; padding: 14px; font-size: 13px; line-height: 1.5; color: #aaa; }
+  .pick b { display: block; color: var(--cream); font: 400 20px/1 'Bebas Neue', sans-serif; letter-spacing: .06em; margin-bottom: 6px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Noir subtitle — with portraits</h1>
+  <p>The subtitle box you picked, three ways to bring Vera's portrait in. Tap the box to skip the typing, then pick a reply.</p>
+</header>
+<div class="bar">
+  <div class="seg" id="lay"><button data-l="A" class="on">A · Out of the dark</button><button data-l="B">B · File photo</button><button data-l="C">C · Close-up</button></div>
+  <div class="seg" id="dev"><button data-d="wide" class="on">Desktop</button><button data-d="phone">Phone</button></div>
+</div>
+<div class="wrap"><div class="stage wide A" id="stage"><div class="lb"></div><button class="replay" id="replay">↺ Replay</button><div id="mount"></div></div></div>
+<div class="pick">
+  <div><b>A · Out of the dark</b>Her bust fades up from the black at bottom-left, lamp glow and all, and the subtitle sits beside her. Most cinematic; the game stays visible above.</div>
+  <div><b>B · File photo</b>A small gold-framed head shot sits in the band next to her name, like a mugshot clipped to a file. Smallest and tidiest; works for big casts.</div>
+  <div><b>C · Close-up</b>She takes up the right side, edges dissolving into shadow, while you read on the left. Most dramatic, but covers more of the scene.</div>
+</div>
+<script>
+const SCRIPT = {
+  start: { line: "Another late one, Detective? Coffee's been on since six. It's terrible, but it's hot.", replies: [["Anything come in for me?", 'msg'], ["I sent you some photos.", 'photos'], ["Just passing through.", 'bye']] },
+  msg: { line: "A man called twice. Wouldn't leave a name — said you'd know. Voice like gravel in a coffee can.", replies: [["Did he leave a number?", 'num'], ["Thanks, Vera.", 'end']] },
+  num: { line: "Just a word. \"Coquina.\" I wrote it down twice so I'd stop hearing it.", replies: [] },
+  photos: { line: "Got two. The alley off Ninth again? You know nobody sweeps back there. They're on your board now.", replies: [["Thanks, Vera.", 'end']] },
+  bye: { line: "Suit yourself. The coffee will still be terrible later.", replies: [] },
+  end: { line: "Go home sometime, Detective. The city'll still be crooked in the morning.", replies: [] },
+};
+const stage = document.getElementById('stage'), mount = document.getElementById('mount');
+let lay = 'A', node = 'start', timer, full = '', shown = 0;
+function tpl() {
+  if (lay === 'B') return `<div class="dlg"><div class="face"></div><div class="text"><div class="who">Vera · Front desk</div><div class="line"></div><ul class="replies"></ul></div><div class="tap">tap ▸</div></div>`;
+  return `${lay === 'C' ? '<div class="shade"></div>' : ''}<div class="face"></div><div class="dlg"><div class="who">Vera · Front desk</div><div class="line"></div><ul class="replies"></ul><div class="tap">tap ▸</div></div>`;
+}
+function render() {
+  stage.className = `stage ${document.querySelector('#dev .on').dataset.d} ${lay}`;
+  mount.innerHTML = tpl();
+  mount.querySelector('.dlg').addEventListener('click', e => { if (e.target.closest('li')) return; if (shown < full.length) finish(); else if (!SCRIPT[node].replies.length) { node = 'start'; render(); } });
+  say(node);
+}
+function say(id) {
+  node = id; const n = SCRIPT[id], line = mount.querySelector('.line'), ul = mount.querySelector('.replies');
+  full = n.line; shown = 0; line.textContent = ''; ul.innerHTML = ''; ul.classList.remove('show'); mount.querySelector('.tap').classList.remove('show'); stage.classList.add('speaking');
+  clearInterval(timer); timer = setInterval(() => { shown = Math.min(full.length, shown + 1); line.textContent = full.slice(0, shown); if (shown >= full.length) finish(); }, 26);
+}
+function finish() {
+  clearInterval(timer); shown = full.length; mount.querySelector('.line').textContent = full; stage.classList.remove('speaking');
+  const n = SCRIPT[node], ul = mount.querySelector('.replies'), tap = mount.querySelector('.tap');
+  if (!n.replies.length) { tap.textContent = 'tap to close ▸'; tap.classList.add('show'); return; }
+  ul.innerHTML = n.replies.map(([t], i) => `<li data-i="${i}"><b>${i + 1}</b>${t}</li>`).join('');
+  ul.querySelectorAll('li').forEach(li => li.addEventListener('click', e => { e.stopPropagation(); say(n.replies[+li.dataset.i][1]); }));
+  requestAnimationFrame(() => ul.classList.add('show'));
+}
+document.getElementById('replay').onclick = () => { node = 'start'; render(); };
+document.querySelectorAll('#lay button').forEach(b => b.onclick = () => { document.querySelectorAll('#lay button').forEach(x => x.classList.toggle('on', x === b)); lay = b.dataset.l; node = 'start'; render(); });
+document.querySelectorAll('#dev button').forEach(b => b.onclick = () => { document.querySelectorAll('#dev button').forEach(x => x.classList.toggle('on', x === b)); render(); });
+if (matchMedia('(max-width: 700px)').matches) document.querySelector('#dev [data-d="phone"]').click(); else render();
+</script>
+</body>
+</html>
