@@ -29,11 +29,7 @@
 <div id="flash"></div>
 <canvas id="grain"></canvas>
 <div id="bar">
-  <button data-mode="phone" class="on">Phone</button>
-  <button data-mode="side">Sidekick</button>
-  <button data-mode="notebook">Notebook</button>
-  <button data-mode="map">Map</button>
-  <span class="sep"></span>
+  <!-- saved for later as props to view in Caine's office: <button data-mode="notebook">Notebook</button> <button data-mode="map">Map</button> -->
   <button id="lofi">Lo-fi</button>
   <button id="act" class="act">OK</button>
 </div>
@@ -323,46 +319,8 @@ function drawHudTo(g, W, t) {
 }
 function drawHud(t) {
   if (phone.visible) { drawHudTo(hud.userData.g, 320, t); hud.needsUpdate = true; screen.visible = ph.app === 'camera'; glow.intensity = (ph.app === 'thread' || ph.app === 'note' || ph.app === 'msgs' || ph.app === 'notes') ? 0.12 : 0.06; }
-  if (side.visible) { drawHudTo(skHud.userData.g, 360, t); skHud.needsUpdate = true; skScreen.visible = ph.app === 'camera'; }
 }
 
-// ---------- 1b) the Sidekick (LX-style): navy body, keyboard in the middle, the screen swivels up above it ----------
-const side = new THREE.Group(); camera.add(side);
-const navy = mat({ color: 0x1d2943, roughness: .35, metalness: .45 }), navyDark = mat({ color: 0x141c2e, roughness: .4, metalness: .4 });
-const SKW = 0.134, SKH = 0.058;
-const skBase = new THREE.Mesh(new THREE.BoxGeometry(SKW - 0.02, SKH, 0.014), navy); side.add(skBase);
-// rounded side wings that hold the controls
-for (const sx of [-1, 1]) { const wing = new THREE.Mesh(new THREE.CylinderGeometry(SKH / 2, SKH / 2, 0.014, 28, 1, false, sx > 0 ? 0 : Math.PI, Math.PI), navy); wing.rotation.x = Math.PI / 2; wing.position.x = sx * (SKW / 2 - 0.01 - 0.0) + (sx > 0 ? -0.012 : 0.012); wing.scale.set(0.75, 1, 1); side.add(wing); }
-const skKeys = canvasTex(512, 300, (g, w, h) => {
-  g.fillStyle = '#0d1018'; g.beginPath(); g.roundRect(0, 0, w, h, 24); g.fill();
-  const rows = ['QWERTYUIOP', 'ASDFGHJKL⌫', 'ZXCVBNM,.⏎', ['⇧', 'alt', '@', 'space', '.com', 'sym']];
-  rows.slice(0, 3).forEach((r, ri) => [...r].forEach((k, ci) => { const x = 14 + ci * 49 + ri * 4, y = 16 + ri * 66; g.fillStyle = ri === 1 && ci > 3 && ci < 7 ? '#5f6f90' : '#2e3442'; g.beginPath(); g.ellipse(x + 21, y + 26, 21, 25, 0, 0, 7); g.fill(); g.fillStyle = '#e8e8e8'; g.font = '600 20px Arial'; g.textAlign = 'center'; g.fillText(k, x + 21, y + 33); }));
-  let x = 18; [['⇧', 50], ['alt', 50], ['@', 50], ['space', 150], ['.com', 70], ['sym', 60]].forEach(([k, wd]) => { g.fillStyle = '#2e3442'; g.beginPath(); g.roundRect(x, 222, wd - 6, 52, 18); g.fill(); g.fillStyle = '#e8e8e8'; g.font = '600 17px Arial'; g.textAlign = 'center'; g.fillText(k, x + (wd - 6) / 2, 254); x += wd; });
-});
-const skKb = new THREE.Mesh(new THREE.PlaneGeometry(0.086, 0.05), new THREE.MeshStandardMaterial({ map: skKeys, roughness: .55 })); skKb.position.set(0, -0.001, 0.0071); side.add(skKb);
-// left wing: the square d-pad and two keys; right wing: trackball with call / end
-const dpad = new THREE.Mesh(new THREE.BoxGeometry(0.011, 0.011, 0.002), mat({ color: 0x8c9099, metalness: .7, roughness: .3 })); dpad.position.set(-0.054, 0.004, 0.0075); side.add(dpad);
-const dpadIn = new THREE.Mesh(new THREE.BoxGeometry(0.006, 0.006, 0.002), mat({ color: 0x3a3e46, roughness: .4 })); dpadIn.position.set(-0.054, 0.004, 0.0085); side.add(dpadIn);
-for (const y of [0.018, -0.012]) { const k = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.006, 0.0015), navyDark); k.position.set(-0.054, y, 0.0074); side.add(k); }
-const skBall = new THREE.Mesh(new THREE.SphereGeometry(0.0045, 16, 12), mat({ color: 0xc9ccd2, roughness: .2, metalness: .3 })); skBall.position.set(0.055, 0.003, 0.0078); side.add(skBall);
-const skRing = new THREE.Mesh(new THREE.TorusGeometry(0.0062, 0.001, 8, 24), mat({ color: 0x8c9099, metalness: .7, roughness: .3 })); skRing.position.copy(skBall.position); side.add(skRing);
-[[0.017, 0x8a2222], [-0.011, 0x2f6a3a]].forEach(([y, c]) => { const k = new THREE.Mesh(new THREE.BoxGeometry(0.007, 0.005, 0.0015), mat({ color: c, roughness: .5 })); k.position.set(0.055, y, 0.0074); side.add(k); });
-// the screen lid: a half turn about a point above centre lifts it clear of the keys and parks it above the body
-const LIDH = 0.06, OPEN_Y = 0.05;
-const skPivot = new THREE.Group(); skPivot.position.set(0, OPEN_Y / 2, 0.0085); side.add(skPivot);
-const skLid = new THREE.Group(); skLid.position.set(0, -OPEN_Y / 2, 0); skPivot.add(skLid);
-const lidBox = new THREE.Mesh(new THREE.BoxGeometry(0.098, LIDH, 0.008), navy); lidBox.position.z = 0.004; skLid.add(lidBox);
-const skBez = new THREE.Mesh(new THREE.PlaneGeometry(0.094, 0.056), mat({ color: 0x0a0c12, roughness: .2, metalness: .2 })); skBez.position.set(0, 0, 0.0082); skLid.add(skBez);
-const SKSW = 0.078, SKSH = 0.05;
-const skRT = new THREE.WebGLRenderTarget(216, 144); skRT.texture.colorSpace = THREE.SRGBColorSpace; skRT.texture.magFilter = THREE.NearestFilter; skRT.texture.minFilter = THREE.NearestFilter;
-const skScreen = new THREE.Mesh(new THREE.PlaneGeometry(SKSW, SKSH), new THREE.MeshBasicMaterial({ map: skRT.texture, toneMapped: false })); skScreen.position.set(0, 0, 0.0084); skScreen.rotation.z = Math.PI; skLid.add(skScreen);
-const skHud = canvasTex(360, 240, () => {}); skHud.magFilter = THREE.NearestFilter; skHud.generateMipmaps = false; skHud.minFilter = THREE.LinearFilter;
-const skHudM = new THREE.Mesh(new THREE.PlaneGeometry(SKSW, SKSH), new THREE.MeshBasicMaterial({ map: skHud, transparent: true, toneMapped: false })); skHudM.position.set(0, 0, 0.0085); skHudM.rotation.z = Math.PI; skLid.add(skHudM);
-const lens = new THREE.Mesh(new THREE.CircleGeometry(0.0012, 12), mat({ color: 0x222833, metalness: .8, roughness: .1 })); lens.position.set(0, -0.0265, 0.0083); skLid.add(lens);
-const skGlow = new THREE.PointLight(0x9fb4d8, 0.08, 0.3, 2); skGlow.position.set(0, 0.06, 0.04); side.add(skGlow);
-
-const skCam = new THREE.PerspectiveCamera(16, 1.5, 0.05, 60); scene.add(skCam);
-const sk = { open: 0, want: 1 };
 
 // ---------- 2) the pocket notebook ----------
 const book = new THREE.Group(); camera.add(book);
@@ -461,31 +419,29 @@ function foldMap(k) {   // k: 0 folded → 1 open
 // ---------- modes ----------
 let mode = 'phone'; const MODES = {
   phone: { g: phone, act: 'OK', note: 'Traced from your reference: chrome band, rocker keys, trackball ring, smile-curved keys with the number pad. His phone runs everything: Messages, Camera (snap clues), Notes (the case file), Map (pan the city, pins and leads) and Snake. Arrow keys = trackball, Enter = click, Esc = back.' },
-  side: { g: side, act: 'OK', note: 'Sidekick version: held sideways in both hands. The screen swivels a half turn to uncover the keyboard — same home screen, camera and texts, in a wide, low-res frame.' },
   notebook: { g: book, act: 'Turn page', note: 'Pocket notebook: handwriting fills in as the pencil moves; pages curl when they turn. Q&A, ledgers, his thoughts.' },
   map: { g: mapG, act: 'Fold', note: 'Folded street map: unfolds panel by panel. Circled leads and question marks in the one accent color.' },
 };
 const btns = [...document.querySelectorAll('[data-mode]')], act = document.getElementById('act'), note = document.getElementById('note');
 function setMode(m) {
   mode = m; btns.forEach(b => b.classList.toggle('on', b.dataset.mode === m));
-  act.textContent = (m === 'phone' || m === 'side') ? 'OK' : MODES[m].act; document.getElementById('pad').style.display = (m === 'phone' || m === 'side') ? 'flex' : 'none'; note.textContent = MODES[m].note;
+  act.textContent = m === 'phone' ? 'OK' : MODES[m].act; document.getElementById('pad').style.display = m === 'phone' ? 'flex' : 'none'; note.textContent = MODES[m].note;
   for (const k in MODES) MODES[k].g.userData.want = k === m ? 1 : 0;
   if (m === 'map') { mp.open = 0; mp.want = 1; act.textContent = 'Fold'; }
   if (m === 'notebook') setPage(nb.page);
-  if (m === 'side') { sk.open = 0; }
 }
 btns.forEach(b => b.onclick = () => setMode(b.dataset.mode));
 act.onclick = () => {
-  if (mode === 'phone' || mode === 'side') phoneAct();
+  if (mode === 'phone') phoneAct();
   if (mode === 'notebook' && nb.turn < 0) { nb.turn = 0; }
   if (mode === 'map') { mp.want = mp.want ? 0 : 1; act.textContent = mp.want ? 'Fold' : 'Unfold'; }
 };
 addEventListener('keydown', e => {
-  if (mode === 'phone' || mode === 'side') {
+  if (mode === 'phone') {
     const K = { ArrowUp: 'u', KeyW: 'u', ArrowDown: 'd', KeyS: 'd', ArrowLeft: 'l', KeyA: 'l', ArrowRight: 'r', KeyD: 'r', Enter: 'ok', Space: 'ok', Escape: 'back', Backspace: 'back' }[e.code];
     if (K) { e.preventDefault(); phoneInput(K); return; }
   }
-  if (e.code === 'Space') { e.preventDefault(); act.onclick(); } if (e.key === '1') setMode('phone'); if (e.key === '2') setMode('side'); if (e.key === '3') setMode('notebook'); if (e.key === '4') setMode('map'); });
+  if (e.code === 'Space') { e.preventDefault(); act.onclick(); }  });
 function phoneAct() { phoneInput('ok'); }
 function snap() {
   ph.snapT = clock.elapsedTime;
@@ -512,7 +468,6 @@ function layout() {
   const s = portrait ? 0.8 : 1;
   phone.userData.pos = new THREE.Vector3(0, -0.018, -0.118 * (portrait ? 1.25 : 1)); phone.userData.rot = new THREE.Euler(-0.02, -0.04, 0);
   book.userData.pos = new THREE.Vector3(0, -0.02, -0.33 * (portrait ? 1.25 : 1)); book.userData.rot = new THREE.Euler(-0.55, 0, 0);
-  side.userData.pos = new THREE.Vector3(0, -0.05, -0.2 * (portrait ? 1.5 : 1)); side.userData.rot = new THREE.Euler(-0.35, 0, 0);
   mapG.userData.pos = new THREE.Vector3(0, -0.01, -0.3 * (portrait ? 1.45 : 1)); mapG.userData.rot = new THREE.Euler(-0.35, 0, 0);
 }
 layout(); addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); layout(); });
@@ -536,16 +491,12 @@ renderer.setAnimationLoop(() => {
   // flash
   const since = t - ph.snapT; flashL.intensity = since < 0.35 ? 260 * (1 - since / 0.35) : 0;
   // phone camera aims where the main camera looks, a little lower, at the clue
-  if (side.visible) { sk.open += (sk.want - sk.open) * Math.min(1, dt * 2.2); const e = sk.open; skPivot.rotation.z = e * Math.PI; skPivot.position.z = 0.0085 + Math.sin(e * Math.PI) * 0.005; }
   if (ph.app === 'snake') { snake.t += dt; const step = Math.max(0.075, 0.16 - snake.score * 0.005); while (snake.t > step) { snake.t -= step; snakeStep(); } }
-  if (MODES.phone.g.visible || side.visible) {
+  if (MODES.phone.g.visible) {
     phoneCam.position.copy(camera.position); aim.set(0.2 - look.x * 2, 0.02 - look.y * 1.5, 0.72); phoneCam.lookAt(aim);
     drawHud(t);
     if (ph.app === 'camera') {
-      const pv = phone.visible, sv = side.visible; phone.visible = side.visible = false;
-      if (pv) { renderer.setRenderTarget(RT); renderer.render(scene, phoneCam); }
-      if (sv) { skCam.position.copy(phoneCam.position); skCam.quaternion.copy(phoneCam.quaternion); renderer.setRenderTarget(skRT); renderer.render(scene, skCam); }
-      renderer.setRenderTarget(null); phone.visible = pv; side.visible = sv;
+      phone.visible = false; renderer.setRenderTarget(RT); renderer.render(scene, phoneCam); renderer.setRenderTarget(null); phone.visible = true;
     }
   }
   // notebook: write, then turn
