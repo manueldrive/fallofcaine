@@ -1,4 +1,4 @@
-# The Fall of Caine · Noir Walk
+# The Fall of Caine
 
 A pulp noir walkabout in Coquina City, built with three.js. It's a single page with no build step.
 
