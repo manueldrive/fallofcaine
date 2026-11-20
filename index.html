@@ -3646,6 +3646,7 @@ function drawHudTo(g, W, t) {
    ========================================================= */
 const Pigeons = (() => {
   const OUT = { alley: 1, lot: 1, cemetery: 1 };
+  const SPEED = 4.6;
   const G = {
     body: new THREE.SphereGeometry(0.085, 14, 10), head: new THREE.SphereGeometry(0.041, 12, 9), neck: new THREE.SphereGeometry(0.04, 12, 9),
     beak: new THREE.ConeGeometry(0.008, 0.028, 6), eye: new THREE.SphereGeometry(0.0055, 6, 5), wing: new THREE.SphereGeometry(0.08, 10, 8),
@@ -3693,26 +3694,84 @@ const Pigeons = (() => {
     for (const s of [-1, 1]) { const l = mesh(G.leg, M.leg, s * 0.024, 0.07, 0.0); body.add(l); legs.push(l); }
     return { root, body, head, wings, legs, tail, state: 'idle', t: 0, next: Math.random() * 2, phase: Math.random() * 6, beat: Math.random() * 6, open: 0, target: null, vel: new THREE.Vector3(), yaw: 0, pitch: 0, bank: 0, turn: 0 };
   }
+
   let forS = null, grp = null, flock = [], nextIn = 0, lastFlutter = 0;
   const rand = (a, b) => a + Math.random() * (b - a);
+  const V = () => new THREE.Vector3();
+  // ---------- seeing the world: walls, ledges, sky
+  const ray = new THREE.Raycaster(), rd = V();
+  const isBird = (o) => { for (; o; o = o.parent) if (o === grp) return true; return false; };
+  const solid = (h) => h.object.isMesh && h.object.visible && !(h.object.material && (h.object.material.transparent || h.object.material.depthWrite === false)) && !isBird(h.object);
+  // the scene's solid meshes with their world boxes, so each ray only tests the few things near it
+  function solids() {
+    if (S._pmeshes) return S._pmeshes;
+    S.group.updateMatrixWorld(true); const list = [];
+    S.group.traverse(o => { if (!o.isMesh || isBird(o) || !o.geometry) return; for (let q = o; q; q = q.parent) if (!q.visible) return; const m = o.material; if (m && (m.transparent || m.depthWrite === false)) return; list.push({ o, box: new THREE.Box3().setFromObject(o) }); });
+    return (S._pmeshes = list);
+  }
+  const segBox = new THREE.Box3(), cands = [];
+  function hitAlong(a, b) {
+    rd.subVectors(b, a); const d = rd.length(); if (d < 1e-3) return null;
+    segBox.makeEmpty(); segBox.expandByPoint(a); segBox.expandByPoint(b); segBox.expandByScalar(0.05);
+    cands.length = 0; for (const s of solids()) if (s.box.intersectsBox(segBox)) cands.push(s.o);
+    if (!cands.length) return null;
+    ray.set(a, rd.divideScalar(d)); ray.far = d; ray.camera = camera; return ray.intersectObjects(cands, false).find(solid) || null;
+  }
+  const clear = (a, b) => !hitAlong(a, b);
   function free(x, z) { const b = S.bounds; if (x < b.minX + 0.4 || x > b.maxX - 0.4 || z < b.minZ + 0.4 || z > b.maxZ - 0.4) return false; if (S.blocked && S.blocked(x, z)) return false; return !(S.portals || []).some(p => Math.hypot(p.x - x, p.z - z) < 1.3); }
-  function spot(minFromCaine) { const b = S.bounds; for (let t = 0; t < 60; t++) { const x = rand(b.minX, b.maxX), z = rand(b.minZ, b.maxZ); if (free(x, z) && Math.hypot(x - pos.x, z - pos.z) > minFromCaine) return { x, z }; } return null; }
-  function spawnFlock(landing) {
-    const c = spot(4.5); if (!c) return;
-    const n = 2 + (Math.random() * 4 | 0), from = rand(0, Math.PI * 2);
-    for (let i = 0; i < n; i++) {
-      let x = c.x, z = c.z; for (let t = 0; t < 12; t++) { const a = rand(0, 6.3), r = rand(0.15, 1.1); if (free(c.x + Math.cos(a) * r, c.z + Math.sin(a) * r)) { x = c.x + Math.cos(a) * r; z = c.z + Math.sin(a) * r; break; } }
-      const b = makeBird(), y = S.groundY(x, z); b.root.rotation.y = rand(0, 6.3); b.home = { x, z };
-      if (landing) { b.state = 'land'; b.t = -i * rand(0.15, 0.4); const a = from + rand(-0.3, 0.3), side = rand(-1, 1) * 4;
-        const dir = new THREE.Vector3(Math.cos(a), 0, Math.sin(a)), perp = new THREE.Vector3(-dir.z, 0, dir.x);
-        b.path = [new THREE.Vector3(x, y, z).addScaledVector(dir, 18).addScaledVector(perp, side).setY(y + rand(7, 10)),
-                  new THREE.Vector3(x, y, z).addScaledVector(dir, 9).addScaledVector(perp, side * 0.6).setY(y + rand(4, 5.5)),
-                  new THREE.Vector3(x, y, z).addScaledVector(dir, 2.2).setY(y + 1.1),
-                  new THREE.Vector3(x, y, z)];
-        b.dur = rand(3.4, 4.2); b.root.position.copy(b.path[0]); b.root.visible = false; }
-      else b.root.position.set(x, y, z);
-      grp.add(b.root); flock.push(b);
+  // ledges, railings, car roofs, tops of things: found once per scene by dropping rays from the sky
+  function findPerches() {
+    if (S._perches) return S._perches;
+    const out = [], b = S.bounds, top = V(), bot = V();
+    for (let n = 0; n < 340; n++) {
+      const x = rand(b.minX - 0.6, b.maxX + 0.6), z = rand(b.minZ - 0.6, b.maxZ + 0.6), gy = S.groundY(THREE.MathUtils.clamp(x, b.minX, b.maxX), THREE.MathUtils.clamp(z, b.minZ, b.maxZ));
+      top.set(x, gy + 14, z); bot.set(x, gy + 0.9, z); const h = hitAlong(top, bot);
+      if (!h || !h.face) continue;
+      const ny = h.face.normal.clone().transformDirection(h.object.matrixWorld).y;
+      if (ny < 0.85 || h.point.y - gy < 1.0 || h.point.y - gy > 6.5) continue;
+      if (out.some(q => q.distanceTo(h.point) < 0.45)) continue;
+      out.push(h.point.clone());
     }
+    return (S._perches = out);
+  }
+  // ---------- flight paths that never go through anything
+  const bez = (P, u, o) => { const w = 1 - u; return o.set(0, 0, 0).addScaledVector(P[0], w * w * w).addScaledVector(P[1], 3 * w * w * u).addScaledVector(P[2], 3 * w * u * u).addScaledVector(P[3], u * u * u); };
+  function pathClear(P) { const a = V(), c = V(); bez(P, 0, a); for (let i = 1; i <= 8; i++) { bez(P, i / 8, c); if (!clear(a, c)) return false; a.copy(c); } return true; }
+  function arc(A, B) {   // hop up off A, come down onto B from a little above
+    const d = Math.hypot(B.x - A.x, B.z - A.z), lift = Math.min(1.6, 0.4 + d * 0.15);
+    return [A.clone(), A.clone().lerp(B, 0.3).setY(Math.max(A.y, B.y) + lift), B.clone().lerp(A, 0.18).setY(B.y + 0.7), B.clone()];
+  }
+  function skyPath(T) {   // drop in from open sky above
+    for (let t = 0; t < 14; t++) {
+      const a = rand(0, 6.3), r = t < 7 ? rand(4, 8) : rand(0, 1.5), S0 = V().set(T.x + Math.cos(a) * r, T.y + rand(9, 12), T.z + Math.sin(a) * r);
+      const P = [S0, S0.clone().lerp(T, 0.4).setY(T.y + rand(4, 6)), T.clone().add(V().set(Math.cos(a) * Math.min(1.2, 0.25 + r * 0.15), 1.1, Math.sin(a) * Math.min(1.2, 0.25 + r * 0.15))), T.clone()];
+      if (pathClear(P)) return P;
+    }
+    return null;
+  }
+  function escape(from) {   // a clear way up and out, away from Caine
+    const away = Math.atan2(from.x - pos.x, from.z - pos.z), A = from.clone().setY(from.y + 0.25);
+    for (let t = 0; t < 20; t++) {
+      const yaw = away + rand(-1.6, 1.6) * (t / 20 + 0.3), el = t < 16 ? rand(0.55, 1.1) : 1.45, dir = V().set(Math.sin(yaw) * Math.cos(el), Math.sin(el), Math.cos(yaw) * Math.cos(el));
+      if (clear(A, A.clone().addScaledVector(dir, 9))) return { yaw, el };
+    }
+    return null;
+  }
+  function fly(b, P, then) { b.state = 'fly'; b.path = P; b.t = Math.min(b.t, 0); b.then = then; let L = 0; const a = V(), c = V(); bez(P, 0, a); for (let i = 1; i <= 10; i++) { bez(P, i / 10, c); L += a.distanceTo(c); a.copy(c); } b.dur = THREE.MathUtils.clamp(L / SPEED, 0.9, 4.5); b.fi = 0; }
+  // ---------- spawning
+  function groundSpot(minFromCaine) { const b = S.bounds; for (let t = 0; t < 60; t++) { const x = rand(b.minX, b.maxX), z = rand(b.minZ, b.maxZ); if (free(x, z) && Math.hypot(x - pos.x, z - pos.z) > minFromCaine) return V().set(x, S.groundY(x, z), z); } return null; }
+  function addBird(at, perched) { const b = makeBird(); b.root.position.copy(at); b.root.rotation.y = rand(0, 6.3); b.home = at.clone(); b.perch = perched; b.next = rand(1, 4); grp.add(b.root); flock.push(b); return b; }
+  function spawnFlock(landing, where) {
+    const perches = findPerches().filter(q => Math.hypot(q.x - pos.x, q.z - pos.z) > 2.5);
+    const n = 1 + (Math.random() * 4 | 0), up = perches.length && (where ? where === 'perch' : Math.random() < 0.55);
+    const spots = [];
+    if (up) { let c = perches[Math.random() * perches.length | 0]; if (landing) { const ok = perches.filter(q => skyPath(q)); if (!ok.length) return; c = ok[Math.random() * ok.length | 0]; } perches.filter(q => q.distanceTo(c) < 2.5).sort(() => Math.random() - 0.5).slice(0, n).forEach(q => spots.push([q, true])); }
+    else { let c = null; for (let t = 0; t < (landing ? 10 : 1); t++) { const g = groundSpot(5); if (g && (!landing || skyPath(g))) { c = g; break; } } if (!c) return; for (let i = 0; i < n; i++) { for (let t = 0; t < 12; t++) { const a = rand(0, 6.3), r = i ? rand(0.2, 1.1) : 0, x = c.x + Math.cos(a) * r, z = c.z + Math.sin(a) * r; if (free(x, z)) { spots.push([V().set(x, S.groundY(x, z), z), false]); break; } } } }
+    spots.forEach(([at, perched], i) => {
+      if (!landing) { addBird(at, perched); return; }
+      const P = skyPath(at); if (!P) return;
+      const b = addBird(P[0].clone(), false); b.t = -i * rand(0.2, 0.5); b.root.visible = false; fly(b, P, perched ? 'perch' : 'ground');
+    });
   }
   let actx = null;
   function flutter(vol) {   // a quick burst of wingbeats: filtered noise, pulsed
@@ -3722,86 +3781,100 @@ const Pigeons = (() => {
       const src = actx.createBufferSource(), f = actx.createBiquadFilter(), g = actx.createGain(); src.buffer = buf; f.type = 'bandpass'; f.frequency.value = 900; f.Q.value = 0.7; g.gain.value = 0.22 * vol;
       src.connect(f).connect(g).connect(actx.destination); src.start(t0); } catch (e) {}
   }
-  function scare(b, delay) { if (b.state === 'flee') return; b.state = 'flee'; b.t = -delay; const dx = b.root.position.x - pos.x, dz = b.root.position.z - pos.z, d = Math.hypot(dx, dz) || 1, a = Math.atan2(dx / d, dz / d) + rand(-0.6, 0.6); b.vel.set(Math.sin(a) * 2.2, 2.4, Math.cos(a) * 2.2); }
+
+  function scare(b, delay) {
+    if (b.state === 'fly' || b.state === 'flee' || b.perch) return;
+    b.t = -delay; const p = b.root.position;
+    // somewhere up off the ground he can't reach? a ledge with a clear line to it. Otherwise, out and away.
+    const perches = findPerches().filter(q => q.distanceTo(p) < 10 && Math.hypot(q.x - pos.x, q.z - pos.z) > 1.8 && !flock.some(o => o !== b && o.home && o.home.distanceTo(q) < 0.3)).sort(() => Math.random() - 0.5);
+    if (Math.random() < 0.7) for (const q of perches.slice(0, 6)) { const P = arc(p.clone(), q.clone()); if (pathClear(P)) { b.home = q.clone(); fly(b, P, 'perch'); return; } }
+    const e = escape(p.clone());
+    if (!e) { b.state = 'idle'; b.next = 0.5; return; }
+    b.state = 'flee'; b.fi = 0; b.yaw = e.yaw; b.el = e.el;
+  }
+  function wingsFly(b, dt, flap, amp, sweep, glide) {
+    b.open = Math.min(1, b.open + dt * 9); b.beat += dt * flap * Math.PI * 2;
+    const ph = b.beat, down = Math.sin(ph) + 0.28 * Math.sin(2 * ph);
+    for (const wg of b.wings) {
+      wg.piv.visible = false; wg.fw.visible = true; wg.fw.scale.set(wg.s * (0.35 + 0.65 * b.open), 1, 1);
+      const root = glide ? 0.22 : 0.15 + down * 0.85 * amp, el = glide ? -0.08 : Math.sin(ph - 0.7) * 0.55 * amp;
+      wg.fw.rotation.set(0, -wg.s * ((glide ? 0 : Math.cos(ph) * 0.12) + sweep), wg.s * root); wg.elbow.rotation.set(0, 0, el);
+    }
+  }
+  function orient(b, dt, pitchOverride) {
+    const vh = Math.hypot(b.vel.x, b.vel.z); let pitch = pitchOverride ?? -Math.atan2(b.vel.y, Math.max(vh, 0.5)) * 0.6;
+    if (vh > 0.2) b.yaw = Math.atan2(b.vel.x, b.vel.z);
+    const dy = ((b.yaw - b.root.rotation.y + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI; b.root.rotation.y += dy * Math.min(1, dt * 7);
+    b.pitch += (pitch - b.pitch) * Math.min(1, dt * 6); b.bank += (THREE.MathUtils.clamp(-dy * 2.5, -0.6, 0.6) - b.bank) * Math.min(1, dt * 4);
+    b.body.rotation.set(b.pitch, 0, b.bank); b.head.rotation.x = -b.pitch * 0.7;
+  }
+  const np = V(), probeA = V(), probeB = V();
   function update(dt, now) {
     if (S !== forS) { if (grp && grp.parent) grp.parent.remove(grp); grp = null; flock = []; forS = S;
-      if (S && OUT[currentKey]) { grp = new THREE.Group(); S.group.add(grp); if (Math.random() < 0.7) spawnFlock(false); nextIn = now + rand(14, 30); } }
+      if (S && OUT[currentKey]) { grp = new THREE.Group(); S.group.add(grp); nextIn = now + rand(40, 80); if (Math.random() < 0.4) setTimeout(() => { if (forS === S && grp) spawnFlock(false); }, 50); } }
     if (!grp) return;
-    if (!flock.length && now > nextIn) { if (Math.random() < 0.65) spawnFlock(true); nextIn = now + rand(18, 40); }
+    if (!flock.length && now > nextIn) { if (Math.random() < 0.4) spawnFlock(true); nextIn = now + rand(45, 90); }
     let fled = false;
     for (let i = flock.length - 1; i >= 0; i--) {
       const b = flock[i], p = b.root.position; b.t += dt; b.phase += dt;
-      const onGround = b.state === 'idle' || b.state === 'walk' || b.state === 'peck';
-      if (onGround && Math.hypot(p.x - pos.x, p.z - pos.z) < (walkAmt > 0.3 ? 2.1 : 1.4)) {   // too close: the whole flock goes, one after another
-        for (const o of flock) if (Math.hypot(o.root.position.x - p.x, o.root.position.z - p.z) < 3) scare(o, o === b ? 0 : rand(0.05, 0.4));
+      const ground = !b.perch && (b.state === 'idle' || b.state === 'walk' || b.state === 'peck');
+      if (ground && Math.hypot(p.x - pos.x, p.z - pos.z) < (walkAmt > 0.3 ? 2.1 : 1.4)) {
+        for (const o of flock) if (!o.perch && o.state !== 'fly' && o.state !== 'flee' && o.root.position.distanceTo(p) < 3) scare(o, o === b ? 0 : rand(0.05, 0.4));
         fled = true;
       }
-      const flying = b.state === 'flee' || b.state === 'land';
-      if (flying) {
-        if (b.t < 0) { if (b.state === 'land') b.root.visible = false; continue; }
-        let flap = 8, amp = 1, sweep = 0, glide = false, legsOut = false;
-        if (b.state === 'flee') {
-          // burst off the ground, climb steep, then level into a quick climbing flight that wanders a little
-          if (!b.fi) { b.fi = 1; b.yaw = Math.atan2(b.vel.x, b.vel.z); b.turn = rand(-0.5, 0.5); }
-          const hs = Math.min(6.5, 1.6 + b.t * 4.5), climb = b.t < 0.45 ? 3.4 : 1.6 + Math.sin(b.t * 0.8) * 0.4;
-          b.yaw += b.turn * dt; if (Math.random() < dt * 0.6) b.turn = rand(-0.6, 0.6);
-          b.vel.set(Math.sin(b.yaw) * hs, climb, Math.cos(b.yaw) * hs); p.addScaledVector(b.vel, dt);
-          flap = b.t < 0.5 ? 11 : 8; amp = b.t < 0.5 ? 1.15 : 0.95; legsOut = b.t < 0.25;
-          glide = b.t > 1.6 && Math.sin(b.t * 2.3 + b.phase) > 0.75;
-          if (b.t > 6) { grp.remove(b.root); flock.splice(i, 1); continue; }
-        } else {
-          // gliding in on a curve, flapping in bursts, then flaring nose-up with legs out to touch down
-          b.root.visible = true;
-          const k = Math.min(1, b.t / b.dur), u = 1 - Math.pow(1 - k, 1.8), [P0, P1, P2, P3] = b.path, w = 1 - u;
-          const nx = w * w * w * P0.x + 3 * w * w * u * P1.x + 3 * w * u * u * P2.x + u * u * u * P3.x, ny = w * w * w * P0.y + 3 * w * w * u * P1.y + 3 * w * u * u * P2.y + u * u * u * P3.y, nz = w * w * w * P0.z + 3 * w * w * u * P1.z + 3 * w * u * u * P2.z + u * u * u * P3.z;
-          b.vel.set(nx - p.x, ny - p.y, nz - p.z).divideScalar(Math.max(dt, 1e-3)); p.set(nx, ny, nz);
-          if (b.vel.lengthSq() > 0.01) b.yaw = Math.atan2(b.vel.x, b.vel.z) * 1 + 0;
-          glide = k > 0.25 && k < 0.7 && Math.sin(b.t * 3 + b.phase) > -0.2;
-          if (k > 0.8) { flap = 10; amp = 1.1; sweep = 0.45; legsOut = true; glide = false; }
-          if (k >= 1) { b.state = 'idle'; b.t = 0; b.next = rand(0.8, 2); b.yaw = b.root.rotation.y; }
-        }
-        // orientation follows the flight: pitch with the climb, bank into turns (flaring pitches right up)
-        const vh = Math.hypot(b.vel.x, b.vel.z); let pitch = -Math.atan2(b.vel.y, Math.max(vh, 0.5)) * 0.6;
-        if (b.state === 'land' && b.t / b.dur > 0.8) pitch = -0.9; if (b.state === 'flee' && b.t < 0.4) pitch = -0.75;
-        let dy = ((b.yaw - b.root.rotation.y + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI; b.root.rotation.y += dy * Math.min(1, dt * 7);
-        b.pitch += (pitch - b.pitch) * Math.min(1, dt * 6); b.bank += (THREE.MathUtils.clamp(-dy * 2.5, -0.6, 0.6) - b.bank) * Math.min(1, dt * 4);
-        b.body.rotation.set(b.pitch, 0, b.bank); b.head.rotation.x = -b.pitch * 0.7;
-        // wings: unfold fast, beat with a quick downstroke and a lagging tip; glide holds them in a shallow V
-        b.open = Math.min(1, b.open + dt * 9); b.beat += dt * flap * Math.PI * 2;
-        const ph = b.beat, down = Math.sin(ph) + 0.28 * Math.sin(2 * ph);
-        for (const wg of b.wings) {
-          wg.piv.visible = false; wg.fw.visible = true; wg.fw.scale.set(wg.s * (0.35 + 0.65 * b.open), 1, 1);
-          const root = glide ? 0.22 : 0.15 + down * 0.85 * amp, el = glide ? -0.08 : Math.sin(ph - 0.7) * 0.55 * amp;
-          wg.fw.rotation.set(0, -wg.s * ((glide ? 0 : Math.cos(ph) * 0.12) + sweep), wg.s * root);   // (z: up/down beat; y: sweep forward while flaring)
-          wg.elbow.rotation.set(0, 0, el);
-        }
-        b.tail.scale.x = legsOut ? 1.7 : 1.15;
-        for (const l of b.legs) { l.visible = legsOut; l.rotation.x = legsOut ? 0.5 : 0; }
+      if (b.state === 'flee') {   // straight out along a line we checked was clear; if anything turns up ahead, climb
+        if (b.t < 0) continue;
+        const hs = Math.min(5.5, 1.4 + b.t * 4) * Math.cos(b.el), vs = b.t < 0.4 ? 3.2 : 1.2 + Math.sin(b.el) * 3;
+        b.vel.set(Math.sin(b.yaw) * hs, vs, Math.cos(b.yaw) * hs);
+        if ((b.tick = (b.tick || 0) + 1) % 6 === 0) { probeA.copy(p).setY(p.y + 0.15); probeB.copy(probeA).addScaledVector(b.vel.clone().normalize(), 0.9); if (!clear(probeA, probeB)) b.el = Math.min(1.5, b.el + 0.5); }
+        p.addScaledVector(b.vel, dt);
+        wingsFly(b, dt, b.t < 0.5 ? 11 : 8, b.t < 0.5 ? 1.15 : 0.95, 0, false); orient(b, dt, b.t < 0.4 ? -0.75 : undefined);
+        b.tail.scale.x = 1.15; for (const l of b.legs) { l.visible = b.t < 0.25; l.rotation.x = 0.5; }
+        if (b.t > 5) { grp.remove(b.root); flock.splice(i, 1); }
+        continue;
+      }
+      if (b.state === 'fly') {   // along a checked curve: from the sky, up to a ledge, or back down to the ground
+        if (b.t < 0) { continue; } b.root.visible = true;
+        const k = Math.min(1, b.t / b.dur), u = 1 - Math.pow(1 - k, 1.6); bez(b.path, u, np);
+        b.vel.subVectors(np, p).divideScalar(Math.max(dt, 1e-3)); p.copy(np);
+        const flare = k > 0.78, glide = !flare && b.dur > 2.2 && k > 0.25 && k < 0.65 && Math.sin(b.t * 3 + b.phase) > -0.2;
+        wingsFly(b, dt, flare ? 10 : k < 0.15 ? 10 : 8, flare ? 1.1 : 1, flare ? 0.45 : 0, glide); orient(b, dt, flare ? -0.9 : k < 0.12 ? -0.6 : undefined);
+        b.tail.scale.x = flare ? 1.7 : 1.15; for (const l of b.legs) { l.visible = flare || k < 0.1; l.rotation.x = 0.5; }
+        if (k >= 1) { b.state = 'idle'; b.t = 0; b.next = rand(1.5, 4); b.perch = b.then === 'perch'; b.home = p.clone(); b.yaw = b.root.rotation.y; }
         continue;
       }
       if (b.open > 0) {   // just landed: fold the wings back in
         b.open = Math.max(0, b.open - dt * 4);
         for (const wg of b.wings) { wg.fw.visible = b.open > 0.05; wg.piv.visible = b.open < 0.6; wg.fw.scale.set(wg.s * Math.max(0.05, b.open), 1, 1); wg.fw.rotation.set(0, 0, wg.s * 0.6 * b.open); wg.elbow.rotation.set(0, 0, -1.2 * (1 - b.open)); }
-        b.tail.scale.x = 1 + 0.7 * b.open; b.body.rotation.z *= 0.8; b.pitch *= 0.85; b.body.rotation.x = b.pitch;
-        for (const l of b.legs) l.visible = true;
-      }
-      // on the ground
-      p.y = S.groundY(p.x, p.z); if (b.open <= 0) b.body.rotation.x *= 0.8;
+        b.tail.scale.x = 1 + 0.7 * b.open; b.bank *= 0.8; b.pitch *= 0.85; b.body.rotation.set(b.pitch, 0, b.bank);
+        for (const l of b.legs) { l.visible = true; l.rotation.x = 0; }
+      } else b.body.rotation.x *= 0.8;
+      if (!b.perch) p.y = S.groundY(p.x, p.z);
       if (b.state === 'walk') {
         const dx = b.target.x - p.x, dz = b.target.z - p.z, d = Math.hypot(dx, dz);
-        if (d < 0.03 || b.t > 4) { b.state = 'idle'; b.t = 0; b.next = rand(0.6, 2.2); }
+        if (d < 0.03 || b.t > 4) { b.state = 'idle'; b.t = 0; b.next = rand(1.5, 5); }
         else { const sp = 0.3 * dt; p.x += dx / d * sp; p.z += dz / d * sp; const want = Math.atan2(dx, dz); let df = ((want - b.root.rotation.y + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI; b.root.rotation.y += df * Math.min(1, dt * 8);
           const st = b.phase * 9; b.head.position.z = 0.075 + Math.max(0, Math.sin(st)) * 0.022; b.head.rotation.x = 0; b.legs[0].rotation.x = Math.sin(st) * 0.5; b.legs[1].rotation.x = -Math.sin(st) * 0.5; }
       } else if (b.state === 'peck') {
         const k = b.t / 0.32; b.head.rotation.x = Math.sin(Math.min(1, k) * Math.PI) * 1.1; b.head.position.z = 0.075 + Math.sin(Math.min(1, k) * Math.PI) * 0.03;
-        if (k >= 1) { b.state = 'idle'; b.t = 0; b.next = rand(0.2, 1.4); }
-      } else {   // idle: the odd head turn
+        if (k >= 1) { b.state = 'idle'; b.t = 0; b.next = rand(0.5, 3); }
+      } else if (b.state === 'preen') {   // perched: tuck the head round into the wing for a moment
+        const k = Math.min(1, b.t / 1.6), e = Math.sin(k * Math.PI); b.head.rotation.set(0.5 * e, 1.9 * e * b.side, 0); b.head.position.z = 0.075 - 0.04 * e;
+        if (k >= 1) { b.state = 'idle'; b.t = 0; b.next = rand(3, 8); }
+      } else {   // idle: mostly just sitting there; the odd glance around
         b.head.position.z += (0.075 - b.head.position.z) * 0.2; b.head.rotation.x *= 0.8; b.legs[0].rotation.x = b.legs[1].rotation.x = 0;
-        b.head.rotation.y = Math.sin(b.phase * 0.9 + i) * 0.5 * (Math.sin(b.phase * 0.3) > 0.4 ? 1 : 0.2);
+        b.head.rotation.y = Math.sin(b.phase * 0.7 + i) * 0.55 * (Math.sin(b.phase * 0.23 + i) > 0.5 ? 1 : 0.15);
         if (b.t > b.next) { const r = Math.random(); b.t = 0;
-          if (r < 0.45) b.state = 'peck';
-          else if (r < 0.8) { for (let t = 0; t < 8; t++) { const a = rand(0, 6.3), dd = rand(0.25, 0.9), x = p.x + Math.cos(a) * dd, z = p.z + Math.sin(a) * dd; if (free(x, z) && Math.hypot(x - b.home.x, z - b.home.z) < 2.5) { b.target = { x, z }; b.state = 'walk'; break; } } }
-          else b.next = rand(0.8, 2.5); }
+          if (b.perch) {
+            if (r < 0.06) { const g = groundSpot(3.5); if (g && g.distanceTo(p) < 9) { const P = arc(p.clone(), g); if (pathClear(P)) { b.perch = false; fly(b, P, 'ground'); continue; } } }
+            if (r < 0.3) { b.state = 'preen'; b.side = Math.random() < 0.5 ? -1 : 1; } else b.next = rand(3, 9);
+          } else {
+            if (r < 0.35) b.state = 'peck';
+            else if (r < 0.55) { for (let t = 0; t < 8; t++) { const a = rand(0, 6.3), dd = rand(0.25, 0.9), x = p.x + Math.cos(a) * dd, z = p.z + Math.sin(a) * dd; if (free(x, z) && Math.hypot(x - b.home.x, z - b.home.z) < 2.5) { b.target = { x, z }; b.state = 'walk'; break; } } }
+            else if (r < 0.65) { b.state = 'preen'; b.side = Math.random() < 0.5 ? -1 : 1; }
+            else b.next = rand(2, 6);
+          }
+        }
       }
     }
     if (fled && now - lastFlutter > 1.5) { lastFlutter = now; flutter(1); }
