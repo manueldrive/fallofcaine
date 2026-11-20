@@ -97,7 +97,7 @@
 <div id="logo"><i>The Fall of</i><b>CAINE</b></div>
 <div id="topRight">
   <button id="musicBtn" title="Tap: music on/off · hold: pick a song" aria-label="Music"><svg class="note" viewBox="0 0 24 24" fill="currentColor"><path d="M9 17.5a3 3 0 1 1-2-2.83V5l11-2v11.5a3 3 0 1 1-2-2.83V6.2L9 7.5z"/></svg><svg class="x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 4l16 16"/></svg><span class="hold"></span></button>
-  <button id="phoneBtn" title="Phone (P)" aria-label="Phone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><rect x="8.5" y="5" width="7" height="6" rx=".6" fill="currentColor" stroke="none" opacity=".55"/><circle cx="12" cy="13.6" r="1.2" fill="currentColor" stroke="none"/><path d="M9 16.5h6M9 18.6h6" stroke-width="1.4"/></svg></button>
+  <button id="phoneBtn" title="Elderberry (P)" aria-label="Elderberry phone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><rect x="8.5" y="5" width="7" height="6" rx=".6" fill="currentColor" stroke="none" opacity=".55"/><circle cx="12" cy="13.6" r="1.2" fill="currentColor" stroke="none"/><path d="M9 16.5h6M9 18.6h6" stroke-width="1.4"/></svg></button>
   <button id="camToggle" title="Camera: overhead (C to switch)" aria-label="Switch camera"></button>
   <button id="menuBtn" aria-label="Menu" title="Menu (M)">☰</button>
 </div>
@@ -3029,6 +3029,12 @@ const FZ = DEPTH / 2 + 0.0012;   // front surface
 // earpiece slot
 { const [x, y] = P(465, 175); const ear = new THREE.Mesh(new THREE.BoxGeometry(140 * PX, 18 * PX, 0.0008), dark); ear.position.set(x, y, FZ); phone.add(ear);
   const earRim = new THREE.Mesh(new THREE.BoxGeometry(150 * PX, 26 * PX, 0.0004), chrome); earRim.position.set(x, y, FZ - 0.0003); phone.add(earRim); }
+// the maker's wordmark under the earpiece: a little berry cluster + "elderberry"
+{ const wm = ctex(512, 80, (g, W, H) => { g.clearRect(0, 0, W, H); g.fillStyle = '#b9b2a8';
+    for (const [x, y] of [[0, 0], [16, 0], [8, 13], [24, 13], [-8, 13], [0, 26], [16, 26]]) { g.beginPath(); g.arc(118 + x, 22 + y, 6.5, 0, 7); g.fill(); }
+    g.font = '600 40px "Helvetica Neue", Arial, sans-serif'; g.textBaseline = 'middle'; g.textAlign = 'left'; g.fillText('elderberry', 158, 42); });
+  const [x, y] = P(462, 228); const m = new THREE.Mesh(new THREE.PlaneGeometry(300 * PX, 47 * PX), new THREE.MeshBasicMaterial({ map: wm, transparent: true, toneMapped: false, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+  m.position.set(x, y, FZ + 0.0004); m.renderOrder = 4; phone.add(m); }
 // screen: glossy black bezel with a thin chrome edge, the display inset
 const [sbx, sby] = P(462, 460);
 { const rim = ext(roundedShape(445 * PX, 370 * PX, 0.0018, 0.0018), 0.0004, 0.0003, chrome); rim.position.set(sbx, sby, FZ); phone.add(rim);
