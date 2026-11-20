@@ -3641,11 +3641,129 @@ function drawHudTo(g, W, t) {
   };
 })();
 
+/* =========================================================
+   PIGEONS — the odd small flock on the outdoor ground: pecking, strutting, and bursting into the air when Caine gets close
+   ========================================================= */
+const Pigeons = (() => {
+  const OUT = { alley: 1, lot: 1, cemetery: 1 };
+  const G = {
+    body: new THREE.SphereGeometry(0.085, 14, 10), head: new THREE.SphereGeometry(0.041, 12, 9), neck: new THREE.SphereGeometry(0.04, 12, 9),
+    beak: new THREE.ConeGeometry(0.008, 0.028, 6), eye: new THREE.SphereGeometry(0.0055, 6, 5), wing: new THREE.SphereGeometry(0.08, 10, 8),
+    tail: new THREE.BoxGeometry(0.075, 0.01, 0.1), leg: new THREE.CylinderGeometry(0.0045, 0.0045, 0.07, 5), bar: new THREE.BoxGeometry(0.02, 0.004, 0.07),
+  };
+  G.beak.rotateX(Math.PI / 2); G.leg.translate(0, -0.035, 0);
+  const M = {
+    neck: new THREE.MeshStandardMaterial({ color: 0x4a5c58, roughness: .38, metalness: .45, emissive: 0x24142e, emissiveIntensity: .12 }),
+    beak: new THREE.MeshStandardMaterial({ color: 0x2a2624, roughness: .5 }), eye: new THREE.MeshStandardMaterial({ color: 0xd8702a, roughness: .3, emissive: 0x3a1a08 }),
+    leg: new THREE.MeshStandardMaterial({ color: 0xa04a44, roughness: .6 }), bar: new THREE.MeshStandardMaterial({ color: 0x24262a, roughness: .8 }),
+  };
+  const plumage = [0x6e737c, 0x626772, 0x787c84, 0x555960, 0x7c7874, 0x6a625c].map(c => ({ body: new THREE.MeshStandardMaterial({ color: c, roughness: .85 }), dark: new THREE.MeshStandardMaterial({ color: new THREE.Color(c).multiplyScalar(0.55), roughness: .85 }) }));
+  const mesh = (g, m, x, y, z) => { const o = new THREE.Mesh(g, m); o.position.set(x, y, z); o.castShadow = true; return o; };
+  function makeBird() {
+    const P = plumage[Math.random() * plumage.length | 0], root = new THREE.Group(), body = new THREE.Group(); root.add(body);
+    const torso = mesh(G.body, P.body, 0, 0.13, -0.01); torso.scale.set(0.85, 0.78, 1.35); torso.rotation.x = 0.22; body.add(torso);
+    const tail = mesh(G.tail, P.dark, 0, 0.115, -0.15); tail.rotation.x = -0.28; body.add(tail);
+    const head = new THREE.Group(); head.position.set(0, 0.18, 0.075); body.add(head);
+    const nk = mesh(G.neck, M.neck, 0, -0.016, -0.008); nk.scale.set(1.05, 1.2, 1); head.add(nk);
+    head.add(mesh(G.head, P.body, 0, 0.04, 0.022));
+    head.add(mesh(G.beak, M.beak, 0, 0.036, 0.066));
+    for (const s of [-1, 1]) head.add(mesh(G.eye, M.eye, s * 0.03, 0.05, 0.04));
+    const wings = [];
+    for (const s of [-1, 1]) {
+      const piv = new THREE.Group(); piv.position.set(s * 0.055, 0.16, 0.03); body.add(piv);
+      const w = mesh(G.wing, P.body, s * 0.012, -0.012, -0.06); w.scale.set(0.22, 0.5, 1.35); piv.add(w);
+      for (const dz of [-0.03, 0.0]) piv.add(mesh(G.bar, M.bar, s * 0.028, 0.0, dz - 0.06));   // the two dark wing bars
+      wings.push({ piv, s });
+    }
+    const legs = [];
+    for (const s of [-1, 1]) { const l = mesh(G.leg, M.leg, s * 0.024, 0.07, 0.0); body.add(l); legs.push(l); }
+    return { root, body, head, wings, legs, state: 'idle', t: 0, next: Math.random() * 2, phase: Math.random() * 6, target: null, vel: new THREE.Vector3(), from: null };
+  }
+  let forS = null, grp = null, flock = [], nextIn = 0, lastFlutter = 0;
+  const rand = (a, b) => a + Math.random() * (b - a);
+  function free(x, z) { const b = S.bounds; if (x < b.minX + 0.4 || x > b.maxX - 0.4 || z < b.minZ + 0.4 || z > b.maxZ - 0.4) return false; if (S.blocked && S.blocked(x, z)) return false; return !(S.portals || []).some(p => Math.hypot(p.x - x, p.z - z) < 1.3); }
+  function spot(minFromCaine) { const b = S.bounds; for (let t = 0; t < 60; t++) { const x = rand(b.minX, b.maxX), z = rand(b.minZ, b.maxZ); if (free(x, z) && Math.hypot(x - pos.x, z - pos.z) > minFromCaine) return { x, z }; } return null; }
+  function spawnFlock(landing) {
+    const c = spot(4.5); if (!c) return;
+    const n = 2 + (Math.random() * 4 | 0), from = rand(0, Math.PI * 2);
+    for (let i = 0; i < n; i++) {
+      let x = c.x, z = c.z; for (let t = 0; t < 12; t++) { const a = rand(0, 6.3), r = rand(0.15, 1.1); if (free(c.x + Math.cos(a) * r, c.z + Math.sin(a) * r)) { x = c.x + Math.cos(a) * r; z = c.z + Math.sin(a) * r; break; } }
+      const b = makeBird(), y = S.groundY(x, z); b.root.rotation.y = rand(0, 6.3); b.home = { x, z };
+      if (landing) { b.state = 'land'; b.t = -i * rand(0.1, 0.35); b.dur = rand(2.6, 3.4); const a = from + rand(-0.4, 0.4); b.from = new THREE.Vector3(x + Math.cos(a) * 14, y + rand(6, 9), z + Math.sin(a) * 14); b.to = new THREE.Vector3(x, y, z); b.root.position.copy(b.from); }
+      else b.root.position.set(x, y, z);
+      grp.add(b.root); flock.push(b);
+    }
+  }
+  let actx = null;
+  function flutter(vol) {   // a quick burst of wingbeats: filtered noise, pulsed
+    try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === 'suspended') actx.resume();
+      const t0 = actx.currentTime, len = 0.9, buf = actx.createBuffer(1, actx.sampleRate * len, actx.sampleRate), d = buf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) { const t = i / actx.sampleRate; d[i] = (Math.random() * 2 - 1) * Math.pow(Math.max(0, Math.sin(t * Math.PI * 2 * (11 - t * 4))), 3) * Math.exp(-t * 2.6); }
+      const src = actx.createBufferSource(), f = actx.createBiquadFilter(), g = actx.createGain(); src.buffer = buf; f.type = 'bandpass'; f.frequency.value = 900; f.Q.value = 0.7; g.gain.value = 0.22 * vol;
+      src.connect(f).connect(g).connect(actx.destination); src.start(t0); } catch (e) {}
+  }
+  function scare(b, delay) { if (b.state === 'flee') return; b.state = 'flee'; b.t = -delay; const dx = b.root.position.x - pos.x, dz = b.root.position.z - pos.z, d = Math.hypot(dx, dz) || 1, a = Math.atan2(dx / d, dz / d) + rand(-0.6, 0.6); b.vel.set(Math.sin(a) * 2.2, 2.4, Math.cos(a) * 2.2); }
+  function update(dt, now) {
+    if (S !== forS) { if (grp && grp.parent) grp.parent.remove(grp); grp = null; flock = []; forS = S;
+      if (S && OUT[currentKey]) { grp = new THREE.Group(); S.group.add(grp); if (Math.random() < 0.7) spawnFlock(false); nextIn = now + rand(14, 30); } }
+    if (!grp) return;
+    if (!flock.length && now > nextIn) { if (Math.random() < 0.65) spawnFlock(true); nextIn = now + rand(18, 40); }
+    let fled = false;
+    for (let i = flock.length - 1; i >= 0; i--) {
+      const b = flock[i], p = b.root.position; b.t += dt; b.phase += dt;
+      const onGround = b.state === 'idle' || b.state === 'walk' || b.state === 'peck';
+      if (onGround && Math.hypot(p.x - pos.x, p.z - pos.z) < (walkAmt > 0.3 ? 2.1 : 1.4)) {   // too close: the whole flock goes, one after another
+        for (const o of flock) if (Math.hypot(o.root.position.x - p.x, o.root.position.z - p.z) < 3) scare(o, o === b ? 0 : rand(0.05, 0.4));
+        fled = true;
+      }
+      // wings: folded on the ground, beating in the air
+      const flying = b.state === 'flee' || b.state === 'land';
+      for (const w of b.wings) w.piv.rotation.z = flying ? -w.s * (1.0 + Math.sin(b.phase * (b.state === 'land' && b.t > b.dur - 0.5 ? 9 : 24)) * 0.95) : -w.s * 0.04;
+      for (const l of b.legs) l.visible = !(b.state === 'flee' && b.t > 0.3);
+      if (b.state === 'flee') {
+        if (b.t < 0) continue;
+        b.vel.y += dt * 1.2; b.vel.x *= 1 + dt * 0.4; b.vel.z *= 1 + dt * 0.4; p.addScaledVector(b.vel, dt);
+        b.root.rotation.y = Math.atan2(b.vel.x, b.vel.z); b.body.rotation.x = -0.5; b.head.rotation.x = 0.3;
+        if (b.t > 5) { grp.remove(b.root); flock.splice(i, 1); }
+        continue;
+      }
+      if (b.state === 'land') {
+        if (b.t < 0) { b.root.visible = false; continue; } b.root.visible = true;
+        const k = Math.min(1, b.t / b.dur), e = 1 - Math.pow(1 - k, 2.4);
+        p.lerpVectors(b.from, b.to, e); p.y = THREE.MathUtils.lerp(b.from.y, b.to.y, 1 - Math.pow(1 - k, 1.6)) + Math.sin(k * Math.PI) * 0.6;
+        b.root.rotation.y = Math.atan2(b.to.x - b.from.x, b.to.z - b.from.z); b.body.rotation.x = k > 0.85 ? THREE.MathUtils.lerp(-0.3, 0.35, (k - 0.85) / 0.15) : -0.25;
+        if (k >= 1) { b.state = 'idle'; b.t = 0; b.next = rand(0.8, 2); b.body.rotation.x = 0; }
+        continue;
+      }
+      // on the ground
+      p.y = S.groundY(p.x, p.z); b.body.rotation.x *= 0.8;
+      if (b.state === 'walk') {
+        const dx = b.target.x - p.x, dz = b.target.z - p.z, d = Math.hypot(dx, dz);
+        if (d < 0.03 || b.t > 4) { b.state = 'idle'; b.t = 0; b.next = rand(0.6, 2.2); }
+        else { const sp = 0.3 * dt; p.x += dx / d * sp; p.z += dz / d * sp; const want = Math.atan2(dx, dz); let df = ((want - b.root.rotation.y + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI; b.root.rotation.y += df * Math.min(1, dt * 8);
+          const st = b.phase * 9; b.head.position.z = 0.075 + Math.max(0, Math.sin(st)) * 0.022; b.head.rotation.x = 0; b.legs[0].rotation.x = Math.sin(st) * 0.5; b.legs[1].rotation.x = -Math.sin(st) * 0.5; }
+      } else if (b.state === 'peck') {
+        const k = b.t / 0.32; b.head.rotation.x = Math.sin(Math.min(1, k) * Math.PI) * 1.1; b.head.position.z = 0.075 + Math.sin(Math.min(1, k) * Math.PI) * 0.03;
+        if (k >= 1) { b.state = 'idle'; b.t = 0; b.next = rand(0.2, 1.4); }
+      } else {   // idle: the odd head turn
+        b.head.position.z += (0.075 - b.head.position.z) * 0.2; b.head.rotation.x *= 0.8; b.legs[0].rotation.x = b.legs[1].rotation.x = 0;
+        b.head.rotation.y = Math.sin(b.phase * 0.9 + i) * 0.5 * (Math.sin(b.phase * 0.3) > 0.4 ? 1 : 0.2);
+        if (b.t > b.next) { const r = Math.random(); b.t = 0;
+          if (r < 0.45) b.state = 'peck';
+          else if (r < 0.8) { for (let t = 0; t < 8; t++) { const a = rand(0, 6.3), dd = rand(0.25, 0.9), x = p.x + Math.cos(a) * dd, z = p.z + Math.sin(a) * dd; if (free(x, z) && Math.hypot(x - b.home.x, z - b.home.z) < 2.5) { b.target = { x, z }; b.state = 'walk'; break; } } }
+          else b.next = rand(0.8, 2.5); }
+      }
+    }
+    if (fled && now - lastFlutter > 1.5) { lastFlutter = now; flutter(1); }
+  }
+  return { update };
+})();
+
 const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.05), now = performance.now() / 1000;
   keyWalk(dt); driveChoice(dt);
-  if (!paused) { if (!S.drive) updateWalker(dt, now); S.update && S.update(dt, now); }
+  if (!paused) { if (!S.drive) updateWalker(dt, now); S.update && S.update(dt, now); Pigeons.update(dt, now); }
   PhoneUI.poseCaine();
   updateCamera(dt);
   PhoneUI.povCamera();
