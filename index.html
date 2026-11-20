@@ -8,7 +8,7 @@
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="theme-color" content="#0b0b0b">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Great+Vibes&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Great+Vibes&family=Caveat:wght@500;700&family=Special+Elite&display=swap">
 <style>
   html, body { margin: 0; height: 100%; background: #000; overflow: hidden; font-family: Georgia, "Times New Roman", serif; }
   canvas#scene { display: block; width: 100%; height: 100%; }
@@ -60,6 +60,9 @@
   #phoneBtn { width: 40px; height: 40px; padding: 0; display: grid; place-items: center; background: rgba(0,0,0,.55); border: 1px solid #666; color: #ddd; cursor: pointer; }
   #phoneBtn:hover, #phoneBtn.on { border-color: #e2b23a; color: #f4d27a; }
   #phoneBtn svg { width: 22px; height: 22px; }
+  #propBtn { position: fixed; bottom: calc(118px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%) translateY(8px); opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; z-index: 7; font: 600 13px/1 'Courier New', monospace; letter-spacing: .14em; text-transform: uppercase; color: #111; background: #e2b23a; border: 0; border-radius: 999px; padding: 11px 18px; box-shadow: 0 6px 18px rgba(0,0,0,.45); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  #propBtn.show { opacity: 1; pointer-events: auto; transform: translateX(-50%); }
+  #propBtn.held { background: rgba(0,0,0,.7); color: #eee; border: 1px solid rgba(255,255,255,.25); }
   #phoneFlash { position: fixed; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 6; }
   #devToast { position: fixed; left: 50%; top: 18px; transform: translateX(-50%); z-index: 5; background: rgba(0,0,0,.8); color: #e2b23a; border: 1px solid #e2b23a; padding: 6px 14px; font: 14px 'Bebas Neue', Impact, sans-serif; letter-spacing: .3em; opacity: 0; transition: opacity .3s; pointer-events: none; }
   #panel h4 { margin: 0 0 8px; color: #777; font: 11px Arial, sans-serif; letter-spacing: .3em; text-transform: uppercase; font-weight: normal; }
@@ -88,6 +91,7 @@
 <div id="hint">Walk</div>
 <div id="devToast"></div>
 <div id="phoneFlash"></div>
+<button id="propBtn" type="button"></button>
 
 <div id="bottomBar">
 <div id="logo"><i>The Fall of</i><b>CAINE</b></div>
@@ -551,6 +555,11 @@ function buildOffice() {
   on(new THREE.CircleGeometry(0.04, 16), mat({ color: 0x1a0d05, roughness: .1 }), -0.05, 0.3, 0.895).rotation.x = -Math.PI / 2;
   on(new THREE.CylinderGeometry(0.035, 0.04, 0.24, 12), mat({ color: 0x5a3a12, roughness: .1, transparent: true, opacity: .85 }), -0.78, 0.25, 0.9); // bottle
   on(new THREE.CylinderGeometry(0.03, 0.025, 0.08, 12), mat({ color: 0xaaaaaa, roughness: .1, transparent: true, opacity: .5 }), -0.64, 0.3, 0.83); // glass
+  // Caine's own things on the desk: the pocket notebook and the folded city map (walk up to them to pick them up)
+  const nbCover = canvasTex(256, (g, s) => { g.fillStyle = 'rgb(62,44,30)'; g.fillRect(0, 0, s, s); noise(g, s, 22); g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(s * 0.06, 0, 6, s); g.fillStyle = 'rgb(214,200,160)'; g.fillRect(s * .22, s * .3, s * .6, s * .18); g.fillStyle = 'rgb(40,30,20)'; g.font = 'bold 26px Courier New'; g.textAlign = 'center'; g.fillText('CASE', s * .52, s * .37 + 6); g.font = 'bold 18px Courier New'; g.fillText('NOTES', s * .52, s * .44 + 2); g.fillStyle = 'rgb(160,40,36)'; g.fillRect(s * .86, 0, 8, s); });
+  const notebookProp = on(new THREE.BoxGeometry(0.11, 0.014, 0.16), [mat({ color: 0xe0d8c4, roughness: .9 }), mat({ color: 0xe0d8c4, roughness: .9 }), mat({ map: nbCover, roughness: .7, emissive: 0xe2b23a, emissiveIntensity: 0 }), mat({ color: 0x3e2c1e }), mat({ color: 0x3e2c1e }), mat({ color: 0x3e2c1e })], -0.32, -0.2, 0.808, 0.35);
+  const mapCover = canvasTex(256, (g, s) => { g.fillStyle = 'rgb(226,218,200)'; g.fillRect(0, 0, s, s); noise(g, s, 14); g.strokeStyle = 'rgba(120,112,100,.8)'; g.lineWidth = 5; for (let x = 20; x < s; x += 44) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x + 10, s); g.stroke(); } for (let y = 30; y < s; y += 40) { g.beginPath(); g.moveTo(0, y); g.lineTo(s, y + 8); g.stroke(); } g.fillStyle = 'rgb(176,188,194)'; g.beginPath(); g.moveTo(s, 0); g.lineTo(s * .74, 0); g.bezierCurveTo(s * .7, s * .4, s * .84, s * .6, s * .76, s); g.lineTo(s, s); g.fill(); g.strokeStyle = '#e2b23a'; g.lineWidth = 6; g.beginPath(); g.ellipse(s * .45, s * .3, 40, 18, 0, 0, 7); g.stroke(); g.fillStyle = 'rgba(30,30,30,.85)'; g.fillRect(0, s * .82, s, s * .18); g.fillStyle = 'rgb(226,218,200)'; g.font = 'bold 22px Courier New'; g.textAlign = 'center'; g.fillText('COQUINA CITY', s / 2, s * .93); });
+  const mapProp = on(new THREE.BoxGeometry(0.15, 0.01, 0.2), [mat({ color: 0xd8d0bc }), mat({ color: 0xd8d0bc }), mat({ map: mapCover, roughness: .9, emissive: 0xe2b23a, emissiveIntensity: 0 }), mat({ color: 0xd8d0bc }), mat({ color: 0xd8d0bc }), mat({ color: 0xd8d0bc })], 0.18, -0.2, 0.805, -0.2);
   // banker's desk lamp
   on(new THREE.CylinderGeometry(0.08, 0.09, 0.03, 16), brass, 0.55, -0.15, 0.81);
   on(new THREE.CylinderGeometry(0.012, 0.012, 0.32, 8), brass, 0.55, -0.15, 0.97);
@@ -704,6 +713,7 @@ function buildOffice() {
     start: { x: doorX, z: RZ + 0.45, heading: 0 },
     spawns: { precinct: { x: doorX, z: RZ + 0.45, heading: 0 } },
     portals: [{ x: doorX, z: RZ + 0.45, to: 'precinct', spawn: 'office', label: 'Squad room' }],
+    props: [{ id: 'notebook', mesh: notebookProp, label: 'Read notebook' }, { id: 'map', mesh: mapProp, label: 'Open map' }],
     patrol: [
       { p: [2.6, 0.3] },
       { p: [-2.85, -0.3], wait: 2.6, face: -Math.PI / 2 },      // look out the window
@@ -3258,7 +3268,7 @@ function drawHudTo(g, W, t) {
   function snap() { try { capture(); } catch (e) { console.warn(e); } ph.snapT = pt; const f = document.getElementById('phoneFlash'); f.style.transition = 'none'; f.style.opacity = .9; requestAnimationFrame(() => { f.style.transition = 'opacity .5s'; f.style.opacity = 0; }); }
   let open = false, k = 0;
   const btn = document.getElementById('phoneBtn');
-  function setOpen(v) { open = v; btn.classList.toggle('on', v); if (v) { held.clear(); route = []; ph.app = 'home'; } }
+  function setOpen(v) { if (v && inHand) { inHand = null; document.getElementById('propBtn').classList.remove('held'); } open = v; btn.classList.toggle('on', v); if (v) { held.clear(); route = []; ph.app = 'home'; } }
   btn.addEventListener('click', () => setOpen(!open));
   // --- feel: a tiny click sound and a buzz where the device allows it
   let actx = null;
@@ -3357,21 +3367,196 @@ function drawHudTo(g, W, t) {
   }
   const eye = new THREE.Vector3(), look = new THREE.Vector3(), povQ = new THREE.Quaternion(), tmpCam = new THREE.Object3D();
   function povCamera() {
-    if (k < 0.01 || S.drive) { man.visible = true; return; }
+    const K = Math.max(k, kp);
+    if (K < 0.01 || S.drive) { man.visible = true; return; }
     head.getWorldPosition(eye); const fx = Math.sin(heading), fz = Math.cos(heading);
     eye.x += fx * 0.12; eye.z += fz * 0.12; eye.y += 0.04;
-    const p = camApp() ? aim.pitch : -0.062; look.set(eye.x + fx * 4 * Math.cos(p), eye.y + 4 * Math.sin(p), eye.z + fz * 4 * Math.cos(p));
+    const p = kp > k ? -0.42 : camApp() ? aim.pitch : -0.062; look.set(eye.x + fx * 4 * Math.cos(p), eye.y + 4 * Math.sin(p), eye.z + fz * 4 * Math.cos(p));
     tmpCam.position.copy(eye); tmpCam.lookAt(look); povQ.copy(tmpCam.quaternion);
-    const e2 = k * k * (3 - 2 * k);
+    const e2 = K * K * (3 - 2 * K);
     camera.position.lerp(eye, e2); camera.quaternion.slerp(povQ, e2);
     man.visible = e2 < 0.55;   // hide him once we're inside his head
   }
+  // =========================================================
+  // DESK PROPS — the notebook and the city map on Caine's desk. Walk up, pick one up, and it comes up in his POV like the phone.
+  // =========================================================
+  const PEN = '#1f2a44', PAPER = '#e9e4d6';
+  const grit = (g, w, h, n, a) => { for (let i = 0; i < n; i++) { g.fillStyle = `rgba(0,0,0,${Math.random() * a})`; g.fillRect(Math.random() * w, Math.random() * h, 2, 2); } };
+  // --- the pocket notebook: handwriting fills in as the pencil moves; pages curl when they turn
+  const book = new THREE.Group(); book.visible = false; pScene.add(book);
+  const NPW = 0.105, NPH = 0.15;
+  const PAGES = [
+    { title: 'Tues · 11:40 pm', lines: ['Alley off 9th & Lime.', 'Kid in a purple hoodie', 'ran — two masks after him.', 'White masks. Dancers?', 'Shell casing by the drain.', '— 9mm. Who carries 9s?'] },
+    { title: 'QUESTIONS', q: true, lines: ['Q: Who was the kid?', 'A: "Bernard." Works the', '   docks, the bartender says.', 'Q: The masks?', 'A: Nobody saw nothin.', '   (She was lying.)'] },
+    { title: 'Bravano — owes 40', lines: ['9.4  Rosenberg   50', '9.11 Sommers     20', '9.15 F. Greer    40', '10.2 Rossi      35', '10.26 Kaplan    20', '11.6 L. Tate     —'] },
+    { title: 'Thoughts', lines: ['Rain again. Coquina never', 'washes clean, it just', 'gets wet.', '', 'Chief wants it closed by', 'Friday. Why so quick?'] },
+  ];
+  const blankPage = () => ctex(420, 600, (g, w, h) => { g.fillStyle = PAPER; g.fillRect(0, 0, w, h); });
+  function writePage(tex, p, chars) {
+    const g = tex.userData.g, w = 420; let n = chars, pos = null;
+    g.fillStyle = PAPER; g.fillRect(0, 0, w, 600); grit(g, w, 600, 1500, .05);
+    g.strokeStyle = 'rgba(80,110,150,.35)'; g.lineWidth = 1.5; for (let y = 110; y < 580; y += 52) { g.beginPath(); g.moveTo(16, y); g.lineTo(w - 16, y); g.stroke(); }
+    g.strokeStyle = 'rgba(170,60,60,.35)'; g.beginPath(); g.moveTo(52, 0); g.lineTo(52, 600); g.stroke();
+    g.fillStyle = PEN; g.textAlign = 'left';
+    g.font = p.q ? '30px "Special Elite"' : '700 40px Caveat';
+    const head = p.title.slice(0, Math.max(0, n)); g.fillText(head, 64, 80); n -= p.title.length;
+    if (n <= 0 && !pos) pos = [64 + g.measureText(head).width, 80];
+    g.font = '500 36px Caveat';
+    p.lines.forEach((ln, i) => { if (n <= 0) return; const s = ln.slice(0, n); const y = 100 + 52 * (i + 1) - 12; g.fillText(s, 60, y); if (n < ln.length) pos = [60 + g.measureText(s).width, y]; n -= ln.length; });
+    if (!pos) pos = [60, 100 + 52 * p.lines.length - 12];
+    if (chars > 999) { g.strokeStyle = ACCENT; g.lineWidth = 4; g.beginPath(); g.moveTo(60, 100 + 52 * 5 - 4); g.lineTo(330, 100 + 52 * 5 - 4); g.stroke(); }
+    tex.needsUpdate = true; return pos;
+  }
+  const leftTex = blankPage(), rightTex = blankPage(), turnFrontTex = blankPage(), turnBackTex = blankPage();
+  turnBackTex.wrapS = THREE.RepeatWrapping; turnBackTex.repeat.x = -1; turnBackTex.offset.x = 1;
+  const pageM = (map, side) => new THREE.MeshStandardMaterial({ map, roughness: .9, side: side || THREE.FrontSide });
+  const leftPg = new THREE.Mesh(new THREE.PlaneGeometry(NPW, NPH), pageM(leftTex)); leftPg.position.set(-NPW / 2, 0, 0); book.add(leftPg);
+  const rightGeo = new THREE.PlaneGeometry(NPW, NPH); rightGeo.translate(NPW / 2, 0, 0); book.add(new THREE.Mesh(rightGeo, pageM(rightTex)));
+  const turnGeo = new THREE.PlaneGeometry(NPW, NPH, 32, 1); turnGeo.translate(NPW / 2, 0, 0); const turnBase = turnGeo.attributes.position.array.slice();
+  const turnFront = new THREE.Mesh(turnGeo, pageM(turnFrontTex)), turnBack = new THREE.Mesh(turnGeo, pageM(turnBackTex, THREE.BackSide));
+  turnFront.position.z = turnBack.position.z = 0.001; book.add(turnFront, turnBack); turnFront.visible = turnBack.visible = false;
+  const coverM = pmat({ color: 0x3a2a1e, roughness: .7 });
+  const bCover = new THREE.Mesh(new THREE.BoxGeometry(NPW * 2 + 0.012, NPH + 0.012, 0.004), coverM); bCover.position.z = -0.003; book.add(bCover);
+  const bSpine = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, NPH, 8), coverM); bSpine.position.z = 0.001; book.add(bSpine);
+  const pencil = new THREE.Group();
+  { const pb = new THREE.Mesh(new THREE.CylinderGeometry(0.0035, 0.0035, 0.11, 6), pmat({ color: 0x2f5a3a, roughness: .5 })); pb.rotation.z = Math.PI / 2; pb.position.x = 0.055; pencil.add(pb);
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.0035, 0.012, 6), pmat({ color: 0xd9b98a })); tip.rotation.z = Math.PI / 2; tip.position.x = -0.006; pencil.add(tip); }
+  pencil.rotation.set(0.5, -0.35, 0.6); book.add(pencil);
+  const nb = { page: 0, chars: 0, turn: -1, ready: false };
+  function setPage(i) { nb.page = (i + PAGES.length) % PAGES.length; nb.chars = 0; nb.turn = -1; writePage(leftTex, PAGES[(nb.page + PAGES.length - 1) % PAGES.length], 1e9); turnFront.visible = turnBack.visible = false; }
+  function bendTurn(p) {
+    const a = turnGeo.attributes.position.array;
+    for (let i = 0; i < a.length; i += 3) { const u = turnBase[i], th = p * Math.PI + Math.sin(p * Math.PI) * 0.7 * (u / NPW); a[i] = Math.cos(th) * u; a[i + 2] = Math.sin(th) * u * 0.9; a[i + 1] = turnBase[i + 1]; }
+    turnGeo.attributes.position.needsUpdate = true; turnGeo.computeVertexNormals();
+  }
+  function updateBook(dt, t) {
+    const p = PAGES[nb.page];
+    if (nb.turn < 0) {
+      nb.chars += dt * 24; const pos = writePage(rightTex, p, nb.chars | 0);
+      const total = p.title.length + p.lines.join('').length;
+      if (nb.chars < total) { const px = (pos[0] / 420) * NPW, py = NPH / 2 - (pos[1] / 600) * NPH; pencil.position.set(px + 0.002, py + Math.sin(t * 40) * 0.0015, 0.012); }
+      else { if (nb.chars < total + 1) writePage(rightTex, p, 1e9); pencil.position.lerp(new THREE.Vector3(NPW * 0.95, -NPH * 0.35, 0.02), dt * 3); }
+    } else {
+      if (nb.turn === 0) { const c = turnFrontTex.userData.g; c.drawImage(rightTex.userData.c, 0, 0); turnFrontTex.needsUpdate = true; writePage(rightTex, p, 1e9); turnFrontTex.userData.g.drawImage(rightTex.userData.c, 0, 0); turnFrontTex.needsUpdate = true; writePage(turnBackTex, p, 1e9); writePage(rightTex, PAGES[(nb.page + 1) % PAGES.length], 0); }
+      nb.turn += dt / 0.9; const kk = Math.min(1, nb.turn); bendTurn(kk * kk * (3 - 2 * kk)); turnFront.visible = turnBack.visible = true;
+      if (nb.turn >= 1) { writePage(leftTex, p, 1e9); nb.page = (nb.page + 1) % PAGES.length; nb.chars = 0; nb.turn = -1; turnFront.visible = turnBack.visible = false; }
+    }
+  }
+  // --- the folded city map: unfolds panel by panel
+  const mapG = new THREE.Group(); mapG.visible = false; pScene.add(mapG);
+  const MW = 0.11, MH = 0.2;
+  const mapTex = ctex(1200, 720, () => {});
+  function drawMap() {
+    const g = mapTex.userData.g, w = 1200, h = 720;
+    g.fillStyle = '#e8e2d2'; g.fillRect(0, 0, w, h); grit(g, w, h, 6000, .05);
+    g.fillStyle = '#b9c2c6'; g.beginPath(); g.moveTo(w, 0); g.lineTo(w * 0.78, 0); g.bezierCurveTo(w * .72, h * .3, w * .86, h * .5, w * .76, h); g.lineTo(w, h); g.fill();
+    g.strokeStyle = '#9b958a'; g.lineWidth = 10; for (let x = 80; x < w * 0.74; x += 120) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x + 30, h); g.stroke(); } for (let y = 70; y < h; y += 110) { g.beginPath(); g.moveTo(0, y); g.lineTo(w * 0.8, y + 20); g.stroke(); }
+    g.fillStyle = '#cfc8b6'; g.fillRect(820, 470, 150, 160); g.fillStyle = '#9da48e'; g.fillRect(70, 470, 230, 190);
+    g.fillStyle = '#2b2b2b'; g.font = '700 46px "Special Elite"'; g.textAlign = 'left'; g.fillText('COQUINA CITY', 60, 60);
+    const label = (t, x, y, s = 30) => { g.font = `700 ${s}px Caveat`; g.fillStyle = PEN; g.fillText(t, x, y); };
+    label('Doorway', 330, 300); label('Alley', 430, 220); label('Parking lot', 520, 150); label('PRECINCT', 520, 110, 40); label('Warehouse', 860, 455); label('Cemetery', 100, 455); label('The Drive', 600, 420);
+    g.strokeStyle = ACCENT; g.lineWidth = 6; g.beginPath(); g.ellipse(600, 98, 120, 42, -0.05, 0, 7); g.stroke();
+    g.fillStyle = ACCENT; g.font = '700 70px Caveat'; g.fillText('?', 1010, 520); g.fillText('?', 250, 520);
+    g.strokeStyle = PEN; g.lineWidth = 4; g.setLineDash([12, 10]); g.beginPath(); g.moveTo(470, 230); g.bezierCurveTo(560, 300, 700, 380, 880, 470); g.stroke(); g.setLineDash([]);
+    g.fillStyle = '#9a1f22'; g.beginPath(); g.arc(700, 100, 12, 0, 7); g.fill(); label('you', 728, 92, 28);
+    g.strokeStyle = 'rgba(0,0,0,.18)'; g.lineWidth = 3; for (const x of [400, 800]) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke(); } g.beginPath(); g.moveTo(0, 360); g.lineTo(w, 360); g.stroke();
+    mapTex.needsUpdate = true;
+  }
+  const panels = [];
+  for (let i = 0; i < 3; i++) {
+    const t = mapTex.clone(); t.repeat.set(1 / 3, 1); t.offset.set(i / 3, 0); t.userData = mapTex.userData;
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(MW, MH * 0.6), new THREE.MeshStandardMaterial({ map: t, roughness: .95, side: THREE.DoubleSide }));
+    const piv = new THREE.Group(); piv.add(m); panels.push({ piv, m, t });
+  }
+  mapG.add(panels[1].piv);
+  panels[1].piv.add(panels[0].piv); panels[0].piv.position.x = -MW / 2; panels[0].m.position.x = -MW / 2;
+  panels[1].piv.add(panels[2].piv); panels[2].piv.position.x = MW / 2; panels[2].m.position.x = MW / 2;
+  const mp = { open: 0, want: 1 };
+  function foldMap(kk) { panels[0].piv.rotation.y = (1 - kk) * Math.PI * 0.97; panels[2].piv.rotation.y = -(1 - kk) * Math.PI * 0.95; panels[0].m.position.z = 0.0008; panels[2].m.position.z = 0.0016; }
+  // fonts first, then paint the paper
+  let inkReady = false;
+  Promise.all([document.fonts.load('700 40px Caveat'), document.fonts.load('500 36px Caveat'), document.fonts.load('30px "Special Elite"')]).catch(() => {}).then(() => { inkReady = true; drawMap(); panels.forEach(p => p.t.needsUpdate = true); setPage(nb.page); });
+  drawMap(); setPage(0);
+
+  // --- picking things up
+  const propBtn = document.getElementById('propBtn');
+  let inHand = null, kp = 0, nearProp = null;
+  const pv = { yaw: 0, pitch: 0, zoom: 1 };
+  const GROUP = { notebook: book, map: mapG };
+  const wp = new THREE.Vector3();
+  function pickUp(pr) {
+    if (open) setOpen(false);
+    inHand = pr; pv.yaw = pv.pitch = 0; pv.zoom = 1;
+    held.clear(); route = []; faceTarget = null;
+    pr.mesh.getWorldPosition(wp); heading = Math.atan2(wp.x - pos.x, wp.z - pos.z);
+    if (pr.id === 'notebook' && nb.turn < 0) nb.chars = 0;
+    if (pr.id === 'map') { mp.open = 0; mp.want = 1; }
+    propBtn.textContent = '✕ Put down'; propBtn.classList.add('held', 'show'); haptic('click');
+  }
+  function putDown() { if (!inHand) return; inHand = null; propBtn.classList.remove('held'); haptic('click'); }
+  function propAction() {
+    if (!inHand) return; haptic('click');
+    if (inHand.id === 'notebook') { if (nb.turn < 0) nb.turn = 0; }
+    else mp.want = mp.want ? 0 : 1;
+  }
+  function propBack() { if (inHand && inHand.id === 'notebook' && nb.turn < 0) { setPage(nb.page - 1); writePage(rightTex, PAGES[nb.page], 1e9); nb.chars = 1e4; haptic('tick'); } }
+  propBtn.addEventListener('click', e => { e.stopPropagation(); if (inHand) putDown(); else if (nearProp) pickUp(nearProp); });
+  // while something is in his hands: drag to tilt it, pinch (or wheel) to bring it closer, tap to turn the page / fold the map
+  const pTouches = new Map(); let pPinch0 = 0, pZoom0 = 1; const pDrag = { on: false, x: 0, y: 0, moved: 0 };
+  addEventListener('pointerdown', e => {
+    if (!inHand || e.target !== canvas) return; e.stopImmediatePropagation(); e.preventDefault();
+    pTouches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pTouches.size === 2) { const [a, b] = [...pTouches.values()]; pPinch0 = Math.hypot(a.x - b.x, a.y - b.y); pZoom0 = pv.zoom; pDrag.on = false; return; }
+    pDrag.on = true; pDrag.x = e.clientX; pDrag.y = e.clientY; pDrag.moved = 0; try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+  }, true);
+  addEventListener('pointermove', e => {
+    if (!inHand) return;
+    if (pTouches.has(e.pointerId)) { pTouches.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (pTouches.size === 2 && pPinch0) { const [a, b] = [...pTouches.values()]; pv.zoom = Math.max(0.8, Math.min(1.9, pZoom0 * Math.hypot(a.x - b.x, a.y - b.y) / pPinch0)); return; } }
+    if (!pDrag.on) return; e.stopImmediatePropagation();
+    const dx = e.clientX - pDrag.x, dy = e.clientY - pDrag.y; pDrag.x = e.clientX; pDrag.y = e.clientY; pDrag.moved += Math.abs(dx) + Math.abs(dy);
+    pv.yaw = Math.max(-0.6, Math.min(0.6, pv.yaw + dx * 0.006)); pv.pitch = Math.max(-0.5, Math.min(0.5, pv.pitch + dy * 0.005));
+  }, true);
+  const pLift = e => { pTouches.delete(e.pointerId); if (pTouches.size < 2) pPinch0 = 0; };
+  addEventListener('pointercancel', pLift, true);
+  addEventListener('pointerup', e => { if (!inHand) return; pLift(e); if (!pDrag.on) return; pDrag.on = false; e.stopImmediatePropagation(); if (pDrag.moved < 8) propAction(); }, true);
+  canvas.addEventListener('wheel', e => { if (!inHand) return; e.preventDefault(); pv.zoom = Math.max(0.8, Math.min(1.9, pv.zoom * Math.exp(-e.deltaY * 0.002))); }, { passive: false });
+  addEventListener('keydown', e => {
+    if (!inHand) { if (nearProp && !open && (e.code === 'KeyE' || e.code === 'Enter') && !e.repeat) { pickUp(nearProp); e.preventDefault(); e.stopImmediatePropagation(); } return; }
+    if (e.code === 'Escape' || e.code === 'Backspace' || e.code === 'KeyE') putDown();
+    else if (e.code === 'Enter' || e.code === 'Space' || e.code === 'ArrowRight' || e.code === 'KeyD') propAction();
+    else if (e.code === 'ArrowLeft' || e.code === 'KeyA') propBack();
+    else if (e.code === 'KeyP') { putDown(); return; }   // let the phone key through
+    e.preventDefault(); e.stopImmediatePropagation();
+  }, true);
+  function updateProps(dt) {
+    // anything on this scene's desk he's close enough to reach?
+    nearProp = null;
+    if (!inHand && !open && !S.drive && S.props && !loading) {
+      let best = 1.05;
+      for (const pr of S.props) { pr.mesh.getWorldPosition(wp); const d = Math.hypot(wp.x - pos.x, wp.z - pos.z); if (d < best) { best = d; nearProp = pr; } }
+    }
+    if (S.props) for (const pr of S.props) { const m = pr.mesh.material[2]; m.emissiveIntensity = pr === nearProp ? 0.18 + Math.sin(pt * 5) * 0.12 : 0; pr.mesh.visible = !(inHand === pr && kp > 0.35); }
+    if (!inHand) { if (nearProp) { propBtn.textContent = (nearProp.id === 'map' ? '🗺 ' : '📓 ') + nearProp.label; propBtn.classList.add('show'); } else propBtn.classList.remove('show'); }
+    kp += ((inHand ? 1 : 0) - kp) * Math.min(1, dt * 6);
+    const portrait = innerWidth < innerHeight;
+    for (const id in GROUP) {
+      const g = GROUP[id], on = inHand && inHand.id === id, kk = on ? kp : (g.userData.k || 0) * Math.max(0, 1 - dt * 6);
+      g.userData.k = kk; g.visible = kk > 0.01; if (!g.visible) continue;
+      const dist = id === 'map' ? (portrait ? 0.64 : 0.38) : (portrait ? 0.44 : 0.38);
+      g.position.set(0, (portrait ? -0.018 : -0.004) - (1 - kk) * 0.3 + Math.sin(pt * 1.3) * 0.0022, -dist / pv.zoom);
+      g.rotation.set((id === 'map' ? -0.3 : -0.45) + pv.pitch + (1 - kk) * 0.7 + Math.sin(pt * 1.1) * 0.01, pv.yaw + Math.sin(pt * 0.7) * 0.015, Math.sin(pt * 0.9) * 0.01 + (1 - kk) * 0.25);
+      if (id === 'notebook') updateBook(dt, pt);
+      else { mp.open += (mp.want - mp.open) * Math.min(1, dt * 2.5); foldMap(mp.open); }
+    }
+  }
   return {
-    get isOpen() { return open; }, poseCaine, povCamera, close: () => setOpen(false), toggle: () => setOpen(!open),
+    get isOpen() { return open || !!inHand; }, poseCaine, povCamera, close: () => setOpen(false), toggle: () => setOpen(!open),
     render(dt) {
       pt += dt; k += ((open ? 1 : 0) - k) * Math.min(1, dt * 8);
-      grain.style.opacity = (0.09 * (1 - Math.min(1, k) * 0.9)).toFixed(3);
-      phone.visible = k > 0.01; if (!phone.visible) return;
+      updateProps(dt);
+      grain.style.opacity = (0.09 * (1 - Math.min(1, Math.max(k, kp)) * 0.9)).toFixed(3);
+      phone.visible = k > 0.01;
+      if (!phone.visible) { if (book.visible || mapG.visible) { renderer.autoClear = false; renderer.clearDepth(); renderer.render(pScene, pCam); renderer.autoClear = true; } return; }
       const portrait = innerWidth < innerHeight;
       phone.position.set(portrait ? 0 : 0.06, (portrait ? 0.008 : 0.002) - (1 - k) * 0.2 + Math.sin(pt * 1.3) * 0.0012, (portrait ? -0.17 : -0.2) / view.zoom);
       const vy = camApp() ? 0 : view.yaw, vp = camApp() ? 0 : view.pitch;
