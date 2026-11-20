@@ -11,6 +11,7 @@ A pulp noir walkabout in Coquina City, built with three.js. It's a single page w
 - **Glowing markers:** walk onto one to go through a door or get in your car.
 - **C** or the camera button (bottom bar, between music and menu): switch between the overhead and over-the-shoulder cameras.
 - **☰** (or M / Esc): jump to a location, change the camera, pause, set the mood.
+- **Phone** (bottom bar, or **P**): Caine's phone comes up. Arrow keys / WASD move the trackball, Enter clicks, Esc goes back (Esc on the home screen puts it away). Messages, Camera (snaps what Caine sees), Notes, Map (shows where you are) and Snake.
 - **Music button:** tap to mute, hold to pick a song.
 - **Driving:** arrow keys / WASD steer. Pick a destination with **Q** or **E**.
 
