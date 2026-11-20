@@ -1495,7 +1495,7 @@ function buildAlley() {
     },
     groundY() { return 0; },
     start: { x: -0.75, z: 4.0, heading: Math.PI / 2 },
-    spawns: { doorway: { x: -0.75, z: 4.0, heading: Math.PI / 2 }, lot: { x: 0.2, z: -29.0, heading: 0 } },
+    spawns: { doorway: { x: 0.35, z: 2.9, heading: Math.PI }, lot: { x: 0.2, z: -28.8, heading: 0 } },
     portals: [{ x: -0.8, z: 4.0, to: 'doorway', spawn: 'alley' }, { x: 0.2, z: -30.6, to: 'lot', spawn: 'alley', label: 'Parking lot' }],
     patrol: [
       { p: [0.1, 1.2] },
@@ -2735,7 +2735,7 @@ function loadScene(key, { instant = false, spawn = null } = {}) {
     const st = (spawn && S.spawns && S.spawns[spawn]) || S.start;
     pos.set(st.x, S.groundY(st.x, st.z), st.z); heading = st.heading;
     route = []; pause = 0.8; patrolIdx = 0; faceTarget = null; walkAmt = 0;
-    manualUntil = spawn ? performance.now() / 1000 + 4 : 0; portalCooldown = 2;
+    manualUntil = spawn ? performance.now() / 1000 + 4 : 0; portalCooldown = 0.5; portalArmed = false;
     loading = false;
     updateCamera(0, true);
     [...scenesBar.children].forEach(b => b.classList.toggle('on', b.dataset.key === key));
@@ -2872,7 +2872,7 @@ function driveChoice(dt) {
 
 // --- keyboard walking (overhead: camera-relative · over the shoulder: turn with left/right)
 const WALK_KEYS = { ArrowUp: 'u', KeyW: 'u', ArrowDown: 'd', KeyS: 'd', ArrowLeft: 'l', KeyA: 'l', ArrowRight: 'r', KeyD: 'r' };
-const held = new Set(); let portalCooldown = 0;
+const held = new Set(); let portalCooldown = 0, portalArmed = false;   // a door only works once you've stepped clear of it
 addEventListener('keydown', e => { const k = WALK_KEYS[e.code]; if (!k || !S || S.drive) return; e.preventDefault(); held.add(k); document.getElementById('hint').style.opacity = 0; });
 addEventListener('keyup', e => { const k = WALK_KEYS[e.code]; if (k) held.delete(k); });
 addEventListener('blur', () => held.clear());
@@ -2903,6 +2903,7 @@ canvas.addEventListener('pointerup', joyEnd); canvas.addEventListener('pointerca
 if (matchMedia('(pointer: coarse)').matches) document.getElementById('hint').textContent = 'Drag to walk · glowing circles take you places';
 function keyWalk(dt) {
   portalCooldown = Math.max(0, portalCooldown - dt);
+  if (!portalArmed && S && !loading && !(S.portals || []).some(q => Math.hypot(q.x - pos.x, q.z - pos.z) < 1.4)) portalArmed = true;
   if (!S || S.drive || loading || paused || (!held.size && !joy.on)) return;
   let f = (held.has('u') ? 1 : 0) - (held.has('d') ? 1 : 0), s = (held.has('r') ? 1 : 0) - (held.has('l') ? 1 : 0);
   if (joy.on) { if (Math.hypot(joy.x, joy.y) < 0.2) { route = []; return; } f = -joy.y; s = joy.x; }
@@ -2925,7 +2926,7 @@ function keyWalk(dt) {
   } else route = [new THREE.Vector3(tx, 0, tz)];
   route.meta = null; route.portal = null; pause = 0; manualUntil = performance.now() / 1000 + 6;
   if (camMode === 'street' && f < 0) faceTarget = null;
-  const portal = !portalCooldown && (S.portals || []).find(q => Math.hypot(q.x - pos.x, q.z - pos.z) < 0.55);
+  const portal = portalArmed && !portalCooldown && (S.portals || []).find(q => Math.hypot(q.x - pos.x, q.z - pos.z) < 0.55);
   if (portal) { held.clear(); route = []; portalCooldown = 2; loadScene(portal.to, { spawn: portal.spawn }); }
 }
 
