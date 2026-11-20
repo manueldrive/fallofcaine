@@ -3076,9 +3076,13 @@ phone.traverse(o => { if (o.isMesh) o.castShadow = false; });
   // the camera app looks through Caine's eyes: the game camera, narrowed
   const lens = new THREE.PerspectiveCamera(32, 4 / 3, 0.15, 80);
 // ---------- the phone OS: home, messages, camera, notes, map, snake ----------
-const APPS = ['Messages', 'Camera', 'Notes', 'Map', 'Snake'];
+const APPS = ['Messages', 'Camera', 'Photos', 'Notes', 'Map', 'Snake'];
 const aim = { pitch: 0, fov: 32 };   // camera app: where Caine points the lens, and how far it's zoomed
-const ph = { app: 'home', sel: 1, filed: 0, filedNow: false, unread: 1, snapT: -9, list: 0, scroll: 0, open: null, mapX: 300, mapY: 230 };
+// the camera roll: thumbnails kept as small canvases, saved between visits as jpegs
+const photos = [];
+try { (JSON.parse(localStorage.getItem('caineRoll') || '[]')).forEach(p => { const im = new Image(); const c = document.createElement('canvas'); c.width = 240; c.height = 180; im.onload = () => c.getContext('2d').drawImage(im, 0, 0); im.src = p.src; photos.push({ cv: c, where: p.where, when: p.when }); }); } catch (e) {}
+function saveRoll() { try { localStorage.setItem('caineRoll', JSON.stringify(photos.slice(0, 24).map(p => ({ src: p.cv.toDataURL('image/jpeg', 0.7), where: p.where, when: p.when })))); } catch (e) {} }
+const ph = { app: 'home', pSel: 0, sel: 1, filed: 0, filedNow: false, unread: 1, snapT: -9, list: 0, scroll: 0, open: null, mapX: 300, mapY: 230 };
 const MONO = '"Courier New", monospace', CREAM = '#ece6d2', INK = '#1c2230';
 const THREADS = [
   { from: 'UNKNOWN', time: '3:12a', unread: true, body: ['Stop looking for the kid, Caine.'] },
@@ -3123,12 +3127,12 @@ function snakeStep() {
 // input from the trackball / keys: dir is 'u','d','l','r'; 'ok' selects; 'back' goes back
 function phoneInput(k) {
   const a = ph.app;
-  if (k === 'back') { if (a === 'home') { PhoneUI.close(); return; } if (a === 'thread') { ph.app = 'msgs'; } else if (a === 'note') { ph.app = 'notes'; } else { ph.app = 'home'; } ph.scroll = 0; return; }
+  if (k === 'back') { if (a === 'home') { PhoneUI.close(); return; } if (a === 'thread') { ph.app = 'msgs'; } else if (a === 'note') { ph.app = 'notes'; } else if (a === 'photo') { ph.app = 'photos'; } else { ph.app = 'home'; } ph.scroll = 0; return; }
   if (a === 'home') {
-    if (k === 'l') ph.sel = (ph.sel + 4) % 5; if (k === 'r') ph.sel = (ph.sel + 1) % 5;
-    if (k === 'u' || k === 'd') ph.sel = ph.sel < 3 ? Math.min(4, ph.sel + 3) : ph.sel - 3;
+    const NA = APPS.length; if (k === 'l') ph.sel = (ph.sel + NA - 1) % NA; if (k === 'r') ph.sel = (ph.sel + 1) % NA;
+    if (k === 'u' || k === 'd') ph.sel = (ph.sel + 3) % 6 < NA ? (ph.sel + 3) % 6 : ph.sel;
     if (k === 'ok') { const app = APPS[ph.sel]; ph.list = 0; ph.scroll = 0;
-      if (app === 'Messages') ph.app = 'msgs'; if (app === 'Camera') { ph.app = 'camera'; ph.filedNow = false; aim.pitch = 0; aim.fov = 32; faceTarget = null; } if (app === 'Notes') ph.app = 'notes'; if (app === 'Map') { ph.app = 'map'; const yp = PINS.find(p => p.label === youPin()); if (yp) { ph.mapX = yp.x; ph.mapY = yp.y; } } if (app === 'Snake') { ph.app = 'snake'; snakeReset(); } }
+      if (app === 'Messages') ph.app = 'msgs'; if (app === 'Camera') { ph.app = 'camera'; ph.filedNow = false; aim.pitch = 0; aim.fov = 32; faceTarget = null; } if (app === 'Photos') { ph.app = 'photos'; ph.pSel = 0; } if (app === 'Notes') ph.app = 'notes'; if (app === 'Map') { ph.app = 'map'; const yp = PINS.find(p => p.label === youPin()); if (yp) { ph.mapX = yp.x; ph.mapY = yp.y; } } if (app === 'Snake') { ph.app = 'snake'; snakeReset(); } }
     return;
   }
   if (a === 'msgs' || a === 'notes') {
@@ -3138,7 +3142,9 @@ function phoneInput(k) {
     return;
   }
   if (a === 'note' || a === 'thread') { if (k === 'u') ph.scroll = Math.max(0, ph.scroll - 1); if (k === 'd') ph.scroll++; return; }
-  if (a === 'camera') { if (k === 'ok' && !ph.filedNow) { snap(); ph.filedNow = true; ph.filed++; } else if (k === 'ok') ph.filedNow = false; return; }
+  if (a === 'camera') { if (k === 'ok') { snap(); ph.filedNow = true; ph.filed++; } return; }
+  if (a === 'photos') { const n = photos.length; if (!n) return; if (k === 'l') ph.pSel = Math.max(0, ph.pSel - 1); if (k === 'r') ph.pSel = Math.min(n - 1, ph.pSel + 1); if (k === 'u') ph.pSel = Math.max(0, ph.pSel - 3); if (k === 'd') ph.pSel = Math.min(n - 1, ph.pSel + 3); if (k === 'ok') ph.app = 'photo'; return; }
+  if (a === 'photo') { const n = photos.length; if (k === 'l' || k === 'u') ph.pSel = Math.max(0, ph.pSel - 1); if (k === 'r' || k === 'd') ph.pSel = Math.min(n - 1, ph.pSel + 1); if (k === 'ok') ph.app = 'photos'; return; }
   if (a === 'map') { const st = 24; if (k === 'l') ph.mapX -= st; if (k === 'r') ph.mapX += st; if (k === 'u') ph.mapY -= st; if (k === 'd') ph.mapY += st; ph.mapX = Math.max(0, Math.min(640, ph.mapX)); ph.mapY = Math.max(0, Math.min(460, ph.mapY));
     if (k === 'ok') { const near = PINS.reduce((b, p) => Math.hypot(p.x - ph.mapX, p.y - ph.mapY) < Math.hypot(b.x - ph.mapX, b.y - ph.mapY) ? p : b); ph.mapX = near.x; ph.mapY = near.y; } return; }
   if (a === 'snake') { const D = { u: [0, -1], d: [0, 1], l: [-1, 0], r: [1, 0] }[k]; if (D && !(D[0] === -snake.dir[0] && D[1] === -snake.dir[1])) snake.next = D; if (k === 'ok' && !snake.alive) snakeReset(); }
@@ -3149,12 +3155,13 @@ function icon(g, name, x, y, on) {
   const cx = x + 40, cy = y + 30;
   if (name === 'Messages') { g.strokeRect(cx - 20, cy - 13, 40, 26); g.beginPath(); g.moveTo(cx - 20, cy - 13); g.lineTo(cx, cy + 3); g.lineTo(cx + 20, cy - 13); g.stroke(); }
   if (name === 'Camera') { g.strokeRect(cx - 20, cy - 11, 40, 26); g.beginPath(); g.arc(cx, cy + 2, 8, 0, 7); g.stroke(); g.fillRect(cx - 8, cy - 16, 12, 5); }
+  if (name === 'Photos') { g.strokeRect(cx - 14, cy - 18, 32, 24); g.fillStyle = INK; g.fillRect(cx - 20, cy - 10, 32, 26); g.fillStyle = CREAM; g.strokeRect(cx - 20, cy - 10, 32, 26); g.beginPath(); g.moveTo(cx - 17, cy + 13); g.lineTo(cx - 7, cy + 1); g.lineTo(cx, cy + 8); g.lineTo(cx + 4, cy + 4); g.lineTo(cx + 10, cy + 13); g.closePath(); g.fill(); g.beginPath(); g.arc(cx + 5, cy - 3, 3, 0, 7); g.fill(); }
   if (name === 'Notes') { g.strokeRect(cx - 14, cy - 17, 28, 34); for (let i = 0; i < 4; i++) g.fillRect(cx - 9, cy - 10 + i * 7, 18, 2); }
   if (name === 'Map') { g.beginPath(); g.moveTo(cx - 20, cy - 12); g.lineTo(cx - 7, cy - 16); g.lineTo(cx + 7, cy - 12); g.lineTo(cx + 20, cy - 16); g.lineTo(cx + 20, cy + 14); g.lineTo(cx + 7, cy + 18); g.lineTo(cx - 7, cy + 14); g.lineTo(cx - 20, cy + 18); g.closePath(); g.stroke(); }
   if (name === 'Snake') { g.beginPath(); g.moveTo(cx - 18, cy + 12); g.lineTo(cx + 10, cy + 12); g.lineTo(cx + 10, cy); g.lineTo(cx - 10, cy); g.lineTo(cx - 10, cy - 12); g.lineTo(cx + 16, cy - 12); g.stroke(); g.fillRect(cx + 14, cy - 15, 6, 6); }
   g.font = '15px ' + MONO; g.textAlign = 'center'; g.fillText(name, cx, y + 72);
   if (name === 'Messages' && ph.unread) { g.fillStyle = ACCENT; g.beginPath(); g.arc(cx + 22, cy - 15, 9, 0, 7); g.fill(); g.fillStyle = '#111'; g.font = 'bold 13px Arial'; g.fillText(ph.unread, cx + 22, cy - 10); }
-  if (name === 'Camera' && ph.filed) { g.fillStyle = CREAM; g.font = 'bold 11px ' + MONO; g.fillText(ph.filed, cx + 24, cy - 12); }
+  if (name === 'Photos' && photos.length) { g.fillStyle = CREAM; g.font = 'bold 11px ' + MONO; g.fillText(photos.length, cx + 26, cy - 14); }
 }
 function drawHudTo(g, W, t) {
   g.imageSmoothingEnabled = false; g.clearRect(0, 0, W, 240); g.textBaseline = 'alphabetic';
@@ -3198,7 +3205,21 @@ function drawHudTo(g, W, t) {
     const tag = filed ? 'PHOTO FILED' : 'UNFILED'; g.font = 'bold 14px ' + MONO; const tw = g.measureText(tag).width + 34;
     g.fillStyle = filed ? '#f1efe9' : ACCENT; g.fillRect(W / 2 - tw / 2, 28, tw, 22); g.fillStyle = '#111'; g.fillRect(W / 2 - tw / 2 + 3, 31, 16, 16); g.fillStyle = filed ? '#f1efe9' : ACCENT; g.textAlign = 'center'; g.fillText(filed ? '✓' : '?', W / 2 - tw / 2 + 11, 44);
     g.fillStyle = '#111'; g.textAlign = 'left'; g.fillText(tag, W / 2 - tw / 2 + 24, 44);
-    foot(filed ? 'added to the case file · ' + ph.filed + ' photos' : 'drag to aim · pinch zoom · tap snap   ' + (32 / aim.fov).toFixed(1) + 'x');
+    if (photos[0]) { g.fillStyle = CREAM; g.fillRect(5, 177, 52, 41); g.drawImage(photos[0].cv, 7, 179, 48, 37); }
+    foot(filed ? 'saved to Photos · ' + photos.length + ' in the roll' : 'drag to aim · pinch zoom · tap snap   ' + (32 / aim.fov).toFixed(1) + 'x');
+  } else if (a === 'photos') {
+    bar('PHOTOS'); g.fillStyle = '#0d0f14'; g.fillRect(0, 20, W, 202);
+    if (!photos.length) { g.fillStyle = '#8a8676'; g.font = '14px ' + MONO; g.textAlign = 'center'; g.fillText('No photos yet.', W / 2, 110); g.fillText('Open Camera and tap to snap.', W / 2, 132); foot('back'); }
+    else { const row0 = Math.max(0, Math.floor(ph.pSel / 3) - 1);
+      for (let i = row0 * 3; i < Math.min(photos.length, row0 * 3 + 6); i++) { const c = i % 3, r = Math.floor(i / 3) - row0, x = 8 + c * 104, y = 26 + r * 98;
+        g.drawImage(photos[i].cv, x, y, 96, 72); if (i === ph.pSel) { g.strokeStyle = ACCENT; g.lineWidth = 3; g.strokeRect(x - 2, y - 2, 100, 76); }
+        g.fillStyle = i === ph.pSel ? CREAM : '#8a8676'; g.font = '10px ' + MONO; g.textAlign = 'center'; g.fillText(photos[i].where.slice(0, 15), x + 48, y + 86); }
+      foot((ph.pSel + 1) + ' / ' + photos.length + ' · tap to view · back'); }
+  } else if (a === 'photo') {
+    const p = photos[ph.pSel]; g.fillStyle = '#000'; g.fillRect(0, 0, W, 240);
+    if (p) { g.imageSmoothingEnabled = true; g.drawImage(p.cv, 0, 0, W, 240); g.imageSmoothingEnabled = false;
+      g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(0, 0, W, 20); g.fillStyle = CREAM; g.font = '12px ' + MONO; g.textAlign = 'left'; g.fillText(p.where, 6, 14); g.textAlign = 'right'; g.fillText(p.when, W - 6, 14);
+      foot('◀ ' + (ph.pSel + 1) + ' / ' + photos.length + ' ▶ · back'); }
   } else if (a === 'map') {
     g.fillStyle = '#1b2333'; g.fillRect(0, 0, W, 240);
     const vx = ph.mapX - W / 2, vy = ph.mapY - 121; g.drawImage(cityMap, -vx, -vy + 20);
@@ -3222,7 +3243,19 @@ function drawHudTo(g, W, t) {
   }
 }
 
-  function snap() { ph.snapT = pt; const f = document.getElementById('phoneFlash'); f.style.transition = 'none'; f.style.opacity = .9; requestAnimationFrame(() => { f.style.transition = 'opacity .5s'; f.style.opacity = 0; }); }
+  const snapRT = new THREE.WebGLRenderTarget(240, 180); snapRT.texture.colorSpace = THREE.SRGBColorSpace; const snapBuf = new Uint8Array(240 * 180 * 4);
+  function capture() {
+    if (S.drive) { lens.position.copy(camera.position); lens.quaternion.copy(camera.quaternion); } else { lens.position.copy(eye); lens.quaternion.copy(povQ); }
+    lens.fov = aim.fov; lens.updateProjectionMatrix();
+    const mv = man.visible; man.visible = false; renderer.setRenderTarget(snapRT); renderer.render(scene, lens); renderer.setRenderTarget(null); man.visible = mv;
+    renderer.readRenderTargetPixels(snapRT, 0, 0, 240, 180, snapBuf);
+    const c = document.createElement('canvas'); c.width = 240; c.height = 180; const cg = c.getContext('2d'), id = cg.createImageData(240, 180);
+    for (let y = 0; y < 180; y++) id.data.set(snapBuf.subarray((179 - y) * 960, (180 - y) * 960), y * 960);
+    cg.putImageData(id, 0, 0);
+    const d = new Date(), hh = d.getHours() % 12 || 12, mm = String(d.getMinutes()).padStart(2, '0');
+    photos.unshift({ cv: c, where: youPin() || currentKey, when: hh + ':' + mm + (d.getHours() < 12 ? 'a' : 'p') }); if (photos.length > 24) photos.pop(); ph.pSel = 0; saveRoll();
+  }
+  function snap() { try { capture(); } catch (e) { console.warn(e); } ph.snapT = pt; const f = document.getElementById('phoneFlash'); f.style.transition = 'none'; f.style.opacity = .9; requestAnimationFrame(() => { f.style.transition = 'opacity .5s'; f.style.opacity = 0; }); }
   let open = false, k = 0;
   const btn = document.getElementById('phoneBtn');
   function setOpen(v) { open = v; btn.classList.toggle('on', v); if (v) { held.clear(); route = []; ph.app = 'home'; } }
@@ -3242,9 +3275,11 @@ function drawHudTo(g, W, t) {
   function tapScreen(x, y) {   // x, y in screen pixels (320 × 240)
     const a = ph.app;
     if (y < 20 && a !== 'home') { press('back'); return; }
-    if (a === 'home') { for (let i = 0; i < 5; i++) { const ix = 14 + (i % 3) * 100, iy = 32 + Math.floor(i / 3) * 96; if (x > ix - 4 && x < ix + 84 && y > iy - 4 && y < iy + 80) { ph.sel = i; press('ok'); return; } } return; }
+    if (a === 'home') { for (let i = 0; i < APPS.length; i++) { const ix = 14 + (i % 3) * 100, iy = 32 + Math.floor(i / 3) * 96; if (x > ix - 4 && x < ix + 84 && y > iy - 4 && y < iy + 80) { ph.sel = i; press('ok'); return; } } return; }
     if (a === 'msgs' || a === 'notes') { const i = Math.floor((y - 24) / 48), n = a === 'msgs' ? THREADS.length : NOTES.length; if (i >= 0 && i < n) { ph.list = i; press('ok'); } return; }
     if (a === 'camera') { press('ok'); return; }
+    if (a === 'photos') { const row0 = Math.max(0, Math.floor(ph.pSel / 3) - 1), c = Math.floor((x - 4) / 104), r = Math.floor((y - 24) / 98), i = (row0 + r) * 3 + c; if (c >= 0 && c < 3 && r >= 0 && r < 2 && i < photos.length) { ph.pSel = i; press('ok'); } return; }
+    if (a === 'photo') { press(x < 100 ? 'l' : x > 220 ? 'r' : 'ok'); return; }
     if (a === 'map') { ph.mapX = Math.max(0, Math.min(640, ph.mapX + (x - 160))); ph.mapY = Math.max(0, Math.min(460, ph.mapY + (y - 141))); const near = PINS.find(p => Math.hypot(p.x - ph.mapX, p.y - ph.mapY) < 30); if (near) { ph.mapX = near.x; ph.mapY = near.y; } haptic('tick'); return; }
     if (a === 'snake') { if (!snake.alive) { press('ok'); return; } const hd = snake.body[0], cs = 16, ox = 0; const dx = x - (hd[0] * cs + 8), dy = y - (hd[1] * cs + 30); press(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'r' : 'l') : (dy > 0 ? 'd' : 'u')); return; }
   }
@@ -3278,7 +3313,7 @@ function drawHudTo(g, W, t) {
     if (drag.what === 'body') { view.yaw = Math.max(-0.65, Math.min(0.65, view.yaw + dx * 0.006)); view.pitch = Math.max(-0.45, Math.min(0.45, view.pitch + dy * 0.005)); return; }
     if (drag.what === 'screen' && ph.app === 'map') { ph.mapX = Math.max(0, Math.min(640, ph.mapX - dx * 0.8)); ph.mapY = Math.max(0, Math.min(460, ph.mapY - dy * 0.8)); return; }
     drag.ax += dx; drag.ay += dy; const STEP = drag.what === 'ball' ? 16 : 34;
-    while (Math.abs(drag.ax) >= STEP) { const r = drag.ax > 0; if (drag.what === 'ball' || ph.app === 'snake' || ph.app === 'home') press(r ? 'r' : 'l'); drag.ax -= STEP * Math.sign(drag.ax); }
+    while (Math.abs(drag.ax) >= STEP) { const r = drag.ax > 0; if (drag.what === 'ball' || ph.app === 'snake' || ph.app === 'home' || ph.app === 'photos') press(r ? 'r' : 'l'); else if (ph.app === 'photo') press(r ? 'l' : 'r'); drag.ax -= STEP * Math.sign(drag.ax); }
     while (Math.abs(drag.ay) >= STEP) { const d = drag.ay > 0; const k = drag.what === 'screen' && (ph.app === 'note' || ph.app === 'thread' || ph.app === 'msgs' || ph.app === 'notes') ? (d ? 'u' : 'd') : (d ? 'd' : 'u'); press(k); drag.ay -= STEP * Math.sign(drag.ay); }
   }, true);
   const lift = e => { touches.delete(e.pointerId); if (touches.size < 2) pinch0 = 0; };
@@ -3342,6 +3377,7 @@ function drawHudTo(g, W, t) {
       const vy = camApp() ? 0 : view.yaw, vp = camApp() ? 0 : view.pitch;
       phone.rotation.set(-0.06 + vp + (1 - k) * 0.5 + Math.sin(pt * 1.1) * 0.01, -0.12 + vy + Math.sin(pt * 0.7) * 0.015, (1 - k) * 0.2 + Math.sin(pt * 0.9) * 0.01);
       if (ph.app === 'snake') { snake.t += dt; const step = Math.max(0.075, 0.16 - snake.score * 0.005); while (snake.t > step) { snake.t -= step; snakeStep(); } }
+      if (ph.filedNow && pt - ph.snapT > 1.6) ph.filedNow = false;
       drawHudTo(hud.userData.g, 320, pt); hud.needsUpdate = true; screen.visible = ph.app === 'camera';
       if (ph.app === 'camera' && k > 0.6) { if (lens.fov !== aim.fov) { lens.fov = aim.fov; lens.updateProjectionMatrix(); } if (S.drive) { lens.position.copy(camera.position); lens.quaternion.copy(camera.quaternion); } else { lens.position.copy(eye); lens.quaternion.copy(povQ); } const mv = man.visible; man.visible = false; renderer.setRenderTarget(RT); renderer.render(scene, lens); renderer.setRenderTarget(null); man.visible = mv; }
       renderer.autoClear = false; renderer.clearDepth(); renderer.render(pScene, pCam); renderer.autoClear = true;
