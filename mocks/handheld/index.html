@@ -17,6 +17,9 @@
   #bar .sep { width: 1px; background: #444; margin: 0 4px; }
   #cap { position: fixed; left: 0; right: 0; top: 18px; text-align: center; pointer-events: none; font: 14px 'Bebas Neue', Impact, sans-serif; letter-spacing: .4em; color: #888; }
   #note { position: fixed; left: 50%; top: 44px; transform: translateX(-50%); max-width: min(560px, calc(100% - 32px)); text-align: center; font: italic 13px Georgia, serif; color: #8a8a8a; pointer-events: none; }
+  canvas.lofi { image-rendering: pixelated; filter: sepia(.65) contrast(1.18) brightness(.82) saturate(.9); }
+  #grain { position: fixed; inset: 0; pointer-events: none; opacity: 0; mix-blend-mode: overlay; transition: opacity .3s; }
+  #grain.on { opacity: .35; }
   #flash { position: fixed; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
 </style>
 </head>
@@ -24,12 +27,14 @@
 <div id="cap">The Fall of Caine · handheld mocks</div>
 <div id="note"></div>
 <div id="flash"></div>
+<canvas id="grain"></canvas>
 <div id="bar">
   <button data-mode="phone" class="on">Phone</button>
   <button data-mode="side">Sidekick</button>
   <button data-mode="notebook">Notebook</button>
   <button data-mode="map">Map</button>
   <span class="sep"></span>
+  <button id="lofi">Lo-fi</button>
   <button id="act" class="act">OK</button>
 </div>
 <div id="pad"><button data-k="l">◀</button><button data-k="u">▲</button><button data-k="d">▼</button><button data-k="r">▶</button><button data-k="back">BACK</button></div>
@@ -102,28 +107,75 @@ function hand(side, withArm = true) {
 
 // ---------- 1) the phone: a worn BlackBerry-style handset with a low-res screen ----------
 const phone = new THREE.Group(); camera.add(phone);
-const body = mat({ color: 0x2b2c2e, roughness: .45, metalness: .35 }), dark = mat({ color: 0x0f1011, roughness: .5 });
-const PWd = 0.062, PHt = 0.112;
-const phoneBody = new THREE.Mesh(new THREE.BoxGeometry(PWd, PHt, 0.013), body); phone.add(phoneBody);
-for (const sx of [-1, 1]) { const e = new THREE.Mesh(new THREE.CapsuleGeometry(0.0065, PHt - 0.013, 4, 10), body); e.position.x = sx * (PWd / 2 - 0.002); phone.add(e); }
-const bezel = new THREE.Mesh(new THREE.PlaneGeometry(0.054, 0.046), dark); bezel.position.set(0, 0.026, 0.0066); phone.add(bezel);
-const SW = 0.048, SH = 0.036;
+// traced from the reference photo: 530 × 960 px body → 6.2 × 11.2 cm. P(x, y) maps photo pixels to phone metres.
+const PX = 0.062 / 530, P = (x, y) => [(x - 460) * PX, (595 - y) * PX];
+const PWd = 0.062, PHt = 0.112, DEPTH = 0.012;
+function roundedShape(w, h, rTop, rBot, bulge = 0) {   // a soft slab: big top corners, slightly bowed sides
+  const s = new THREE.Shape(), x0 = -w / 2, x1 = w / 2, y0 = -h / 2, y1 = h / 2;
+  s.moveTo(x0 + rBot, y0); s.lineTo(x1 - rBot, y0); s.quadraticCurveTo(x1, y0, x1, y0 + rBot);
+  s.quadraticCurveTo(x1 + bulge, 0, x1, y1 - rTop); s.quadraticCurveTo(x1, y1, x1 - rTop, y1);
+  s.lineTo(x0 + rTop, y1); s.quadraticCurveTo(x0, y1, x0, y1 - rTop); s.quadraticCurveTo(x0 - bulge, 0, x0, y0 + rBot); s.quadraticCurveTo(x0, y0, x0 + rBot, y0);
+  return s;
+}
+const chrome = mat({ color: 0x8c8580, roughness: .28, metalness: .85 }), body = mat({ color: 0x2a2725, roughness: .5, metalness: .25 }), dark = mat({ color: 0x0c0c0d, roughness: .35 });
+const ext = (shape, depth, bevel, m) => { const g = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: true, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 3, curveSegments: 18 }); g.translate(0, 0, -depth / 2); return new THREE.Mesh(g, m); };
+// the chrome band all round, then the dark face plate sitting proud of it
+const band = ext(roundedShape(PWd - 0.002, PHt - 0.002, 0.012, 0.009, 0.0012), DEPTH - 0.004, 0.002, chrome); phone.add(band);
+const face = ext(roundedShape(PWd - 0.0045, PHt - 0.0045, 0.0105, 0.0078, 0.001), 0.002, 0.0008, body); face.position.z = DEPTH / 2 - 0.0008; phone.add(face);
+const FZ = DEPTH / 2 + 0.0012;   // front surface
+// earpiece slot
+{ const [x, y] = P(465, 175); const ear = new THREE.Mesh(new THREE.BoxGeometry(140 * PX, 18 * PX, 0.0008), dark); ear.position.set(x, y, FZ); phone.add(ear);
+  const earRim = new THREE.Mesh(new THREE.BoxGeometry(150 * PX, 26 * PX, 0.0004), chrome); earRim.position.set(x, y, FZ - 0.0003); phone.add(earRim); }
+// screen: glossy black bezel with a thin chrome edge, the display inset
+const [sbx, sby] = P(462, 460);
+{ const rim = ext(roundedShape(445 * PX, 370 * PX, 0.0018, 0.0018), 0.0004, 0.0003, chrome); rim.position.set(sbx, sby, FZ); phone.add(rim);
+  const glass = ext(roundedShape(433 * PX, 358 * PX, 0.0014, 0.0014), 0.0004, 0.0002, mat({ color: 0x050506, roughness: .08, metalness: .3 })); glass.position.set(sbx, sby, FZ + 0.0004); phone.add(glass); }
+const SW = 405 * PX, SH = SW * 0.75, [scx, scy] = P(462, 470);
 const RT = new THREE.WebGLRenderTarget(192, 144); RT.texture.colorSpace = THREE.SRGBColorSpace; RT.texture.magFilter = THREE.NearestFilter; RT.texture.minFilter = THREE.NearestFilter;
-const screen = new THREE.Mesh(new THREE.PlaneGeometry(SW, SH), new THREE.MeshBasicMaterial({ map: RT.texture, toneMapped: false })); screen.position.set(0, 0.026, 0.0068); phone.add(screen);
+const screen = new THREE.Mesh(new THREE.PlaneGeometry(SW, SH), new THREE.MeshBasicMaterial({ map: RT.texture, toneMapped: false })); screen.position.set(scx, scy, FZ + 0.0008); phone.add(screen);
 const hud = canvasTex(320, 240, () => {}); hud.magFilter = THREE.NearestFilter; hud.minFilter = THREE.LinearFilter; hud.generateMipmaps = false;
-const hudM = new THREE.Mesh(new THREE.PlaneGeometry(SW, SH), new THREE.MeshBasicMaterial({ map: hud, transparent: true, toneMapped: false })); hudM.position.set(0, 0.026, 0.0069); phone.add(hudM);
-const glow = new THREE.PointLight(0x9fb4d8, 0.05, 0.25, 2); glow.position.set(0, 0.03, 0.03); phone.add(glow);   // the screen lights his gloves
-// nav row: call, menu, trackball, back, end
-const ball = new THREE.Mesh(new THREE.SphereGeometry(0.0045, 16, 12), mat({ color: 0xcfcfcf, roughness: .2, metalness: .3 })); ball.position.set(0, -0.003, 0.007); phone.add(ball);
-const ring = new THREE.Mesh(new THREE.TorusGeometry(0.0062, 0.0012, 8, 24), mat({ color: 0x5a5c60, metalness: .6, roughness: .3 })); ring.position.copy(ball.position); phone.add(ring);
-[[-0.022, 0x2f6a3a], [-0.011, 0x3a3b3e], [0.011, 0x3a3b3e], [0.022, 0x8a2222]].forEach(([x, c]) => { const k = new THREE.Mesh(new THREE.BoxGeometry(0.009, 0.005, 0.002), mat({ color: c, roughness: .5 })); k.position.set(x, -0.003, 0.0068); phone.add(k); });
-const keys = canvasTex(256, 200, (g, w, h) => {
-  g.fillStyle = '#121314'; g.fillRect(0, 0, w, h);
-  const rows = ['QWERTYUIOP', 'ASDFGHJKL⌫', 'ZXCVBNM$⏎', ['alt', '0', 'space', 'sym', '⇧']];
-  rows.slice(0, 3).forEach((r, ri) => [...r].forEach((k, ci) => { const x = 6 + ci * 24.5, y = 8 + ri * 46; g.fillStyle = '#34363a'; g.beginPath(); g.roundRect(x, y, 22, 40, 7); g.fill(); g.fillStyle = '#d8d8d8'; g.font = '600 14px Arial'; g.textAlign = 'center'; g.fillText(k, x + 11, y + 26); }));
-  [['alt', 6, 34], ['0', 44, 30], ['space', 78, 80], ['sym', 162, 40], ['⇧', 206, 44]].forEach(([k, x, wd]) => { g.fillStyle = '#34363a'; g.beginPath(); g.roundRect(x, 146, wd, 40, 7); g.fill(); g.fillStyle = '#d8d8d8'; g.font = '600 13px Arial'; g.textAlign = 'center'; g.fillText(k, x + wd / 2, 172); });
+const hudM = new THREE.Mesh(new THREE.PlaneGeometry(SW, SH), new THREE.MeshBasicMaterial({ map: hud, transparent: true, toneMapped: false })); hudM.position.set(scx, scy, FZ + 0.0009); phone.add(hudM);
+const glow = new THREE.PointLight(0x9fb4d8, 0.05, 0.25, 2); glow.position.set(0, 0.03, 0.03); phone.add(glow);
+// nav row: call · menu · trackball in its chrome ring · back · end, each a curved rocker key
+const navY = 712;
+function navKey(x0, x1, color, glyph) {
+  const [cx, cy] = P((x0 + x1) / 2, navY), w = (x1 - x0) * PX, h = 44 * PX;
+  const k = ext(roundedShape(w, h, h * 0.45, h * 0.45), 0.0008, 0.0005, mat({ color: 0x1d1c1b, roughness: .4, metalness: .2 })); k.position.set(cx, cy, FZ); phone.add(k);
+  const lab = canvasTex(128, 48, (g, W, H) => { g.clearRect(0, 0, W, H); g.strokeStyle = g.fillStyle = color; g.lineWidth = 6; g.lineCap = 'round'; glyph(g, W / 2, H / 2); });
+  const lm = new THREE.Mesh(new THREE.PlaneGeometry(w * 0.9, h * 0.8), new THREE.MeshBasicMaterial({ map: lab, transparent: true, toneMapped: false })); lm.position.set(cx, cy, FZ + 0.0014); phone.add(lm);
+}
+navKey(232, 325, '#3aa04a', (g, x, y) => { g.beginPath(); g.moveTo(x - 26, y + 4); g.quadraticCurveTo(x, y - 8, x + 26, y + 4); g.stroke(); });
+navKey(335, 402, '#d8d2c0', (g, x, y) => { for (let i = 0; i < 3; i++) for (let j = 0; j < 2; j++) g.fillRect(x - 16 + i * 12 + (j ? 6 : 0), y - 10 + j * 12, 7, 7); });
+navKey(510, 577, '#d8d2c0', (g, x, y) => { g.beginPath(); g.moveTo(x + 14, y + 10); g.lineTo(x + 14, y - 6); g.lineTo(x - 12, y - 6); g.stroke(); g.beginPath(); g.moveTo(x - 4, y - 14); g.lineTo(x - 14, y - 6); g.lineTo(x - 4, y + 2); g.stroke(); });
+navKey(595, 685, '#d23a32', (g, x, y) => { g.beginPath(); g.moveTo(x - 26, y - 2); g.quadraticCurveTo(x, y - 14, x + 26, y - 2); g.stroke(); g.fillRect(x - 4, y - 4, 8, 16); });
+const [tbx, tby] = P(455, navY);
+const ring = new THREE.Mesh(new THREE.CylinderGeometry(52 * PX, 54 * PX, 0.0014, 40), chrome); ring.rotation.x = Math.PI / 2; ring.position.set(tbx, tby, FZ + 0.0002); phone.add(ring);
+const ringIn = new THREE.Mesh(new THREE.CylinderGeometry(40 * PX, 40 * PX, 0.0016, 40), dark); ringIn.rotation.x = Math.PI / 2; ringIn.position.set(tbx, tby, FZ + 0.0004); phone.add(ringIn);
+const ball = new THREE.Mesh(new THREE.SphereGeometry(30 * PX, 24, 16), mat({ color: 0x9a948c, roughness: .18, metalness: .4 })); ball.position.set(tbx, tby, FZ + 0.0012); ball.scale.z = 0.7; phone.add(ball);
+// keyboard: real keycaps in four smile-curved rows, labels laid over them (letters plus the number pad on the left)
+const ROWS = [
+  { y: 790, keys: [['Q', '#'], ['W', '1'], ['E', '2'], ['R', '3'], ['T', '('], ['Y', ')'], ['U', '_'], ['I', '-'], ['O', '+'], ['P', '@']] },
+  { y: 858, keys: [['A', '*'], ['S', '4'], ['D', '5'], ['F', '6'], ['G', '/'], ['H', ':'], ['J', ';'], ['K', "'"], ['L', '"'], ['⌫', '']] },
+  { y: 926, keys: [['alt', ''], ['Z', '7'], ['X', '8'], ['C', '9'], ['V', '?'], ['B', '!'], ['N', ','], ['M', '.'], ['$', ''], ['⏎', '']] },
+];
+const capM = mat({ color: 0x24221f, roughness: .45, metalness: .15 }), capNum = mat({ color: 0x3a3632, roughness: .45, metalness: .15 });
+const KX0 = 222, KX1 = 702, KW = (KX1 - KX0) / 10;
+const kbLab = canvasTex(1024, 512, (g) => g.clearRect(0, 0, 1024, 512)); const kg = kbLab.userData.g;
+const LX = (x) => (x - 205) / (720 - 205) * 1024, LY = (y) => (y - 755) / (1040 - 755) * 512;
+ROWS.forEach((r, ri) => r.keys.forEach(([k, alt], ci) => {
+  const px = KX0 + KW * (ci + 0.5), smile = Math.pow((ci - 4.5) / 4.5, 2) * 10, py = r.y - smile;
+  const [x, y] = P(px, py), isNum = /\d/.test(alt);
+  const cap = ext(roundedShape(KW * 0.86 * PX, 54 * PX, 0.0016, 0.0016), 0.0012, 0.0006, isNum ? capNum : capM); cap.position.set(x, y, FZ + 0.0002); phone.add(cap);
+  kg.fillStyle = '#ece6d6'; kg.textAlign = 'center'; kg.font = (k.length > 1 ? '600 22px' : '600 34px') + ' Arial'; kg.fillText(k, LX(px), LY(py) + 22);
+  if (alt) { kg.fillStyle = isNum ? '#f4f0e4' : '#a8a296'; kg.font = (isNum ? '700 22px' : '600 20px') + ' Arial'; kg.fillText(alt, LX(px), LY(py) - 12); }
+}));
+[['⇧', 250, 50], ['0', 318, 60], ['space', 450, 175], ['sym', 590, 70], ['🔈', 668, 56]].forEach(([k, px, wd]) => {
+  const [x, y] = P(px, 988); const cap = ext(roundedShape(wd * PX, 44 * PX, 0.0018, 0.0018), 0.0012, 0.0006, k === '0' ? capNum : capM); cap.position.set(x, y, FZ + 0.0002); phone.add(cap);
+  kg.fillStyle = '#ece6d6'; kg.textAlign = 'center'; kg.font = (k === '0' ? '700 30px' : '600 24px') + ' Arial'; kg.fillText(k, LX(px), LY(988) + 10);
 });
-const kb = new THREE.Mesh(new THREE.PlaneGeometry(0.054, 0.042), new THREE.MeshStandardMaterial({ map: keys, roughness: .6 })); kb.position.set(0, -0.033, 0.0066); phone.add(kb);
+kbLab.needsUpdate = true;
+{ const lw = (720 - 205) * PX, lh = (1040 - 755) * PX, [lx, ly] = P(462.5, 897.5); const lab = new THREE.Mesh(new THREE.PlaneGeometry(lw, lh), new THREE.MeshBasicMaterial({ map: kbLab, transparent: true, toneMapped: false, depthWrite: false })); lab.position.set(lx, ly, FZ + 0.0027); phone.add(lab); }
+phone.traverse(o => { if (o.isMesh) o.castShadow = false; });
 
 const phoneCam = new THREE.PerspectiveCamera(16, 4 / 3, 0.05, 60); scene.add(phoneCam);
 // ---------- the phone OS: home, messages, camera, notes, map, snake ----------
@@ -408,7 +460,7 @@ function foldMap(k) {   // k: 0 folded → 1 open
 
 // ---------- modes ----------
 let mode = 'phone'; const MODES = {
-  phone: { g: phone, act: 'OK', note: 'His phone runs everything: Messages, Camera (snap clues), Notes (the case file), Map (pan the city, pins and leads) and Snake. Arrow keys = trackball, Enter = click, Esc = back.' },
+  phone: { g: phone, act: 'OK', note: 'Traced from your reference: chrome band, rocker keys, trackball ring, smile-curved keys with the number pad. Lo-fi button toggles the pixel + sepia look. His phone runs everything: Messages, Camera (snap clues), Notes (the case file), Map (pan the city, pins and leads) and Snake. Arrow keys = trackball, Enter = click, Esc = back.' },
   side: { g: side, act: 'OK', note: 'Sidekick version: held sideways in both hands. The screen swivels a half turn to uncover the keyboard — same home screen, camera and texts, in a wide, low-res frame.' },
   notebook: { g: book, act: 'Turn page', note: 'Pocket notebook: handwriting fills in as the pencil moves; pages curl when they turn. Q&A, ledgers, his thoughts.' },
   map: { g: mapG, act: 'Fold', note: 'Folded street map: unfolds panel by panel. Circled leads and question marks in the one accent color.' },
@@ -447,6 +499,14 @@ setMode('phone');
 const look = { x: 0, y: 0, tx: 0, ty: 0 };
 addEventListener('pointermove', e => { look.tx = (e.clientX / innerWidth - .5) * 0.35; look.ty = (e.clientY / innerHeight - .5) * 0.2; });
 
+// lo-fi look: render at a fraction of the resolution, upscale with hard pixels, warm sepia and film grain
+let lofi = false; const lofiBtn = document.getElementById('lofi'), grainC = document.getElementById('grain'), grainG = grainC.getContext('2d');
+grainC.width = 200; grainC.height = 120; grainC.style.width = '100%'; grainC.style.height = '100%';
+function applyLofi() {
+  renderer.setPixelRatio(lofi ? 0.45 : Math.min(devicePixelRatio, 2)); renderer.setSize(innerWidth, innerHeight);
+  renderer.domElement.classList.toggle('lofi', lofi); grainC.classList.toggle('on', lofi); lofiBtn.classList.toggle('on', lofi);
+}
+lofiBtn.onclick = () => { lofi = !lofi; applyLofi(); };
 function layout() {
   const portrait = innerWidth < innerHeight; camera.aspect = innerWidth / innerHeight; camera.fov = portrait ? 70 : 52; camera.updateProjectionMatrix();
   const s = portrait ? 0.8 : 1;
@@ -456,6 +516,7 @@ function layout() {
   mapG.userData.pos = new THREE.Vector3(0, -0.01, -0.3 * (portrait ? 1.45 : 1)); mapG.userData.rot = new THREE.Euler(-0.35, 0, 0);
 }
 layout(); addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); layout(); });
+lofi = true; applyLofi();
 
 const clock = new THREE.Clock(), aim = new THREE.Vector3();
 renderer.setAnimationLoop(() => {
@@ -505,6 +566,7 @@ renderer.setAnimationLoop(() => {
   }
   if (MODES.map.g.visible) { mp.open += (mp.want - mp.open) * Math.min(1, dt * 2.5); foldMap(mp.open); }
   renderer.render(scene, camera);
+  if (lofi && ((t * 20) | 0) % 2) { const im = grainG.createImageData(200, 120); for (let i = 0; i < im.data.length; i += 4) { const v = Math.random() * 255; im.data[i] = im.data[i + 1] = im.data[i + 2] = v; im.data[i + 3] = 255; } grainG.putImageData(im, 0, 0); }
 });
 window.__hm = { setMode, act: () => act.onclick(), look: (x, y) => { look.tx = look.x = x; look.ty = look.y = y; } };
 </script>
