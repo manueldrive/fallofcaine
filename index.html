@@ -69,6 +69,19 @@
   #dlg { position: fixed; left: 0; right: 0; bottom: 0; z-index: 9; padding: 80px max(6%, 22px) calc(26px + env(safe-area-inset-bottom, 0px)); background: linear-gradient(to top, #000 0%, rgba(0,0,0,.9) 45%, rgba(0,0,0,.7) 70%, transparent 100%); opacity: 0; transform: translateY(20px); transition: opacity .35s, transform .35s; pointer-events: none; font-family: 'Special Elite', 'Courier New', monospace; }
   body.talking #lbTop { transform: none; } body.talking #dlgCatch { display: block; } body.talking #dlg { opacity: 1; transform: none; pointer-events: auto; }
   body.talking #bottomBar, body.talking #hint, body.talking #propBtn { opacity: 0 !important; pointer-events: none !important; }
+  /* portraits: the illustrated face carries the conversation; the 3D scene dims and softens behind it */
+  #scene { transition: filter .5s ease; } body.talking #scene { filter: brightness(.5) saturate(.8) blur(1.5px); }
+  #dlgFace { position: fixed; z-index: 8; right: -2vw; bottom: 0; height: min(92vh, 62vw); aspect-ratio: 1; background: center / cover no-repeat; opacity: 0; transform: translateX(4%); transition: opacity .5s, transform .6s cubic-bezier(.2,.9,.25,1); pointer-events: none;
+    -webkit-mask-image: linear-gradient(to left, #000 45%, transparent 90%); mask-image: linear-gradient(to left, #000 45%, transparent 90%); }
+  #dlgShade { position: fixed; inset: 0; z-index: 8; pointer-events: none; opacity: 0; transition: opacity .5s; background: linear-gradient(to right, rgba(0,0,0,.6) 20%, transparent 62%); }
+  body.talking.hasFace #dlgFace { opacity: 1; transform: none; } body.talking.hasFace #dlgShade { opacity: 1; }
+  body.talking.hasFace #dlg { padding-right: 44%; }
+  #dlg.speaking ~ #dlgFace, body.speaking #dlgFace { animation: dlgBreathe 4s ease-in-out infinite; } @keyframes dlgBreathe { 50% { transform: translateY(-3px) scale(1.006); } }
+  @media (max-aspect-ratio: 1/1) {
+    #dlgFace { height: 52vh; right: -14vw; bottom: 34vh; -webkit-mask-image: radial-gradient(ellipse 62% 62% at 50% 45%, #000 55%, transparent 100%); mask-image: radial-gradient(ellipse 62% 62% at 50% 45%, #000 55%, transparent 100%); }
+    #dlgShade { background: linear-gradient(to top, rgba(0,0,0,.6) 30%, transparent 70%); }
+    body.talking.hasFace #dlg { padding-right: max(6%, 22px); }
+  }
   #dlg .who { font: 600 11px/1 'Courier New', monospace; letter-spacing: .38em; text-transform: uppercase; color: #e2b23a; display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
   #dlg .who::after { content: ''; height: 1px; width: 46px; background: #e2b23a; opacity: .6; }
   #dlg .line { font-size: clamp(16px, 2.1vw, 21px); line-height: 1.5; color: #ece6d2; max-width: 780px; min-height: 3em; text-shadow: 0 2px 8px #000; }
@@ -107,7 +120,7 @@
 <div id="hint">Walk</div>
 <div id="devToast"></div>
 <div id="phoneFlash"></div>
-<div id="dlgCatch"></div><div id="lbTop"></div><div id="dlg"><div class="who"></div><div class="line"></div><ul class="replies"></ul><div class="tap">tap ▸</div></div>
+<div id="dlgCatch"></div><div id="lbTop"></div><div id="dlgShade"></div><div id="dlgFace"></div><div id="dlg"><div class="who"></div><div class="line"></div><ul class="replies"></ul><div class="tap">tap ▸</div></div>
 <button id="propBtn" type="button"></button>
 
 <div id="bottomBar">
@@ -3595,7 +3608,7 @@ function drawHudTo(g, W, t) {
   const GROUP = { notebook: book, map: mapG };
   const wp = new THREE.Vector3();
   function pickUp(pr) {
-    if (pr.talk) { const w = pr; heading = Math.atan2(pr.mesh.getWorldPosition(wp).x - pos.x, wp.z - pos.z); faceTarget = null; Dialogue.open({ vera: VERA }[pr.talk], { with: pr.id, target: pr.mesh }); propBtn.classList.remove('show'); return; }
+    if (pr.talk) { const w = pr; heading = Math.atan2(pr.mesh.getWorldPosition(wp).x - pos.x, wp.z - pos.z); faceTarget = null; Dialogue.open({ vera: VERA }[pr.talk], { with: pr.id }); /* add target: pr.mesh for an over-the-shoulder two-shot */ propBtn.classList.remove('show'); return; }
     if (open) setOpen(false);
     inHand = pr; pv.yaw = pv.pitch = 0; pv.zoom = 1;
     held.clear(); route = []; faceTarget = null;
@@ -3755,12 +3768,13 @@ const Dialogue = (() => {
     if (PhoneUI.isOpen) PhoneUI.close();
     script = scr; talkingWith = opts.with || null; onEnd = opts.onEnd || null; target = opts.target || null; side = 0;
     held.clear(); route = [];
-    document.body.classList.add('talking');
+    const face = document.getElementById('dlgFace'); face.style.backgroundImage = scr.portrait ? `url(${scr.portrait})` : 'none';
+    document.body.classList.toggle('hasFace', !!scr.portrait); document.body.classList.add('talking');
     say(opts.start || 'start');
   }
   function close() {
     if (!script) return; clearInterval(timer); script = null; node = null; const w = talkingWith; talkingWith = null;
-    document.body.classList.remove('talking'); box.classList.remove('done');
+    document.body.classList.remove('talking', 'speaking'); box.classList.remove('done');
     onEnd && onEnd(w);
   }
   function say(id) {
@@ -3769,10 +3783,11 @@ const Dialogue = (() => {
     n.do && n.do(); node = n;
     whoEl.textContent = n.who || script.who || '';
     full = n.line; shown = 0; lineEl.textContent = ''; ul.innerHTML = ''; ul.classList.remove('show'); tap.classList.remove('show'); box.classList.remove('done');
+    document.body.classList.add('speaking');
     clearInterval(timer); timer = setInterval(() => { shown = Math.min(full.length, shown + 1); lineEl.textContent = full.slice(0, shown); if (shown >= full.length) finish(); }, 26);
   }
   function finish() {
-    clearInterval(timer); shown = full.length; lineEl.textContent = full; box.classList.add('done');
+    clearInterval(timer); shown = full.length; lineEl.textContent = full; box.classList.add('done'); document.body.classList.remove('speaking');
     replies = (node.replies || []).filter(r => !r.if || r.if());
     if (!replies.length) { tap.textContent = node.next ? 'tap ▸' : 'tap to close ▸'; tap.classList.add('show'); return; }
     ul.innerHTML = replies.map((r, i) => `<li data-i="${i}"><b>${i + 1}</b>${r.t}</li>`).join('');
@@ -3814,6 +3829,7 @@ const VERA = (() => {
   const pick = (a) => a[Math.random() * a.length | 0];
   return {
     who: 'Vera · Front desk',
+    portrait: 'portraits/vera.jpg',
     start: () => ({
       do: () => { visits++; try { localStorage.setItem('caineVera', visits); } catch (e) {} },
       line: visits <= 1 ? "You must be Caine. They said you'd be the one who looks like he hasn't slept. I'm Vera — I keep the desk, the files, and the coffee." :
