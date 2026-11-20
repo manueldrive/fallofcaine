@@ -3005,7 +3005,7 @@ const PhoneUI = (() => {
   const ACCENT = '#e2b23a';
   const pScene = new THREE.Scene();
   const pCam = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 0.03, 1);
-  pScene.add(new THREE.HemisphereLight(0x9aa4b8, 0x111111, 0.9));
+  const pHemi = new THREE.HemisphereLight(0x9aa4b8, 0x111111, 0.9); pScene.add(pHemi);
   const key = new THREE.DirectionalLight(0xffe6c8, 1.6); key.position.set(0.4, 0.6, 0.8); pScene.add(key);
   const rim = new THREE.DirectionalLight(0x8fa6d8, 0.8); rim.position.set(-0.6, 0.2, -0.4); pScene.add(rim);
   const ctex = (w, h, draw) => { const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d'); draw(g, w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; t.userData = { c, g }; return t; };
@@ -3578,11 +3578,53 @@ function drawHudTo(g, W, t) {
       else { mp.open += (mp.want - mp.open) * Math.min(1, dt * 2.5); foldMap(mp.open); }
     }
   }
+  // --- light the handheld things from the world around Caine: the nearest strong lights (lamps, street lights, the sun through a window)
+  //     become the key and rim on the phone/notebook/map, in the right direction and colour, and dim when a wall is in the way
+  const LT = { list: [], key: null, tick: 0, occ: new Map() };
+  const lv = new THREE.Vector3(), lq = new THREE.Quaternion(), lc = new THREE.Color(), camW = new THREE.Vector3(), sd = new THREE.Vector3(), lray = new THREE.Raycaster();
+  const tgtKey = { dir: new THREE.Vector3(0.4, 0.6, 0.8), col: new THREE.Color(0xffe6c8), i: 1.6 }, tgtRim = { dir: new THREE.Vector3(-0.6, 0.2, -0.4), col: new THREE.Color(0x8fa6d8), i: 0.8 };
+  const tgtSky = new THREE.Color(0x9aa4b8), tgtGround = new THREE.Color(0x111111); let tgtHemi = 0.9;
+  const visibleUp = (o) => { for (let p = o; p; p = p.parent) if (!p.visible) return false; return true; };
+  function lightFromWorld(dt) {
+    if (LT.key !== currentKey || (LT.tick % 90) === 0) { LT.key = currentKey; LT.list = []; scene.traverse(o => { if (o.isLight) LT.list.push(o); }); LT.occ.clear(); }
+    LT.tick++;
+    camW.copy(camera.position); lq.copy(camera.quaternion).invert();
+    const cands = []; let hs = 0; tgtSky.setRGB(0, 0, 0); tgtGround.setRGB(0, 0, 0);
+    for (const L of LT.list) {
+      if (!L.intensity || !visibleUp(L)) continue;
+      if (L.isHemisphereLight) { tgtSky.r += L.color.r * L.intensity; tgtSky.g += L.color.g * L.intensity; tgtSky.b += L.color.b * L.intensity; tgtGround.r += L.groundColor.r * L.intensity; tgtGround.g += L.groundColor.g * L.intensity; tgtGround.b += L.groundColor.b * L.intensity; hs += L.intensity; continue; }
+      if (L.isAmbientLight) { tgtSky.r += L.color.r * L.intensity; tgtSky.g += L.color.g * L.intensity; tgtSky.b += L.color.b * L.intensity; hs += L.intensity; continue; }
+      let I, d = 40;
+      if (L.isDirectionalLight) { L.getWorldPosition(lv); L.target.getWorldPosition(sd); lv.sub(sd).normalize(); I = L.intensity * 0.12; }
+      else { L.getWorldPosition(lv); lv.sub(camW); d = lv.length(); lv.divideScalar(d || 1);
+        I = L.intensity / Math.max(Math.pow(d, L.decay || 2), 0.05) * 0.3; if (L.distance > 0) { const w = Math.max(0, 1 - Math.pow(d / L.distance, 4)); I *= w * w; }
+        if (L.isSpotLight) { L.target.getWorldPosition(sd); sd.sub(L.getWorldPosition(new THREE.Vector3())).normalize(); const c = -lv.dot(sd), c0 = Math.cos(L.angle), c1 = Math.cos(L.angle * (1 - (L.penumbra || 0))); I *= THREE.MathUtils.smoothstep(c, c0, Math.max(c1, c0 + 1e-3)); } }
+      I *= (L.color.r * 0.3 + L.color.g * 0.59 + L.color.b * 0.11) > 0 ? 1 : 0;
+      if (I > 0.02) cands.push({ L, I, dir: lv.clone(), d });
+    }
+    cands.sort((a, b) => b.I - a.I);
+    // is a wall between him and the light? (checked a few times a second, eased in and out)
+    if (LT.tick % 8 === 0 && S && S.group) for (const c of cands.slice(0, 3)) {
+      lray.camera = camera; lray.set(camW, c.dir); lray.far = Math.min(c.d - 0.08, 30); const mv = man.visible; man.visible = false;
+      const hitW = lray.intersectObject(S.group, true).some(h => h.object.isMesh && h.object.visible && !h.object.material.transparent);
+      man.visible = mv; LT.occ.set(c.L, hitW ? 0.12 : 1);
+    }
+    for (const c of cands) { const o = LT.occ.has(c.L) ? LT.occ.get(c.L) : 1; c.I *= o; c.o = o; }
+    cands.sort((a, b) => b.I - a.I);
+    const pick = (c, tgt, cap) => { if (!c) { tgt.i = 0; return; } tgt.dir.copy(c.dir).applyQuaternion(lq); tgt.col.copy(c.L.color); tgt.i = Math.min(cap, c.I); };
+    pick(cands[0], tgtKey, 3.2); pick(cands[1], tgtRim, 1.6);
+    tgtHemi = Math.min(1.2, hs * 1.4 + 0.18); if (hs > 0) { tgtSky.multiplyScalar(1 / hs); tgtGround.multiplyScalar(1 / hs); } else { tgtSky.set(0x6a7080); tgtGround.set(0x101010); }
+    const a = Math.min(1, dt * 3);
+    key.position.lerp(tgtKey.dir, a); key.color.lerp(tgtKey.col, a); key.intensity += (tgtKey.i - key.intensity) * a;
+    rim.position.lerp(tgtRim.dir, a); rim.color.lerp(tgtRim.col, a); rim.intensity += (tgtRim.i - rim.intensity) * a;
+    pHemi.color.lerp(tgtSky, a); pHemi.groundColor.lerp(tgtGround, a); pHemi.intensity += (tgtHemi - pHemi.intensity) * a;
+  }
   return {
     get isOpen() { return open || !!inHand; }, poseCaine, povCamera, close: () => setOpen(false), toggle: () => setOpen(!open),
     render(dt) {
       pt += dt; k += ((open ? 1 : 0) - k) * Math.min(1, dt * 8);
       updateProps(dt);
+      if (k > 0.01 || kp > 0.01) lightFromWorld(dt);
       grain.style.opacity = (0.09 * (1 - Math.min(1, Math.max(k, kp)) * 0.5)).toFixed(3);   // keep about half the grain so it doesn't go clinically clean
       phone.visible = k > 0.01;
       if (!phone.visible) { if (book.visible || mapG.visible) { renderer.autoClear = false; renderer.clearDepth(); renderer.render(pScene, pCam); renderer.autoClear = true; } return; }
