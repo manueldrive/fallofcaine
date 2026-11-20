@@ -61,11 +61,6 @@
   #phoneBtn:hover, #phoneBtn.on { border-color: #e2b23a; color: #f4d27a; }
   #phoneBtn svg { width: 22px; height: 22px; }
   #phoneFlash { position: fixed; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 6; }
-  #phonePad { position: fixed; left: 50%; bottom: calc(78px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 4; display: none; gap: 6px; }
-  #phonePad.show { display: flex; }
-  #phonePad button { background: rgba(0,0,0,.7); color: #ddd; border: 1px solid #555; min-width: 44px; height: 42px; font: 16px 'Bebas Neue', Impact, sans-serif; letter-spacing: .15em; cursor: pointer; touch-action: manipulation; }
-  #phonePad button.ok { background: #e2b23a; color: #111; border-color: #e2b23a; }
-  @media (hover: hover) and (pointer: fine) { #phonePad button { min-width: 38px; height: 34px; } }
   #devToast { position: fixed; left: 50%; top: 18px; transform: translateX(-50%); z-index: 5; background: rgba(0,0,0,.8); color: #e2b23a; border: 1px solid #e2b23a; padding: 6px 14px; font: 14px 'Bebas Neue', Impact, sans-serif; letter-spacing: .3em; opacity: 0; transition: opacity .3s; pointer-events: none; }
   #panel h4 { margin: 0 0 8px; color: #777; font: 11px Arial, sans-serif; letter-spacing: .3em; text-transform: uppercase; font-weight: normal; }
   #panel .bar { position: static; margin-bottom: 14px; }
@@ -93,7 +88,7 @@
 <div id="hint">Walk</div>
 <div id="devToast"></div>
 <div id="phoneFlash"></div>
-<div id="phonePad"><button data-k="l">◀</button><button data-k="u">▲</button><button data-k="d">▼</button><button data-k="r">▶</button><button data-k="ok" class="ok">OK</button><button data-k="back">BACK</button></div>
+
 <div id="bottomBar">
 <div id="logo"><i>The Fall of</i><b>CAINE</b></div>
 <div id="topRight">
@@ -3036,16 +3031,18 @@ const hudM = new THREE.Mesh(new THREE.PlaneGeometry(SW, SH), new THREE.MeshBasic
 const glow = new THREE.PointLight(0x9fb4d8, 0.05, 0.25, 2); glow.position.set(0, 0.03, 0.03); phone.add(glow);
 // nav row: call · menu · trackball in its chrome ring · back · end, each a curved rocker key
 const navY = 712;
+const navKeys = [];
 function navKey(x0, x1, color, glyph) {
   const [cx, cy] = P((x0 + x1) / 2, navY), w = (x1 - x0) * PX, h = 44 * PX;
   const k = ext(roundedShape(w, h, h * 0.45, h * 0.45), 0.0008, 0.0005, pmat({ color: 0x1d1c1b, roughness: .4, metalness: .2 })); k.position.set(cx, cy, FZ); phone.add(k);
   const lab = ctex(128, 48, (g, W, H) => { g.clearRect(0, 0, W, H); g.strokeStyle = g.fillStyle = color; g.lineWidth = 6; g.lineCap = 'round'; glyph(g, W / 2, H / 2); });
   const lm = new THREE.Mesh(new THREE.PlaneGeometry(w * 0.9, h * 0.8), new THREE.MeshBasicMaterial({ map: lab, transparent: true, toneMapped: false })); lm.position.set(cx, cy, FZ + 0.0014); phone.add(lm);
+  navKeys.push(k, lm); return k;
 }
-navKey(232, 325, '#3aa04a', (g, x, y) => { g.beginPath(); g.moveTo(x - 26, y + 4); g.quadraticCurveTo(x, y - 8, x + 26, y + 4); g.stroke(); });
-navKey(335, 402, '#d8d2c0', (g, x, y) => { for (let i = 0; i < 3; i++) for (let j = 0; j < 2; j++) g.fillRect(x - 16 + i * 12 + (j ? 6 : 0), y - 10 + j * 12, 7, 7); });
-navKey(510, 577, '#d8d2c0', (g, x, y) => { g.beginPath(); g.moveTo(x + 14, y + 10); g.lineTo(x + 14, y - 6); g.lineTo(x - 12, y - 6); g.stroke(); g.beginPath(); g.moveTo(x - 4, y - 14); g.lineTo(x - 14, y - 6); g.lineTo(x - 4, y + 2); g.stroke(); });
-navKey(595, 685, '#d23a32', (g, x, y) => { g.beginPath(); g.moveTo(x - 26, y - 2); g.quadraticCurveTo(x, y - 14, x + 26, y - 2); g.stroke(); g.fillRect(x - 4, y - 4, 8, 16); });
+navKey(232, 325, '#3aa04a', (g, x, y) => { g.beginPath(); g.moveTo(x - 26, y + 4); g.quadraticCurveTo(x, y - 8, x + 26, y + 4); g.stroke(); }).userData.key = 'call';
+navKey(335, 402, '#d8d2c0', (g, x, y) => { for (let i = 0; i < 3; i++) for (let j = 0; j < 2; j++) g.fillRect(x - 16 + i * 12 + (j ? 6 : 0), y - 10 + j * 12, 7, 7); }).userData.key = 'menu';
+navKey(510, 577, '#d8d2c0', (g, x, y) => { g.beginPath(); g.moveTo(x + 14, y + 10); g.lineTo(x + 14, y - 6); g.lineTo(x - 12, y - 6); g.stroke(); g.beginPath(); g.moveTo(x - 4, y - 14); g.lineTo(x - 14, y - 6); g.lineTo(x - 4, y + 2); g.stroke(); }).userData.key = 'back';
+navKey(595, 685, '#d23a32', (g, x, y) => { g.beginPath(); g.moveTo(x - 26, y - 2); g.quadraticCurveTo(x, y - 14, x + 26, y - 2); g.stroke(); g.fillRect(x - 4, y - 4, 8, 16); }).userData.key = 'end';
 const [tbx, tby] = P(455, navY);
 const ring = new THREE.Mesh(new THREE.CylinderGeometry(52 * PX, 54 * PX, 0.0014, 40), chrome); ring.rotation.x = Math.PI / 2; ring.position.set(tbx, tby, FZ + 0.0002); phone.add(ring);
 const ringIn = new THREE.Mesh(new THREE.CylinderGeometry(40 * PX, 40 * PX, 0.0016, 40), dark); ringIn.rotation.x = Math.PI / 2; ringIn.position.set(tbx, tby, FZ + 0.0004); phone.add(ringIn);
@@ -3226,18 +3223,60 @@ function drawHudTo(g, W, t) {
 
   function snap() { ph.snapT = pt; const f = document.getElementById('phoneFlash'); f.style.transition = 'none'; f.style.opacity = .9; requestAnimationFrame(() => { f.style.transition = 'opacity .5s'; f.style.opacity = 0; }); }
   let open = false, k = 0;
-  const btn = document.getElementById('phoneBtn'), pad = document.getElementById('phonePad');
-  function setOpen(v) { open = v; btn.classList.toggle('on', v); pad.classList.toggle('show', v); if (v) { held.clear(); route = []; ph.app = 'home'; } }
+  const btn = document.getElementById('phoneBtn');
+  function setOpen(v) { open = v; btn.classList.toggle('on', v); if (v) { held.clear(); route = []; ph.app = 'home'; } }
   btn.addEventListener('click', () => setOpen(!open));
-  pad.querySelectorAll('button').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); phoneInput(b.dataset.k); }));
+  // --- feel: a tiny click sound and a buzz where the device allows it
+  let actx = null;
+  function haptic(kind) {
+    try { navigator.vibrate && navigator.vibrate(kind === 'tick' ? 4 : 12); } catch (e) {}
+    try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); const o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime;
+      o.type = 'square'; o.frequency.value = kind === 'tick' ? 1800 : 1100; g.gain.setValueAtTime(kind === 'tick' ? 0.015 : 0.035, t); g.gain.exponentialRampToValueAtTime(0.0001, t + (kind === 'tick' ? 0.012 : 0.03));
+      o.connect(g).connect(actx.destination); o.start(t); o.stop(t + 0.04); } catch (e) {}
+  }
+  const press = (k) => { phoneInput(k); haptic(k === 'ok' || k === 'back' ? 'click' : 'tick'); };
+  // --- touch the screen, roll the trackball, press the keys
+  const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+  function hit(e) { ndc.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(ndc, pCam); return ray.intersectObjects([hudM, ball, ring, ...navKeys], false)[0]; }
+  function tapScreen(x, y) {   // x, y in screen pixels (320 × 240)
+    const a = ph.app;
+    if (y < 20 && a !== 'home') { press('back'); return; }
+    if (a === 'home') { for (let i = 0; i < 5; i++) { const ix = 14 + (i % 3) * 100, iy = 32 + Math.floor(i / 3) * 96; if (x > ix - 4 && x < ix + 84 && y > iy - 4 && y < iy + 80) { ph.sel = i; press('ok'); return; } } return; }
+    if (a === 'msgs' || a === 'notes') { const i = Math.floor((y - 24) / 48), n = a === 'msgs' ? THREADS.length : NOTES.length; if (i >= 0 && i < n) { ph.list = i; press('ok'); } return; }
+    if (a === 'camera') { press('ok'); return; }
+    if (a === 'map') { ph.mapX = Math.max(0, Math.min(640, ph.mapX + (x - 160))); ph.mapY = Math.max(0, Math.min(460, ph.mapY + (y - 141))); const near = PINS.find(p => Math.hypot(p.x - ph.mapX, p.y - ph.mapY) < 30); if (near) { ph.mapX = near.x; ph.mapY = near.y; } haptic('tick'); return; }
+    if (a === 'snake') { if (!snake.alive) { press('ok'); return; } const hd = snake.body[0], cs = 16, ox = 0; const dx = x - (hd[0] * cs + 8), dy = y - (hd[1] * cs + 30); press(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'r' : 'l') : (dy > 0 ? 'd' : 'u')); return; }
+  }
+  const drag = { on: false, what: null, x: 0, y: 0, ax: 0, ay: 0, moved: 0, uv: null };
+  addEventListener('pointerdown', e => {
+    if (!open || e.target !== canvas) return;
+    const h = hit(e); e.stopImmediatePropagation(); e.preventDefault();
+    if (!h) return;
+    const o = h.object;
+    if (o.userData.key || navKeys.includes(o)) { const k = (o.userData.key || navKeys[navKeys.indexOf(o) - 1].userData.key); if (k === 'back') press('back'); if (k === 'end') { haptic('click'); setOpen(false); } if (k === 'menu') { ph.app = 'home'; haptic('click'); } if (k === 'call') { ph.app = 'msgs'; ph.list = 0; haptic('click'); } return; }
+    drag.on = true; drag.what = (o === ball || o === ring) ? 'ball' : 'screen'; drag.x = e.clientX; drag.y = e.clientY; drag.ax = drag.ay = 0; drag.moved = 0; drag.uv = h.uv ? h.uv.clone() : null;
+    try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+  }, true);
+  addEventListener('pointermove', e => {
+    if (!drag.on) return;
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y; drag.x = e.clientX; drag.y = e.clientY; drag.moved += Math.abs(dx) + Math.abs(dy);
+    if (drag.what === 'screen' && ph.app === 'map') { ph.mapX = Math.max(0, Math.min(640, ph.mapX - dx * 0.8)); ph.mapY = Math.max(0, Math.min(460, ph.mapY - dy * 0.8)); return; }
+    drag.ax += dx; drag.ay += dy; const STEP = drag.what === 'ball' ? 16 : 34;
+    while (Math.abs(drag.ax) >= STEP) { const r = drag.ax > 0; if (drag.what === 'ball' || ph.app === 'snake' || ph.app === 'home') press(r ? 'r' : 'l'); drag.ax -= STEP * Math.sign(drag.ax); }
+    while (Math.abs(drag.ay) >= STEP) { const d = drag.ay > 0; const k = drag.what === 'screen' && (ph.app === 'note' || ph.app === 'thread' || ph.app === 'msgs' || ph.app === 'notes') ? (d ? 'u' : 'd') : (d ? 'd' : 'u'); press(k); drag.ay -= STEP * Math.sign(drag.ay); }
+  }, true);
+  addEventListener('pointerup', e => {
+    if (!drag.on) return; drag.on = false;
+    if (drag.moved < 8) { if (drag.what === 'ball') press('ok'); else if (drag.uv) tapScreen(drag.uv.x * 320, (1 - drag.uv.y) * 240); }
+  }, true);
+  canvas.addEventListener('wheel', e => { if (!open) return; e.preventDefault(); press(e.deltaY > 0 ? 'd' : 'u'); }, { passive: false });
   const KMAP = { ArrowUp: 'u', KeyW: 'u', ArrowDown: 'd', KeyS: 'd', ArrowLeft: 'l', KeyA: 'l', ArrowRight: 'r', KeyD: 'r', Enter: 'ok', Space: 'ok', Escape: 'back', Backspace: 'back' };
   addEventListener('keydown', e => {
     if (e.code === 'KeyP' && !e.repeat && !S.drive) { setOpen(!open); e.stopImmediatePropagation(); e.preventDefault(); return; }
     if (!open) return;
-    const kk = KMAP[e.code]; if (kk) { phoneInput(kk); e.preventDefault(); }
+    const kk = KMAP[e.code]; if (kk) { press(kk); e.preventDefault(); }
     e.stopImmediatePropagation();   // while the phone is up, keys drive the phone, not Caine
   }, true);
-  canvas.addEventListener('pointerdown', e => { if (open) { e.stopImmediatePropagation(); } }, true);
   function layoutPhone() { const portrait = innerWidth < innerHeight; pCam.aspect = innerWidth / innerHeight; pCam.fov = portrait ? 62 : 38; pCam.updateProjectionMatrix(); }
   layoutPhone(); addEventListener('resize', layoutPhone);
   phone.visible = false;
