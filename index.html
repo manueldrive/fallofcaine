@@ -26,10 +26,10 @@
   #songs h4 { margin: 2px 4px 8px; color: #777; font: 11px Arial, sans-serif; letter-spacing: .3em; text-transform: uppercase; font-weight: normal; }
   #songs button { display: block; width: 100%; text-align: left; background: none; border: 0; color: #bbb; font: 17px 'Bebas Neue', Impact, sans-serif; letter-spacing: .2em; padding: 7px 8px; cursor: pointer; }
   #songs button:hover { background: #1c1c1c; color: #fff; } #songs button.on { color: #fff; } #songs button.on::before { content: '▸ '; }
-  #menuBtn { background: rgba(0,0,0,.55); color: #ddd; border: 1px solid #666; padding: 8px 14px;
+  #menuBtn { width: 40px; height: 40px; padding: 0 !important; font-size: 20px !important; letter-spacing: 0 !important; display: grid; place-items: center; background: rgba(0,0,0,.55); color: #ddd; border: 1px solid #666; padding: 8px 14px;
     font: 15px 'Bebas Neue', Impact, sans-serif; letter-spacing: .3em; cursor: pointer; }
   #menuBtn:hover, #menuBtn.on { border-color: #ddd; color: #fff; }
-  #camToggle { position: fixed; right: 16px; bottom: 16px; z-index: 3; width: 44px; height: 44px; padding: 0; display: grid; place-items: center;
+  #camToggle { width: 40px; height: 40px; padding: 0; display: grid; place-items: center;
     background: rgba(0,0,0,.55); border: 1px solid #666; color: #ddd; cursor: pointer; }
   #camToggle:hover { border-color: #ddd; color: #fff; }
   #camToggle svg { width: 24px; height: 24px; }
@@ -58,7 +58,7 @@
   .bar button { background: rgba(0,0,0,.55); color: #bbb; border: 1px solid #555; padding: 7px 12px; font: inherit; font-size: 13px;
     letter-spacing: .08em; text-transform: uppercase; cursor: pointer; }
   .bar button.on { border-color: #ddd; color: #fff; }
-  #hint { position: fixed; bottom: 18px; left: 72px; right: 72px; text-align: center; color: #999; font-size: 13px; letter-spacing: .15em;
+  #hint { position: fixed; bottom: 18px; left: 16px; right: 16px; text-align: center; color: #999; font-size: 13px; letter-spacing: .15em;
     text-transform: uppercase; pointer-events: none; transition: opacity 1.5s; }
   #fade { position: fixed; inset: 0; background: #000; pointer-events: none; opacity: 1; transition: opacity .6s; }
 </style>
@@ -75,12 +75,12 @@
 <div id="hint">WASD or arrow keys to walk · click the floor to send him · walk into a glowing door to go through</div>
 <div id="topRight">
   <button id="musicBtn" title="Tap: music on/off · hold: pick a song" aria-label="Music"><svg class="note" viewBox="0 0 24 24" fill="currentColor"><path d="M9 17.5a3 3 0 1 1-2-2.83V5l11-2v11.5a3 3 0 1 1-2-2.83V6.2L9 7.5z"/></svg><svg class="x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 4l16 16"/></svg><span class="hold"></span></button>
-  <button id="menuBtn">☰ Menu</button>
+  <button id="camToggle" title="Camera: overhead (C to switch)" aria-label="Switch camera"></button>
+  <button id="menuBtn" aria-label="Menu" title="Menu (M)">☰</button>
 </div>
 <div id="whereTo"><p id="whereQ">Where to?</p><button data-i="0"></button><button data-i="1"></button></div>
 <div id="joy"><i></i></div>
 <div id="songs" class="closed"><h4>Pick a song</h4></div>
-<button id="camToggle" title="Camera: overhead (C to switch)" aria-label="Switch camera"></button>
 <div id="panel" class="closed">
   <h4>Locations</h4>
   <div id="scenes" class="bar"></div>
