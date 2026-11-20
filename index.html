@@ -3024,7 +3024,7 @@ const [sbx, sby] = P(462, 460);
 { const rim = ext(roundedShape(445 * PX, 370 * PX, 0.0018, 0.0018), 0.0004, 0.0003, chrome); rim.position.set(sbx, sby, FZ); phone.add(rim);
   const glass = ext(roundedShape(433 * PX, 358 * PX, 0.0014, 0.0014), 0.0004, 0.0002, pmat({ color: 0x050506, roughness: .08, metalness: .3 })); glass.position.set(sbx, sby, FZ + 0.0004); phone.add(glass); }
 const SW = 405 * PX, SH = SW * 0.75, [scx, scy] = P(462, 470);
-const RT = new THREE.WebGLRenderTarget(192, 144); RT.texture.colorSpace = THREE.SRGBColorSpace; RT.texture.magFilter = THREE.NearestFilter; RT.texture.minFilter = THREE.NearestFilter;
+const RT = new THREE.WebGLRenderTarget(512, 384, { samples: 4, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter }); RT.texture.colorSpace = THREE.SRGBColorSpace; RT.texture.anisotropy = 4;
 const screen = new THREE.Mesh(new THREE.PlaneGeometry(SW, SH), new THREE.MeshBasicMaterial({ map: RT.texture, toneMapped: false })); screen.position.set(scx, scy, FZ + 0.0008); phone.add(screen);
 const hud = ctex(320, 240, () => {}); hud.magFilter = THREE.NearestFilter; hud.minFilter = THREE.LinearFilter; hud.generateMipmaps = false;
 const hudM = new THREE.Mesh(new THREE.PlaneGeometry(SW, SH), new THREE.MeshBasicMaterial({ map: hud, transparent: true, toneMapped: false })); hudM.position.set(scx, scy, FZ + 0.0009); phone.add(hudM);
@@ -3074,7 +3074,7 @@ phone.traverse(o => { if (o.isMesh) o.castShadow = false; });
 
 
   // the camera app looks through Caine's eyes: the game camera, narrowed
-  const lens = new THREE.PerspectiveCamera(32, 4 / 3, 0.05, 80);
+  const lens = new THREE.PerspectiveCamera(32, 4 / 3, 0.15, 80);
 // ---------- the phone OS: home, messages, camera, notes, map, snake ----------
 const APPS = ['Messages', 'Camera', 'Notes', 'Map', 'Snake'];
 const ph = { app: 'home', sel: 1, filed: 0, filedNow: false, unread: 1, snapT: -9, list: 0, scroll: 0, open: null, mapX: 300, mapY: 230 };
@@ -3328,13 +3328,14 @@ function drawHudTo(g, W, t) {
     get isOpen() { return open; }, poseCaine, povCamera, close: () => setOpen(false), toggle: () => setOpen(!open),
     render(dt) {
       pt += dt; k += ((open ? 1 : 0) - k) * Math.min(1, dt * 8);
+      grain.style.opacity = (0.09 * (1 - Math.min(1, k) * 0.9)).toFixed(3);
       phone.visible = k > 0.01; if (!phone.visible) return;
       const portrait = innerWidth < innerHeight;
       phone.position.set(portrait ? 0 : 0.06, (portrait ? 0.008 : 0.002) - (1 - k) * 0.2 + Math.sin(pt * 1.3) * 0.0012, (portrait ? -0.17 : -0.2) / view.zoom);
       phone.rotation.set(-0.06 + view.pitch + (1 - k) * 0.5 + Math.sin(pt * 1.1) * 0.01, -0.12 + view.yaw + Math.sin(pt * 0.7) * 0.015, (1 - k) * 0.2 + Math.sin(pt * 0.9) * 0.01);
       if (ph.app === 'snake') { snake.t += dt; const step = Math.max(0.075, 0.16 - snake.score * 0.005); while (snake.t > step) { snake.t -= step; snakeStep(); } }
       drawHudTo(hud.userData.g, 320, pt); hud.needsUpdate = true; screen.visible = ph.app === 'camera';
-      if (ph.app === 'camera') { lens.position.copy(camera.position); lens.quaternion.copy(camera.quaternion); renderer.setRenderTarget(RT); renderer.render(scene, lens); renderer.setRenderTarget(null); }
+      if (ph.app === 'camera' && k > 0.6) { if (S.drive) { lens.position.copy(camera.position); lens.quaternion.copy(camera.quaternion); } else { lens.position.copy(eye); lens.quaternion.copy(povQ); } const mv = man.visible; man.visible = false; renderer.setRenderTarget(RT); renderer.render(scene, lens); renderer.setRenderTarget(null); man.visible = mv; }
       renderer.autoClear = false; renderer.clearDepth(); renderer.render(pScene, pCam); renderer.autoClear = true;
     },
   };
