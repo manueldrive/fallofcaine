@@ -472,7 +472,7 @@ function buildOffice() {
 
   // corkboard on back wall
   const corkFrame = add(new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.95, 0.04), darkWood)); corkFrame.position.set(1.6, 1.85, RZ + 0.03);
-  const corkFace = add(new THREE.Mesh(new THREE.PlaneGeometry(1.15, 0.85), mat({ map: cork, roughness: .95 })), false); corkFace.position.set(1.6, 1.85, RZ + 0.055);
+  const corkFace = add(new THREE.Mesh(new THREE.PlaneGeometry(1.15, 0.85), mat({ map: cork, roughness: .95, emissive: 0xe2b23a, emissiveIntensity: 0 })), false); corkFace.position.set(1.6, 1.85, RZ + 0.055);
 
   // pictures
   for (const [x, y, w, h] of [[-0.05, 2.55, 0.4, 0.5], [0.95, 2.6, 0.32, 0.26]]) {
@@ -518,8 +518,8 @@ function buildOffice() {
   floorLamp.shadow.mapSize.set(1024, 1024); floorLamp.shadow.bias = -0.003; floorLamp.shadow.camera.near = 0.15;
   group.add(floorLamp);
 
-  // sideboard / small desk under corkboard + chair
-  const sb = new THREE.Group(); sb.position.set(1.75, 0, RZ + 0.33); group.add(sb);
+  // sideboard / small desk + chair, tucked in the back-left corner (the murder board gets its wall to itself)
+  const sb = new THREE.Group(); sb.position.set(-2.98, 0, RZ + 0.33); sb.scale.x = 0.72; group.add(sb);
   for (const [w, h, d, x, y, z] of [[1.3, 0.05, 0.6, 0, 0.78, 0], [0.4, 0.76, 0.56, -0.43, 0.38, 0], [0.04, 0.76, 0.56, 0.62, 0.38, 0], [1.3, 0.45, 0.25, 0, 1.03, -0.17], [1.3, 0.03, 0.25, 0, 1.27, -0.17]]) {
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wood); m.position.set(x, y, z); m.castShadow = m.receiveShadow = true; sb.add(m);
   }
@@ -535,7 +535,7 @@ function buildOffice() {
     for (let i = 0; i < 7; i++) { const a = Math.PI * (i + .5) / 7; part(new THREE.CylinderGeometry(0.01, 0.01, 0.28, 6), Math.cos(a) * 0.2, 0.6, -Math.sin(a) * 0.2); }
     return g;
   }
-  windsorChair(1.75, RZ + 1.15, Math.PI);
+  windsorChair(-2.98, RZ + 1.05, Math.PI);
 
   // main desk
   const desk = new THREE.Group(); desk.position.set(0, 0, 0.4); desk.rotation.y = -0.08; group.add(desk);
@@ -701,8 +701,8 @@ function buildOffice() {
       if (circBlock(x, z, 0.25, -0.35, 0.22, r)) return true;                   // desk chair
       if (rectBlock(x, z, -0.72, 0.57, RZ, RZ + 0.7, r)) return true;           // cabinets
       if (circBlock(x, z, lampX, lampZ, 0.18, r)) return true;                  // floor lamp
-      if (rectBlock(x, z, 1.1, 2.4, RZ, RZ + 0.63, r)) return true;             // sideboard
-      if (circBlock(x, z, 1.75, RZ + 1.15, 0.22, r)) return true;               // its chair
+      if (rectBlock(x, z, -3.5, -2.5, RZ, RZ + 0.63, r)) return true;           // sideboard (back-left corner)
+      if (circBlock(x, z, -2.98, RZ + 1.05, 0.22, r)) return true;              // its chair
       if (rectBlock(x, z, -2.45, -1.35, RZ, RZ + 0.25, r)) return true;         // radiator
       if (circBlock(x, z, RX + 0.45, 1.0, 0.2, r)) return true;                 // coat rack
       if (circBlock(x, z, -0.95, 1.45, 0.22, r)) return true;                   // visitor chair
@@ -713,7 +713,7 @@ function buildOffice() {
     start: { x: doorX, z: RZ + 0.45, heading: 0 },
     spawns: { precinct: { x: doorX, z: RZ + 0.45, heading: 0 } },
     portals: [{ x: doorX, z: RZ + 0.45, to: 'precinct', spawn: 'office', label: 'Squad room' }],
-    props: [{ id: 'notebook', mesh: notebookProp, label: 'Read notebook' }, { id: 'map', mesh: mapProp, label: 'Open map' }],
+    props: [{ id: 'notebook', mesh: notebookProp, label: 'Read notebook' }, { id: 'map', mesh: mapProp, label: 'Open map' }, { id: 'board', mesh: corkFace, label: 'Study the board', reach: 1.5, view: { x: 1.6, y: 1.85, z: RZ + 0.055, dist: 1.05, panX: 0.42, panY: 0.3 } }],
     patrol: [
       { p: [2.6, 0.3] },
       { p: [-2.85, -0.3], wait: 2.6, face: -Math.PI / 2 },      // look out the window
@@ -3373,6 +3373,10 @@ function drawHudTo(g, W, t) {
     eye.x += fx * 0.12; eye.z += fz * 0.12; eye.y += 0.04;
     const p = kp > k ? -0.42 : camApp() ? aim.pitch : -0.062; look.set(eye.x + fx * 4 * Math.cos(p), eye.y + 4 * Math.sin(p), eye.z + fz * 4 * Math.cos(p));
     tmpCam.position.copy(eye); tmpCam.lookAt(look); povQ.copy(tmpCam.quaternion);
+    if (inHand && inHand.view) {   // walk up and look: frame the board, drag to pan across it, pinch to lean in
+      const v = inHand.view; look.set(v.x - pv.yaw * v.panX, v.y + pv.pitch * v.panY, v.z);
+      eye.set(look.x, look.y - 0.04, v.z + v.dist / pv.zoom); const m4 = new THREE.Matrix4().lookAt(eye, look, THREE.Object3D.DEFAULT_UP); povQ.setFromRotationMatrix(m4);
+    }
     const e2 = K * K * (3 - 2 * K);
     camera.position.lerp(eye, e2); camera.quaternion.slerp(povQ, e2);
     man.visible = e2 < 0.55;   // hide him once we're inside his head
@@ -3503,11 +3507,12 @@ function drawHudTo(g, W, t) {
     pr.mesh.getWorldPosition(wp); heading = Math.atan2(wp.x - pos.x, wp.z - pos.z);
     if (pr.id === 'notebook' && nb.turn < 0) nb.chars = 0;
     if (pr.id === 'map') { mp.open = 0; mp.want = 1; }
-    propBtn.textContent = '✕ Put down'; propBtn.classList.add('held', 'show'); haptic('click');
+    propBtn.textContent = pr.view ? '✕ Step back' : '✕ Put down'; propBtn.classList.add('held', 'show'); haptic('click');
   }
   function putDown() { if (!inHand) return; inHand = null; propBtn.classList.remove('held'); haptic('click'); }
   function propAction() {
     if (!inHand) return; haptic('click');
+    if (inHand.view) { pv.zoom = pv.zoom > 1.4 ? 1 : 2.1; return; }
     if (inHand.id === 'notebook') { if (nb.turn < 0) nb.turn = 0; }
     else mp.want = mp.want ? 0 : 1;
   }
@@ -3523,17 +3528,21 @@ function drawHudTo(g, W, t) {
   }, true);
   addEventListener('pointermove', e => {
     if (!inHand) return;
-    if (pTouches.has(e.pointerId)) { pTouches.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (pTouches.size === 2 && pPinch0) { const [a, b] = [...pTouches.values()]; pv.zoom = Math.max(0.8, Math.min(1.9, pZoom0 * Math.hypot(a.x - b.x, a.y - b.y) / pPinch0)); return; } }
+    if (pTouches.has(e.pointerId)) { pTouches.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (pTouches.size === 2 && pPinch0) { const [a, b] = [...pTouches.values()]; pv.zoom = Math.max(0.8, Math.min(inHand.view ? 3 : 1.9, pZoom0 * Math.hypot(a.x - b.x, a.y - b.y) / pPinch0)); return; } }
     if (!pDrag.on) return; e.stopImmediatePropagation();
     const dx = e.clientX - pDrag.x, dy = e.clientY - pDrag.y; pDrag.x = e.clientX; pDrag.y = e.clientY; pDrag.moved += Math.abs(dx) + Math.abs(dy);
+    if (inHand.view) { const s = 0.004 / pv.zoom; pv.yaw = Math.max(-1, Math.min(1, pv.yaw + dx * s)); pv.pitch = Math.max(-1, Math.min(1, pv.pitch + dy * s)); return; }
     pv.yaw = Math.max(-0.6, Math.min(0.6, pv.yaw + dx * 0.006)); pv.pitch = Math.max(-0.5, Math.min(0.5, pv.pitch + dy * 0.005));
   }, true);
   const pLift = e => { pTouches.delete(e.pointerId); if (pTouches.size < 2) pPinch0 = 0; };
   addEventListener('pointercancel', pLift, true);
   addEventListener('pointerup', e => { if (!inHand) return; pLift(e); if (!pDrag.on) return; pDrag.on = false; e.stopImmediatePropagation(); if (pDrag.moved < 8) propAction(); }, true);
-  canvas.addEventListener('wheel', e => { if (!inHand) return; e.preventDefault(); pv.zoom = Math.max(0.8, Math.min(1.9, pv.zoom * Math.exp(-e.deltaY * 0.002))); }, { passive: false });
+  canvas.addEventListener('wheel', e => { if (!inHand) return; e.preventDefault(); pv.zoom = Math.max(0.8, Math.min(inHand.view ? 3 : 1.9, pv.zoom * Math.exp(-e.deltaY * 0.002))); }, { passive: false });
   addEventListener('keydown', e => {
     if (!inHand) { if (nearProp && !open && (e.code === 'KeyE' || e.code === 'Enter') && !e.repeat) { pickUp(nearProp); e.preventDefault(); e.stopImmediatePropagation(); } return; }
+    const PAN = { ArrowLeft: [0.12, 0], KeyA: [0.12, 0], ArrowRight: [-0.12, 0], KeyD: [-0.12, 0], ArrowUp: [0, 0.12], KeyW: [0, 0.12], ArrowDown: [0, -0.12], KeyS: [0, -0.12] };
+    if (inHand.view && PAN[e.code]) { pv.yaw = Math.max(-1, Math.min(1, pv.yaw + PAN[e.code][0])); pv.pitch = Math.max(-1, Math.min(1, pv.pitch + PAN[e.code][1])); e.preventDefault(); e.stopImmediatePropagation(); return; }
+    if (inHand.view && (e.code === 'Equal' || e.code === 'Minus')) { pv.zoom = Math.max(0.8, Math.min(3, pv.zoom * (e.code === 'Equal' ? 1.2 : 0.83))); e.stopImmediatePropagation(); return; }
     if (e.code === 'Escape' || e.code === 'Backspace' || e.code === 'KeyE') putDown();
     else if (e.code === 'Enter' || e.code === 'Space' || e.code === 'ArrowRight' || e.code === 'KeyD') propAction();
     else if (e.code === 'ArrowLeft' || e.code === 'KeyA') propBack();
@@ -3545,10 +3554,10 @@ function drawHudTo(g, W, t) {
     nearProp = null;
     if (!inHand && !open && !S.drive && S.props && !loading) {
       let best = 1.05;
-      for (const pr of S.props) { pr.mesh.getWorldPosition(wp); const d = Math.hypot(wp.x - pos.x, wp.z - pos.z); if (d < best) { best = d; nearProp = pr; } }
+      for (const pr of S.props) { pr.mesh.getWorldPosition(wp); const d = Math.hypot(wp.x - pos.x, wp.z - pos.z) - (pr.reach ? pr.reach - 1.05 : 0); if (d < best) { best = d; nearProp = pr; } }
     }
-    if (S.props) for (const pr of S.props) { const m = pr.mesh.material[2]; m.emissiveIntensity = pr === nearProp ? 0.18 + Math.sin(pt * 5) * 0.12 : 0; pr.mesh.visible = !(inHand === pr && kp > 0.35); }
-    if (!inHand) { if (nearProp) { propBtn.textContent = (nearProp.id === 'map' ? '🗺 ' : '📓 ') + nearProp.label; propBtn.classList.add('show'); } else propBtn.classList.remove('show'); }
+    if (S.props) for (const pr of S.props) { const m = Array.isArray(pr.mesh.material) ? pr.mesh.material[2] : pr.mesh.material; m.emissiveIntensity = pr === nearProp ? (pr.view ? 0.06 : 0.18) + Math.sin(pt * 5) * (pr.view ? 0.04 : 0.12) : 0; if (!pr.view) pr.mesh.visible = !(inHand === pr && kp > 0.35); }
+    if (!inHand) { if (nearProp) { propBtn.textContent = ({ map: '🗺 ', notebook: '📓 ', board: '🔍 ' }[nearProp.id] || '') + nearProp.label; propBtn.classList.add('show'); } else propBtn.classList.remove('show'); }
     kp += ((inHand ? 1 : 0) - kp) * Math.min(1, dt * 6);
     const portrait = innerWidth < innerHeight;
     for (const id in GROUP) {
