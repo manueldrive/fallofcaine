@@ -40,6 +40,11 @@
   #whereTo button { white-space: nowrap; background: #e9e4d4; color: #111; border: 0; padding: 7px 14px; font: 17px 'Bebas Neue', Impact, sans-serif; letter-spacing: .2em; cursor: pointer; }
   #whereTo button:hover { background: #fff; } #whereTo button kbd { font: 11px Arial, sans-serif; opacity: .55; margin-left: 6px; }
   #whereTo.chosen button { display: none; }
+  #joy { position: fixed; z-index: 2; width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%; border: 1px solid rgba(255,255,255,.35);
+    background: rgba(0,0,0,.25); pointer-events: none; opacity: 0; transition: opacity .15s; }
+  #joy.on { opacity: 1; }
+  #joy i { position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%; background: rgba(240,236,226,.75); }
+  canvas#scene { touch-action: none; }
   #panel { position: fixed; right: 16px; top: 54px; z-index: 3; width: min(300px, calc(100vw - 32px)); max-height: calc(100vh - 80px); overflow: auto;
     background: rgba(8,8,8,.92); border: 1px solid #444; padding: 14px 14px 6px; box-sizing: border-box; transition: opacity .25s, transform .25s; }
   #panel.closed { opacity: 0; transform: translateY(-6px); pointer-events: none; }
@@ -73,6 +78,7 @@
   <button id="menuBtn">☰ Menu</button>
 </div>
 <div id="whereTo"><p id="whereQ">Where to?</p><button data-i="0"></button><button data-i="1"></button></div>
+<div id="joy"><i></i></div>
 <div id="songs" class="closed"><h4>Pick a song</h4></div>
 <button id="camToggle" title="Camera: overhead (C to switch)" aria-label="Switch camera"></button>
 <div id="panel" class="closed">
@@ -2754,7 +2760,7 @@ for (const [key, label] of [['doorway', 'The Doorway'], ['alley', 'The Alley'], 
    Input
    ========================================================= */
 const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), hitPt = new THREE.Vector3();
-canvas.addEventListener('pointerdown', e => {
+function walkTo(e) {
   if (S.onClick) { S.onClick(e); return; }
   ndc.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
   ray.setFromCamera(ndc, camera);
@@ -2764,7 +2770,8 @@ canvas.addEventListener('pointerdown', e => {
   route = p; route.meta = null; route.portal = portal || null;
   if (portal && !p.length) { loadScene(portal.to, { spawn: portal.spawn }); return; } pause = 0; faceTarget = null; manualUntil = performance.now() / 1000 + 6;
   document.getElementById('hint').style.opacity = 0;
-});
+}
+canvas.addEventListener('pointerdown', e => { if (e.pointerType !== 'touch') walkTo(e); });
 const btnO = document.getElementById('camOver'), btnS = document.getElementById('camStreet'), btnP = document.getElementById('pauseBtn');
 btnO.onclick = () => { camMode = 'over'; setFov(); btnO.classList.add('on'); btnS.classList.remove('on'); syncCamToggle(); };
 btnS.onclick = () => { camMode = 'street'; setFov(); btnS.classList.add('on'); btnO.classList.remove('on'); syncCamToggle(); };
@@ -2864,10 +2871,36 @@ const held = new Set(); let portalCooldown = 0;
 addEventListener('keydown', e => { const k = WALK_KEYS[e.code]; if (!k || !S || S.drive) return; e.preventDefault(); held.add(k); document.getElementById('hint').style.opacity = 0; });
 addEventListener('keyup', e => { const k = WALK_KEYS[e.code]; if (k) held.delete(k); });
 addEventListener('blur', () => held.clear());
+// --- touch: drag anywhere to walk (a joystick appears under your thumb); a quick tap still sends him to that spot
+const joyEl = document.getElementById('joy'), knob = joyEl.firstElementChild;
+const joy = { on: false, id: null, x0: 0, y0: 0, x: 0, y: 0, t: 0 };
+canvas.addEventListener('pointerdown', e => {
+  if (e.pointerType !== 'touch' || joy.id !== null) return;
+  joy.id = e.pointerId; joy.x0 = e.clientX; joy.y0 = e.clientY; joy.x = joy.y = 0; joy.t = performance.now(); joy.on = false; joy.ev = e;
+  try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+});
+canvas.addEventListener('pointermove', e => {
+  if (e.pointerId !== joy.id) return;
+  const dx = e.clientX - joy.x0, dy = e.clientY - joy.y0, d = Math.hypot(dx, dy);
+  if (!joy.on && d > 12 && !(S && S.drive)) { joy.on = true; joyEl.style.left = joy.x0 + 'px'; joyEl.style.top = joy.y0 + 'px'; joyEl.classList.add('on'); document.getElementById('hint').style.opacity = 0; }
+  if (!joy.on) return;
+  const k = Math.min(1, d / 50), a = Math.atan2(dy, dx);
+  joy.x = Math.cos(a) * k; joy.y = Math.sin(a) * k;
+  knob.style.transform = `translate(${joy.x * 38}px, ${joy.y * 38}px)`;
+});
+const joyEnd = e => {
+  if (e.pointerId !== joy.id) return;
+  if (!joy.on && performance.now() - joy.t < 400) walkTo(joy.ev);   // a tap: walk to that spot (or change lanes when driving)
+  if (joy.on) route = [];
+  joy.on = false; joy.id = null; joy.x = joy.y = 0; joyEl.classList.remove('on'); knob.style.transform = '';
+};
+canvas.addEventListener('pointerup', joyEnd); canvas.addEventListener('pointercancel', joyEnd);
+if (matchMedia('(pointer: coarse)').matches) document.getElementById('hint').textContent = 'Drag anywhere to walk · tap to send him somewhere · step on a glowing marker to go through';
 function keyWalk(dt) {
   portalCooldown = Math.max(0, portalCooldown - dt);
-  if (!S || S.drive || loading || paused || !held.size) return;
-  const f = (held.has('u') ? 1 : 0) - (held.has('d') ? 1 : 0), s = (held.has('r') ? 1 : 0) - (held.has('l') ? 1 : 0);
+  if (!S || S.drive || loading || paused || (!held.size && !joy.on)) return;
+  let f = (held.has('u') ? 1 : 0) - (held.has('d') ? 1 : 0), s = (held.has('r') ? 1 : 0) - (held.has('l') ? 1 : 0);
+  if (joy.on) { if (Math.hypot(joy.x, joy.y) < 0.2) { route = []; return; } f = -joy.y; s = joy.x; }
   let dx, dz;
   if (camMode === 'street') {
     heading -= s * 2.4 * dt; faceTarget = null;
