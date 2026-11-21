@@ -3372,7 +3372,8 @@ function buildBridge() {
   const group = new THREE.Group();
   const L = 40, NSEG = 16, P = L * NSEG, WL = -3.6;            // segment length, repeat period, water level
   const ZP = -60, HUMP = 9, W = 150, TOP = HUMP + 50;           // first pylon, how high the span climbs, half-length of the climb, pylon top
-  const LANES = [2.6, 6.0], ONC = [-2.6, -6.0], EDGE = 8, R = 300;
+  const LANES = [2.2, 6.2], ONC = [-2.2, -6.2], EDGE = 8, R = 300;
+  const SLOTS = [2.2, 4.2, 6.2], CAR_W = 1.9;                // left lane, the line between (room to split two cars, just), right lane
   const rand = (a, b) => a + Math.random() * (b - a), pick = (a) => a[Math.floor(Math.random() * a.length)];
   const ss = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
   const dP = (z) => { let d = (z - ZP) % P; if (d < -P / 2) d += P; if (d >= P / 2) d -= P; return d; };   // signed distance to the nearest pylon
@@ -3385,8 +3386,8 @@ function buildBridge() {
     for (const [u, col, dash, w = 7] of lines) { g.fillStyle = col; if (dash) for (let y = 0; y < s; y += 128) g.fillRect(u * s - w / 2, y, w, 70); else g.fillRect(u * s - w / 2, 0, w, s); }
   });
   const Y = 'rgb(214,176,60)', Wh = 'rgb(226,224,214)';
-  const oursRoad = roadTex([[0.06, 'rgba(0,0,0,.12)', 0, 60], [0.12, Y], [4.3 / 8, Wh, 1], [7.4 / 8, Wh]]);
-  const oncRoad = roadTex([[0.94, 'rgba(0,0,0,.12)', 0, 60], [0.88, Y], [3.7 / 8, Wh, 1], [0.6 / 8, Wh]]);
+  const oursRoad = roadTex([[0.06, 'rgba(0,0,0,.12)', 0, 60], [0.12, Y], [4.2 / 8, Wh, 1], [7.4 / 8, Wh]]);
+  const oncRoad = roadTex([[0.94, 'rgba(0,0,0,.12)', 0, 60], [0.88, Y], [3.8 / 8, Wh, 1], [0.6 / 8, Wh]]);
   const rampRoad = roadTex([[0.08, Y], [0.92, Wh]]);
   const DS = THREE.DoubleSide;
   const roadMat = (t) => new THREE.MeshStandardMaterial({ map: t, roughness: .92, side: DS });
@@ -3505,7 +3506,7 @@ function buildBridge() {
     }
     // crash cushion at the gore
     const barrelMat = new THREE.MeshStandardMaterial({ color: 0xe8c020, roughness: .7 });
-    for (let k = 0; k < 4; k++) { const z = zf - 9 - k * 1.1; const b = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.95, 12), barrelMat); b.position.set(4.3, h(z) + 0.48, z); b.castShadow = true; g.add(b); }
+    for (let k = 0; k < 4; k++) { const z = zf - 9 - k * 1.1; const b = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.95, 12), barrelMat); b.position.set(4.2, h(z) + 0.48, z); b.castShadow = true; g.add(b); }
     // a strip of shore off to the right, with palms, for the low road to run toward
     const sand = new THREE.Mesh(new THREE.CircleGeometry(1, 40), new THREE.MeshStandardMaterial({ color: 0xe6dcc0, roughness: 1 })); sand.rotation.x = -Math.PI / 2; sand.scale.set(150, 260, 1); sand.position.set(190, WL + 0.15, zf - 330); g.add(sand);
     const scrub = new THREE.Mesh(new THREE.CircleGeometry(1, 40), new THREE.MeshStandardMaterial({ color: 0x5a7a4a, roughness: 1 })); scrub.rotation.x = -Math.PI / 2; scrub.scale.set(130, 230, 1); scrub.position.set(205, WL + 0.2, zf - 340); g.add(scrub);
@@ -3613,13 +3614,22 @@ function buildBridge() {
   // --- the detective's convertible + traffic
   const car = makeCar({ color: 0x1c1c1c, convertible: true, seat: 0x9a7a5a }); car.g.rotation.order = 'YXZ'; group.add(car.g);
   const headlight = new THREE.SpotLight(0xfff0d0, 0, 45, 0.45, 0.5, 1.4); headlight.position.set(0, 0.9, -2.1); headlight.target.position.set(0, 0, -14); car.g.add(headlight, headlight.target);
-  const st = { x: LANES[0], y: 0, z: 0, heading: 0, v: 18, lane: 0, manualUntil: 0, camHead: 0, dt: 0.016, t: 0 };
+  const st = { x: SLOTS[0], y: 0, z: 0, heading: 0, v: 18, slot: 0, mine: 0, camHead: 0, dt: 0.016, t: 0 };
+  const VMAX = 44.7, CRUISE = 18;                                 // 100 mph flat out, 40 mph cruising
+  // blinkers: amber lamps at the four corners of our car, flashing on the side we're moving toward
+  const blinkMat = [-1, 1].map(() => new THREE.MeshStandardMaterial({ color: 0x8a6420, emissive: 0xffa020, emissiveIntensity: 0, roughness: .4 }));
+  for (const [si, s] of [[0, -1], [1, 1]]) for (const [z, y] of [[-2.12, 0.66], [2.24, 0.8]]) { const bl = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.1, 0.08), blinkMat[si]); bl.position.set(s * 0.8, y, z); car.g.add(bl); }
+  let blinkSide = 0, blinkUntil = 0;
+  function moveSlot(d) {
+    const to = Math.max(0, Math.min(2, st.slot + d)); if (to === st.slot) return;
+    st.slot = to; st.mine = performance.now() / 1000 + 8; blinkSide = d; blinkUntil = performance.now() / 1000 + 1.6;
+  }
   const traffic = [];
-  const START_TRAFFIC = [[LANES[0], -45, -1, 13], [LANES[0], -120, -1, 13], [LANES[1], -25, -1, 11], [LANES[1], -85, -1, 11], [LANES[1], -150, -1, 11],
+  const START_TRAFFIC = [[LANES[0], -45, -1, 12], [LANES[1], -45, -1, 12], [LANES[0], -130, -1, 12], [LANES[1], -95, -1, 12], [LANES[1], -150, -1, 12], [LANES[0], -210, -1, 12], [LANES[1], -210, -1, 12],
     [ONC[0], -30, 1, 17], [ONC[0], -100, 1, 17], [ONC[0], -170, 1, 17], [ONC[1], -60, 1, 14], [ONC[1], -140, 1, 14], [ONC[1], 10, 1, 14]];
   for (const [x, z, dir, v] of START_TRAFFIC) { const c = makeCar({ color: pick(CAR_COLORS) }); c.g.rotation.order = 'YXZ'; group.add(c.g); traffic.push({ c, x, z, dir, v, z0: z, hidden: false }); }
   function trafficPose(t) {         // where a car actually is: on the main deck, or out on a branch past the fork
-    if (fork && t.dir < 0 && t.z < fork.zf) { const [x, y, , hd] = bpath(t.x < 4.3 ? 0 : 1, fork.zf)(fork.zf - t.z); return [x, y, hd, 0]; }
+    if (fork && t.dir < 0 && t.z < fork.zf) { const [x, y, , hd] = bpath(t.x < 4.2 ? 0 : 1, fork.zf)(fork.zf - t.z); return [x, y, hd, 0]; }
     return [t.x, h(t.z), t.dir < 0 ? 0 : Math.PI, grade(t.z) * (t.dir < 0 ? 1 : -1)];
   }
 
@@ -3660,18 +3670,18 @@ function buildBridge() {
   const gasEl = document.createElement('div'); gasEl.id = 'gas'; gasEl.innerHTML = '<div class="spd"><span>40</span><small>MPH</small></div>'; document.body.appendChild(gasEl);
   const mphEl = gasEl.querySelector('span'); let gas = false, mphShown = -1, boostUntil = 0, lastTap = 0, lastX = 0;
   const gasOff = () => { gas = false; };
-  const boosting = () => gas || keys.has('u') || performance.now() / 1000 < boostUntil;
+  const boosting = () => gas || keys.has('u') || performance.now() / 1000 < boostUntil;   // (keys is declared just below; this only runs later)
   addEventListener('keydown', e => { if (S === self && e.code === 'Space') { e.preventDefault(); gas = true; } });
   addEventListener('keyup', e => { if (e.code === 'Space') gasOff(); });
 
   // --- input
   const keys = new Set(); let self;
   const KEYMAP = { ArrowUp: 'u', KeyW: 'u', ArrowDown: 'd', KeyS: 'd', ArrowLeft: 'l', KeyA: 'l', ArrowRight: 'r', KeyD: 'r' };
-  addEventListener('keydown', e => { if (S !== self || !KEYMAP[e.code]) return; e.preventDefault(); keys.add(KEYMAP[e.code]); if (!fork) st.manualUntil = performance.now() / 1000 + 5; });
+  addEventListener('keydown', e => { if (S !== self || !KEYMAP[e.code]) return; e.preventDefault(); keys.add(KEYMAP[e.code]); if (!fork && !e.repeat && (KEYMAP[e.code] === 'l' || KEYMAP[e.code] === 'r')) moveSlot(KEYMAP[e.code] === 'l' ? -1 : 1); });
   addEventListener('keyup', e => { if (KEYMAP[e.code]) keys.delete(KEYMAP[e.code]); });
 
   function reset() {
-    Object.assign(st, { x: LANES[0], y: h(0), z: 0, heading: 0, v: 18, lane: 0, manualUntil: 0, camHead: 0, t: 0 });
+    Object.assign(st, { x: SLOTS[0], y: h(0), z: 0, heading: 0, v: CRUISE, slot: 0, mine: 0, camHead: 0, t: 0 }); blinkUntil = 0; boostUntil = 0;
     if (fork) { group.remove(fork.g); fork = null; }
     for (const sg of segs) { sg.position.z = 0; sg.userData.ours.visible = true; }
     pylons.forEach((p, i) => p.position.z = 0);
@@ -3704,7 +3714,7 @@ function buildBridge() {
       for (const A of [armL, armR]) { A.sh.rotation.x = -0.95; A.el.rotation.x = -0.6; }
       armL.sh.rotation.z = 0.32; armR.sh.rotation.z = -0.1;
       applyMood(M); gasEl.classList.add('show'); gasOff();
-      const hn = document.getElementById('hint'); hn.textContent = matchMedia('(pointer: coarse)').matches ? 'Tap left or right to switch lanes · double-tap to speed up' : 'Click left or right to switch lanes · double-click (or hold Space) to speed up'; hn.style.opacity = 1;
+      const hn = document.getElementById('hint'); hn.textContent = matchMedia('(pointer: coarse)').matches ? 'Tap left or right to move over — split the lanes if you dare · double-tap to floor it' : '← → to move over (split the lanes if you dare) · double-click or hold Space to floor it, ↓ to brake'; hn.style.opacity = 1;
       clearTimeout(self._ht); self._ht = setTimeout(() => hn.style.opacity = 0, 7000);
     },
     onExit() { gasEl.classList.remove('show'); gasOff(); camera.far = 100; camera.updateProjectionMatrix(); scene.add(man); man.rotation.set(0, 0, 0); armL.sh.rotation.z = 0.08; armR.sh.rotation.z = -0.08; canvas.style.filter = ''; keys.clear(); },
@@ -3712,15 +3722,16 @@ function buildBridge() {
       const t = performance.now() / 1000, dbl = t - lastTap < 0.33 && Math.abs(e.clientX - lastX) < 120; lastTap = dbl ? 0 : t; lastX = e.clientX;
       if (dbl) { boostUntil = Math.min(Math.max(boostUntil, t) + 4, t + 8); gasEl.classList.remove('kick'); void gasEl.offsetWidth; gasEl.classList.add('kick'); document.getElementById('hint').style.opacity = 0; }
       if (fork) return;
-      if (e.clientX < innerWidth * 0.4) st.lane = 0; else if (e.clientX > innerWidth * 0.6) st.lane = 1; else return;
-      st.manualUntil = 0; document.getElementById('hint').style.opacity = 0;
+      if (dbl) return;                                       // the first tap already moved us
+      if (e.clientX < innerWidth * 0.45) moveSlot(-1); else if (e.clientX > innerWidth * 0.55) moveSlot(1); else return;
+      document.getElementById('hint').style.opacity = 0;
     },
     // picked a destination: split the road at the sign ahead (or the next clear stretch), and take that side
     onChoose(i) {
       if (fork) return;
       let zf = gz - 8;
       if (st.z - zf < 30) { zf = nextFork(st.z - 70); placeGantry(zf + 8); }
-      fork = buildFork(zf, i); st.lane = i; st.manualUntil = 0; waterU.uFork.value = zf;
+      fork = buildFork(zf, i); if (st.slot !== i * 2) moveSlot(i * 2 - st.slot); st.slot = i * 2; waterU.uFork.value = zf;
       for (const t of traffic) if (t.dir < 0 && (st.z - t.z > 70 || t.z > st.z + 5)) { t.hidden = true; t.c.g.visible = false; }
     },
     arrived() { return !!fork && fork.a > 85; },
@@ -3728,7 +3739,7 @@ function buildBridge() {
       car.g.updateMatrixWorld(true);
       if (mode === 'over') {     // a drone following the car, high and behind, like the aerial shots of the Skyway
         st.camHead += (st.heading - st.camHead) * Math.min(1, st.dt * 2);
-        const pull = Math.max(0, st.v - 18) * 0.35;   // the drone falls back a little as you open it up
+        const pull = Math.max(0, st.v - 18) * 0.3;   // the drone falls back a little as you open it up
         const [ox, oz] = rot(9, 20 + pull, st.camHead), [lx, lz] = rot(-1, -30, st.camHead);   // off the right-hand rail, so the stays and pylons never come between us and the car
         outPos.set(st.x + ox, st.y + 15 + pull * 0.3, st.z + oz); outLook.set(st.x + lx, st.y, st.z + lz);
       } else {
@@ -3740,27 +3751,30 @@ function buildBridge() {
     update(dt, now) {
       st.dt = dt; st.t += dt;
       if (drv.opts !== lastOpts) { lastOpts = drv.opts; drawSigns(drv.opts); }
-      const manual = !fork && performance.now() / 1000 < st.manualUntil;
       for (const t of traffic) t.z += t.dir * t.v * dt * Math.cos(fork && t.dir < 0 && t.z < fork.zf ? Math.atan((fork.zf - t.z) / R) : 0);
       const onBranch = fork && st.z < fork.zf;
-      if (manual) {
-        if (boosting()) st.v = Math.min(32, st.v + 7 * dt); else if (keys.has('d')) st.v = Math.max(0, st.v - 10 * dt);
-        const steer = (keys.has('l') ? 1 : 0) - (keys.has('r') ? 1 : 0);
-        st.heading += (steer * 0.3 * Math.min(1, st.v / 6) - st.heading) * Math.min(1, dt * 3);
-        st.lane = Math.abs(st.x - LANES[0]) < Math.abs(st.x - LANES[1]) ? 0 : 1;
-      } else {
-        const floor = boosting();
-        let want = floor ? 32 : 18;
-        const laneX = LANES[st.lane];
-        const ahead = traffic.find(t => !t.hidden && t.dir < 0 && Math.abs(t.x - laneX) < 1.5 && st.z - t.z > 0 && st.z - t.z < (floor ? 48 : 26));
+      {
+        const T = performance.now() / 1000, floor = boosting();
+        let want = keys.has('d') ? 0 : floor ? VMAX : CRUISE;
+        const px = SLOTS[st.slot], look = 22 + st.v * 1.6;
+        const inPath = (x) => (t) => !t.hidden && t.dir < 0 && Math.abs(t.x - x) < CAR_W && st.z - t.z > 0 && st.z - t.z < look;
+        const ahead = traffic.filter(inPath(px)).sort((a, b) => b.z - a.z)[0];
         if (ahead) {
-          const other = 1 - st.lane, ox = LANES[other];
-          const clear = !fork && !traffic.some(t => !t.hidden && t.dir < 0 && Math.abs(t.x - ox) < 1.5 && t.z > st.z - 28 && t.z < st.z + 9);
-          if (clear && Math.abs(st.x - laneX) < 0.4) st.lane = other;
-          else if (st.z - ahead.z < (floor ? 12 : 18)) want = Math.min(want, ahead.v);
+          // left to itself (you haven't steered lately), it pulls out to pass if a neighbouring spot is clear
+          let moved = false;
+          if (!fork && T > st.mine && Math.abs(st.x - px) < 0.4) for (const d of st.slot === 1 ? [-1, 1] : [st.slot ? -1 : 1, st.slot ? -2 : 2]) {
+            const ns = st.slot + d; if (ns < 0 || ns > 2) continue; const nx = SLOTS[ns];
+            if (!traffic.some(t => !t.hidden && t.dir < 0 && Math.abs(t.x - nx) < CAR_W && t.z > st.z - look && t.z < st.z + 8)) { st.slot = ns; blinkSide = Math.sign(d); blinkUntil = T + 1.6; moved = true; break; }
+          }
+          const gap = st.z - ahead.z;
+          if (!moved && gap < st.v * 1.1 + 9) want = Math.min(want, ahead.v * (gap < 8 ? 0.8 : 1));
         }
-        st.v += Math.sign(want - st.v) * Math.min(Math.abs(want - st.v), (want > st.v ? (floor ? 7 : 3) : 5) * dt);
-        if (!onBranch) { const tgt = THREE.MathUtils.clamp(-0.1 * (LANES[st.lane] - st.x), -0.09, 0.09); st.heading += (tgt - st.heading) * Math.min(1, dt * 2.5); }
+        const rate = want > st.v ? (floor ? 9 : 3) : (want < st.v - 6 ? 16 : 4);
+        st.v += Math.sign(want - st.v) * Math.min(Math.abs(want - st.v), rate * dt);
+        if (!onBranch) { const tgt = THREE.MathUtils.clamp(-0.12 * (SLOTS[st.slot] - st.x), -0.1, 0.1) * Math.min(1, 26 / Math.max(st.v, 1)) * 1.6; st.heading += (tgt - st.heading) * Math.min(1, dt * 3); if (Math.abs(SLOTS[st.slot] - st.x) < 0.5) st.x += (SLOTS[st.slot] - st.x) * Math.min(1, dt * 2.5); }   // settle dead centre, so a split really fits
+        // blinkers
+        const on = T < blinkUntil && Math.floor(T * 3.2) % 2 === 0;
+        blinkMat[0].emissiveIntensity = on && blinkSide < 0 ? 3 : 0; blinkMat[1].emissiveIntensity = on && blinkSide > 0 ? 3 : 0;
       }
       if (onBranch) {        // follow the ramp, easing out whatever lane offset we came in with
         fork.a = fork.zf - st.z; if (fork.off === null) fork.off = st.x - LANES[fork.side];
@@ -3777,7 +3791,10 @@ function buildBridge() {
       // traffic: bump, recycle, pose
       for (const t of traffic) {
         if (t.hidden) continue;
-        if (!onBranch && t.dir < 0 && Math.abs(t.x - st.x) < 1.85 && t.z < st.z && st.z - t.z < 4.6) { st.v = Math.min(st.v, t.v * 0.9); st.z = t.z + 4.6; }
+        if (onBranch || t.dir > 0 || Math.abs(t.x - st.x) >= CAR_W - 0.08) continue;
+        const dz = st.z - t.z;
+        if (dz > 3.6 && dz < 4.6) { st.v = Math.min(st.v, t.v * 0.9); st.z = t.z + 4.6; }                                   // nose to tail: tuck in behind
+        else if (Math.abs(dz) <= 3.6) { st.x = t.x + Math.sign(st.x - t.x || 1) * CAR_W; st.v *= 0.97; st.slot = SLOTS.reduce((bi, sx, k) => Math.abs(sx - st.x) < Math.abs(SLOTS[bi] - st.x) ? k : bi, 0); }   // side by side: scrape off
       }
       for (const t of traffic) {
         const behind = t.z - st.z > 40, tooFar = st.z - t.z > 330;
@@ -3785,6 +3802,10 @@ function buildBridge() {
           if (fork && t.dir < 0) { t.hidden = true; t.c.g.visible = false; continue; }
           const lane = traffic.filter(o => o !== t && Math.abs(o.x - t.x) < 0.5);
           t.z = Math.min(st.z - 160, ...lane.map(o => o.z - 20)) - rand(0, 40);
+          if (t.dir < 0 && Math.random() < 0.5) {      // half the time, pull up alongside a car in the other lane, so there are gaps to split
+            const mate = traffic.find(o => o !== t && !o.hidden && o.dir < 0 && Math.abs(o.x - t.x) > 2 && o.z < st.z - 140 && o.z > st.z - 280 && !traffic.some(q => q !== t && q !== o && Math.abs(q.x - t.x) < 0.5 && Math.abs(q.z - o.z) < 8));
+            if (mate) t.z = mate.z;
+          }
         }
         if (t.hidden) continue;
         const [x, y, hd, pt] = trafficPose(t);
