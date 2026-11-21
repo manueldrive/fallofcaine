@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Fall of Caine · Coquina City skyline</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap">
+<style>
+  :root { --gold: #e2b23a; --cream: #ece6d2; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #0b0b0c; color: #ddd; font-family: 'Courier New', monospace; }
+  header { padding: 18px 18px 4px; max-width: 1180px; margin: 0 auto; }
+  h1 { font: 400 28px/1 'Bebas Neue', sans-serif; letter-spacing: .08em; margin: 0 0 4px; color: var(--cream); }
+  header p { margin: 0; font-size: 13px; color: #8d8a80; line-height: 1.5; }
+  .stagewrap { max-width: 1180px; margin: 12px auto 0; padding: 0 18px; }
+  .stage { position: relative; width: 100%; aspect-ratio: 16 / 8; border-radius: 10px; overflow: hidden; background: #000; box-shadow: 0 20px 60px rgba(0,0,0,.6); touch-action: pan-y; cursor: grab; }
+  @media (max-width: 700px) { .stage { aspect-ratio: 4 / 5; } }
+  canvas { display: block; width: 100%; height: 100%; }
+  .grain { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; mix-blend-mode: overlay; opacity: .1; }
+  .label { position: absolute; left: 14px; bottom: 12px; font: 600 10px/1 'Courier New', monospace; letter-spacing: .3em; text-transform: uppercase; color: rgba(236,230,210,.55); pointer-events: none; }
+  .controls { max-width: 1180px; margin: 12px auto 0; padding: 0 18px; display: grid; gap: 10px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .row > span { font: 600 10px/1 'Courier New', monospace; letter-spacing: .25em; text-transform: uppercase; color: #77746c; width: 92px; }
+  .chip { background: none; border: 1px solid #333; color: #aaa; border-radius: 999px; font: 600 12px/1 'Courier New', monospace; letter-spacing: .08em; padding: 9px 13px; cursor: pointer; }
+  .chip.on { background: var(--gold); border-color: var(--gold); color: #111; }
+  input[type=range] { accent-color: var(--gold); width: 160px; }
+  .notes { max-width: 1180px; margin: 18px auto 40px; padding: 0 18px; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; }
+  .notes div { border: 1px solid #262626; border-radius: 10px; padding: 14px; font-size: 13px; line-height: 1.5; color: #aaa; }
+  .notes b { display: block; color: var(--cream); font: 400 20px/1 'Bebas Neue', sans-serif; letter-spacing: .06em; margin-bottom: 6px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Coquina City — the skyline every outdoor scene looks out at</h1>
+  <p>Flat painted layers, old-Hollywood backdrop style: far city across the bay, a middle layer, fog between, rooftops up front. Drag to pan, or let it drift. Switch the sky and toggle landmarks to decide what makes the cut.</p>
+</header>
+<div class="stagewrap"><div class="stage" id="stage"><canvas id="cv"></canvas><canvas class="grain" id="grain" width="480" height="240"></canvas><div class="label" id="lbl">Coquina City · golden hour</div></div></div>
+<div class="controls">
+  <div class="row"><span>Sky</span><button class="chip on" data-sky="golden">Golden hour</button><button class="chip" data-sky="evening">Evening</button><button class="chip" data-sky="rain">Rainy night</button></div>
+  <div class="row" id="marks"><span>Landmarks</span>
+    <button class="chip on" data-m="lighthouse">Lighthouse</button><button class="chip on" data-m="causeway">Causeway</button><button class="chip on" data-m="domes">Minaret domes</button>
+    <button class="chip on" data-m="hotel">Hotel neon</button><button class="chip on" data-m="wheel">Ferris wheel</button><button class="chip on" data-m="cranes">Shipyard cranes</button></div>
+  <div class="row"><span>Camera</span><button class="chip on" data-cam="drift">Drift</button><button class="chip" data-cam="drive">Drive-by</button><button class="chip" data-cam="hold">Hold</button><button class="chip on" id="fg">Foreground rooftops</button></div>
+  <div class="row"><span>Colour</span><input type="range" id="sat" min="0" max="100" value="70"><small id="satv" style="color:#77746c">70%</small></div>
+</div>
+<div class="notes">
+  <div><b>Why layers</b>Each layer is a flat silhouette, cheap to draw and easy to reuse. The far city drifts slowest, the rooftops fastest. That parallax is what makes it feel deep.</div>
+  <div><b>One city, many angles</b>The alley, lot, cemetery and the drive would all look at this same skyline from different spots, so the landmarks double as a compass.</div>
+  <div><b>Drive-by</b>The fast pan is roughly what the car transition could show while you travel: landmarks sliding past as you cross town.</div>
+</div>
+<script>
+const cv = document.getElementById('cv'), g = cv.getContext('2d'), stage = document.getElementById('stage');
+const grainC = document.getElementById('grain'), gg = grainC.getContext('2d');
+const ON = { lighthouse: 1, causeway: 1, domes: 1, hotel: 1, wheel: 1, cranes: 1 };
+let sky = 'golden', camMode = 'drift', fgOn = true, pan = 0.18, panVel = 0, sat = 0.7, mix = { golden: 1, evening: 0, rain: 0 };
+// ---------- palettes per sky (blended smoothly when switching)
+const P = {
+  golden:  { top: [38, 34, 46], mid: [120, 78, 54], hor: [232, 160, 92], far: [46, 36, 38], mid2: [30, 24, 26], near: [12, 10, 10], water: [70, 52, 48], fog: [210, 150, 100], fogA: .18, win: .18, sun: 1, stars: 0, rain: 0, neon: .55, lamp: .35 },
+  evening: { top: [10, 13, 26], mid: [40, 42, 70], hor: [110, 92, 108], far: [24, 26, 40], mid2: [16, 17, 28], near: [7, 7, 11], water: [22, 26, 44], fog: [120, 110, 140], fogA: .16, win: .55, sun: 0, stars: 1, rain: 0, neon: 1, lamp: 1 },
+  rain:    { top: [16, 18, 20], mid: [36, 39, 42], hor: [74, 78, 82], far: [30, 32, 35], mid2: [20, 22, 24], near: [9, 9, 10], water: [28, 30, 33], fog: [110, 115, 120], fogA: .34, win: .45, sun: 0, stars: 0, rain: 1, neon: .9, lamp: 1 },
+};
+const lerp = (a, b, t) => a + (b - a) * t;
+function pal() { const o = {}; for (const k in P.golden) { const v = P.golden[k]; o[k] = Array.isArray(v) ? v.map((_, i) => P.golden[k][i] * mix.golden + P.evening[k][i] * mix.evening + P.rain[k][i] * mix.rain) : v * mix.golden + P.evening[k] * mix.evening + P.rain[k] * mix.rain; } return o; }
+const rgb = (c, a = 1) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
+// ---------- the city (generated once, seeded so it's the same city every time)
+let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+const FAR_W = 2400, MID_W = 2900, NEAR_W = 3800, HOR = 372;
+const far = []; for (let x = 0; x < FAR_W;) { const w = 26 + rnd() * 52, h = 28 + Math.pow(rnd(), 1.6) * 150 * (1 - Math.abs(x / FAR_W - 0.55) * 0.9); if (!(x > 40 && x < 400)) far.push({ x, w, h, wins: [...Array(Math.floor(w * h / 260))].map(() => [rnd(), rnd(), rnd()]) }); x += w + rnd() * 6; }
+const haze = []; for (let x = 0; x < 2000;) { const w = 40 + rnd() * 70, h = 50 + Math.pow(rnd(), 1.3) * 120; haze.push({ x, w, h }); x += w + rnd() * 20; }
+const mid = []; for (let x = 0; x < MID_W;) { const w = 50 + rnd() * 80, h = 18 + rnd() * 60; if (rnd() < 0.55 && !(x > 1700 && x < 1960)) mid.push({ x, w, h, tank: rnd() < 0.25 }); x += w + 30 + rnd() * 140; }
+const near = []; for (let x = 0; x < NEAR_W;) { const w = 120 + rnd() * 220, h = 40 + rnd() * 110; near.push({ x, w, h, tank: rnd() < 0.3, vent: rnd() < 0.5, ant: rnd() < 0.2 }); x += w + rnd() * 30; }
+const stars = [...Array(120)].map(() => [rnd(), rnd() * 0.55, rnd()]);
+const cars = [...Array(14)].map((_, i) => ({ t: rnd(), dir: i % 2 ? 1 : -1, sp: 0.018 + rnd() * 0.02 }));
+let drops = [...Array(220)].map(() => [rnd(), rnd(), 0.6 + rnd() * 0.8]);
+// ---------- drawing
+let W = 0, H = 0, S = 1, t0 = performance.now(), flash = 0;
+function resize() { const r = stage.getBoundingClientRect(), d = Math.min(2, devicePixelRatio || 1); cv.width = r.width * d; cv.height = r.height * d; W = cv.width; H = cv.height; S = H / 600; }
+addEventListener('resize', resize); resize();
+function layerX(worldW) { const viewW = W / S; return -pan * Math.max(0, worldW - viewW); }
+function frame(now) {
+  const t = (now - t0) / 1000, dt = Math.min(0.05, (now - (frame.last || now)) / 1000); frame.last = now;
+  for (const k in mix) mix[k] += ((k === sky ? 1 : 0) - mix[k]) * Math.min(1, dt * 2.2);
+  if (camMode === 'drift' && !drag) pan += 0.008 * dt * (frame.dir || (frame.dir = 1)), pan > 1 && (frame.dir = -1), pan < 0 && (frame.dir = 1);
+  if (camMode === 'drive' && !drag) { pan += 0.12 * dt; if (pan > 1.05) pan = -0.05; }
+  pan += panVel; panVel *= 0.9; pan = Math.max(-0.05, Math.min(1.05, pan));
+  const c = pal();
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  // sky
+  const sg = g.createLinearGradient(0, 0, 0, HOR * S); sg.addColorStop(0, rgb(c.top)); sg.addColorStop(0.6, rgb(c.mid)); sg.addColorStop(1, rgb(c.hor)); g.fillStyle = sg; g.fillRect(0, 0, W, HOR * S + 2);
+  g.setTransform(S, 0, 0, S, 0, 0); const VW = W / S;
+  if (c.stars > 0.02) for (const [x, y, b] of stars) { g.fillStyle = `rgba(255,250,235,${c.stars * (0.3 + 0.7 * b) * (0.7 + 0.3 * Math.sin(t * 2 + b * 9))})`; g.fillRect(x * VW, y * HOR, 1.2, 1.2); }
+  // the sun, low over the bay (golden hour only)
+  const sunX = VW * 0.68 + layerX(FAR_W) * 0.08, sunY = HOR - 62;
+  if (c.sun > 0.02) { const rg = g.createRadialGradient(sunX, sunY, 4, sunX, sunY, 240); rg.addColorStop(0, `rgba(255,214,150,${0.75 * c.sun})`); rg.addColorStop(0.2, `rgba(255,170,90,${0.35 * c.sun})`); rg.addColorStop(1, 'rgba(255,140,60,0)'); g.fillStyle = rg; g.fillRect(0, 0, VW, HOR + 40); g.fillStyle = `rgba(255,226,170,${c.sun})`; g.beginPath(); g.arc(sunX, sunY, 26, 0, 7); g.fill(); }
+  // lightning, now and then, in the rain
+  if (c.rain > 0.5 && Math.random() < 0.0035) flash = 1; flash *= 0.86; if (flash > 0.02) { g.fillStyle = `rgba(200,210,225,${flash * 0.35 * c.rain})`; g.fillRect(0, 0, VW, HOR); }
+  // the far side of the city, half lost in the haze
+  g.save(); g.translate(layerX(2000), 0); g.fillStyle = rgb(c.far.map((v, i) => lerp(v, c.hor[i], 0.55))); for (const b of haze) g.fillRect(b.x, HOR - b.h, b.w, b.h); g.restore();
+  // far fog band
+  fogBand(HOR - 70, 90, c.fog, c.fogA * 0.8);
+  // ---- FAR LAYER: the city across the bay, with most landmarks
+  g.save(); g.translate(layerX(FAR_W), 0);
+  g.fillStyle = rgb(c.far);
+  for (const b of far) { const k = 0.85 + (b.x * 13 % 30) / 100; g.fillStyle = rgb(c.far.map(v => v * k)); g.fillRect(b.x, HOR - b.h, b.w, b.h); }
+  if (c.win > 0.02) for (const b of far) for (const [u, v, k] of b.wins) if (k < c.win) { const fl = 0.55 + 0.45 * Math.sin(t * 0.3 + k * 40); g.fillStyle = `rgba(255,${200 + k * 40 | 0},${130 + k * 60 | 0},${0.55 * fl})`; g.fillRect(b.x + 3 + u * (b.w - 6), HOR - b.h + 4 + v * (b.h - 8), 1.6, 2.2); }
+  if (ON.domes) domes(760, c, t);
+  if (ON.hotel) hotel(1250, c, t);
+  if (ON.cranes) cranes(1880, c, t);
+  if (ON.lighthouse) { g.save(); g.translate(230, HOR); g.scale(1.45, 1.45); g.translate(-230, -HOR); lighthouse(230, c, t); g.restore(); }
+  g.restore();
+  // ---- WATER (the bay), with the city's light smeared across it
+  const wg = g.createLinearGradient(0, HOR, 0, 600); wg.addColorStop(0, rgb(c.water.map(v => v * 1.25))); wg.addColorStop(1, rgb(c.water.map(v => v * 0.45))); g.fillStyle = wg; g.fillRect(0, HOR, VW, 600 - HOR);
+  if (c.sun > 0.02) for (let i = 0; i < 40; i++) { const y = HOR + 4 + i * 5.5, w = (30 + i * 5) * (0.6 + 0.4 * Math.sin(t * 1.3 + i)); g.fillStyle = `rgba(255,200,130,${(0.5 - i / 90) * c.sun})`; g.fillRect(sunX - w / 2 + Math.sin(t + i * 2) * 6, y, w, 1.5); }
+  g.save(); g.translate(layerX(FAR_W), 0);
+  for (let i = 0; i < 70; i++) { const x = (i * 97) % FAR_W, y = HOR + 6 + ((i * 37) % 70); g.fillStyle = `rgba(255,210,150,${0.12 * c.win * (0.5 + 0.5 * Math.sin(t * 1.7 + i))})`; g.fillRect(x, y, 10 + (i % 5) * 4, 1); }
+  if (ON.lighthouse) { const k = beamK(t); g.fillStyle = `rgba(255,240,200,${(0.05 + 0.2 * k) * c.lamp})`; for (let i = 0; i < 10; i++) g.fillRect(212 + Math.sin(t * 2 + i) * 5, HOR + 6 + i * 7, 36, 2); }
+  if (ON.hotel) { g.fillStyle = `rgba(220,40,40,${0.18 * neonK(t) * c.neon})`; for (let i = 0; i < 8; i++) g.fillRect(1228 + Math.sin(t * 2 + i) * 4, HOR + 6 + i * 7, 46, 2); }
+  if (ON.causeway) causeway(c, t);
+  g.restore();
+  fogBand(HOR - 10, 60, c.fog, c.fogA * 0.6);
+  // ---- MID LAYER: pier with the Ferris wheel, a few low roofs
+  g.save(); g.translate(layerX(MID_W), 0);
+  if (ON.wheel) wheel(1800, c, t);
+  g.fillStyle = rgb(c.mid2); for (const b of mid) { g.fillRect(b.x, 470 - b.h, b.w, b.h + 140); if (b.tank) tank(b.x + b.w * 0.6, 470 - b.h, 0.7, c.mid2); }
+  g.restore();
+  fogBand(440, 70, c.fog, c.fogA * 0.5);
+  // ---- NEAR LAYER: rooftops right in front of us
+  if (fgOn) { g.save(); g.translate(layerX(NEAR_W), 0); g.fillStyle = rgb(c.near);
+    for (const b of near) { g.fillRect(b.x, 600 - b.h, b.w, b.h); g.fillRect(b.x - 3, 600 - b.h - 5, b.w + 6, 6); if (b.tank) tank(b.x + b.w * 0.3, 600 - b.h - 5, 1.4, c.near); if (b.vent) { g.fillRect(b.x + b.w * 0.7, 600 - b.h - 22, 16, 18); } if (b.ant) { g.fillRect(b.x + b.w * 0.5, 600 - b.h - 70, 2, 66); g.fillRect(b.x + b.w * 0.5 - 12, 600 - b.h - 60, 26, 2); } }
+    g.restore(); }
+  // rain
+  if (c.rain > 0.02) { g.strokeStyle = `rgba(200,210,220,${0.25 * c.rain})`; g.lineWidth = 1; g.beginPath(); for (const d of drops) { d[1] += dt * 1.4 * d[2]; if (d[1] > 1) { d[1] = -0.05; d[0] = Math.random(); } const x = d[0] * VW, y = d[1] * 600; g.moveTo(x, y); g.lineTo(x - 3, y + 14 * d[2]); } g.stroke(); }
+  // vignette
+  g.setTransform(1, 0, 0, 1, 0, 0); const vg = g.createRadialGradient(W / 2, H * 0.45, H * 0.3, W / 2, H * 0.5, W * 0.75); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.55)'); g.fillStyle = vg; g.fillRect(0, 0, W, H);
+  // grain
+  const id = gg.createImageData(480, 240); for (let i = 0; i < id.data.length; i += 4) { const v = Math.random() * 255; id.data[i] = id.data[i + 1] = id.data[i + 2] = v; id.data[i + 3] = 255; } gg.putImageData(id, 0, 0);
+  requestAnimationFrame(frame);
+}
+function fogBand(y, h, col, a) { const fg = g.createLinearGradient(0, y, 0, y + h); fg.addColorStop(0, rgb(col, 0)); fg.addColorStop(0.5, rgb(col, a)); fg.addColorStop(1, rgb(col, 0)); g.fillStyle = fg; g.fillRect(0, y, W / S, h); }
+function tank(x, y, s, col) { g.fillStyle = rgb(col); g.fillRect(x - 1 * s, y - 34 * s, 2 * s, 34 * s); g.fillRect(x + 18 * s, y - 34 * s, 2 * s, 34 * s); g.fillRect(x - 4 * s, y - 60 * s, 28 * s, 28 * s); g.beginPath(); g.moveTo(x - 6 * s, y - 60 * s); g.lineTo(x + 10 * s, y - 74 * s); g.lineTo(x + 26 * s, y - 60 * s); g.fill(); }
+// --- the lighthouse: out on the point, beam sweeping round (flares when it faces us)
+const beamK = (t) => Math.pow(Math.max(0, Math.cos(t * 0.9)), 18);
+function lighthouse(x, c, t) {
+  g.fillStyle = rgb(c.far); g.beginPath(); g.moveTo(x - 120, HOR); g.quadraticCurveTo(x - 40, HOR - 16, x + 10, HOR - 12); g.quadraticCurveTo(x + 70, HOR - 10, x + 140, HOR); g.fill();
+  g.beginPath(); g.moveTo(x - 9, HOR - 12); g.lineTo(x - 6, HOR - 118); g.lineTo(x + 6, HOR - 118); g.lineTo(x + 9, HOR - 12); g.fill();
+  g.fillStyle = rgb(c.far.map(v => v * 1.6)); for (let i = 0; i < 3; i++) g.fillRect(x - 8 + i * 0.6, HOR - 40 - i * 28, 16 - i * 1.2, 7);
+  g.fillStyle = rgb(c.far); g.fillRect(x - 10, HOR - 124, 20, 4); g.fillRect(x - 6, HOR - 138, 12, 14); g.beginPath(); g.moveTo(x - 8, HOR - 138); g.lineTo(x, HOR - 148); g.lineTo(x + 8, HOR - 138); g.fill();
+  const lx = x, ly = HOR - 131, a = t * 0.9, s = Math.sin(a), k = beamK(t), on = c.lamp;
+  g.fillStyle = `rgba(255,236,190,${(0.6 + 0.4 * k) * on})`; g.beginPath(); g.arc(lx, ly, 3.5 + k * 3, 0, 7); g.fill();
+  // the beam: a long wedge whose length follows the sweep
+  const len = 520 * Math.abs(s) + 30, dir = s > 0 ? 1 : -1;
+  const bg = g.createLinearGradient(lx, ly, lx + dir * len, ly); bg.addColorStop(0, `rgba(255,240,200,${0.42 * on})`); bg.addColorStop(1, 'rgba(255,240,200,0)');
+  g.fillStyle = bg; g.beginPath(); g.moveTo(lx, ly - 2); g.lineTo(lx + dir * len, ly - 22 - len * 0.03); g.lineTo(lx + dir * len, ly + 14 + len * 0.02); g.lineTo(lx, ly + 2); g.fill();
+  if (k > 0.01) { const fl = g.createRadialGradient(lx, ly, 0, lx, ly, 120); fl.addColorStop(0, `rgba(255,245,215,${0.7 * k * on})`); fl.addColorStop(1, 'rgba(255,245,215,0)'); g.fillStyle = fl; g.fillRect(lx - 120, ly - 120, 240, 240); }
+}
+// --- the causeway: low arches across the bay, lights along the deck, headlights crawling
+function causeway(c, t) {
+  const x0 = 330, x1 = 1120, y = HOR + 18;
+  const dk = rgb(c.near.map(v => v * 1.6)); g.strokeStyle = dk; g.fillStyle = dk;
+  g.beginPath(); g.moveTo(x0 - 40, y + 6); g.lineTo(x0, y); g.lineTo(x1, y - 6); g.lineTo(x1 + 30, y - 12); g.lineTo(x1 + 30, y - 8); g.lineTo(x1, y - 2); g.lineTo(x0, y + 4); g.lineTo(x0 - 40, y + 10); g.fill();
+  g.lineWidth = 2; g.beginPath(); for (let x = x0; x < x1; x += 34) { const yy = lerp(y, y - 6, (x - x0) / (x1 - x0)) + 4; g.moveTo(x, yy); g.quadraticCurveTo(x + 17, yy + 14, x + 34, yy - 0.26); g.moveTo(x, yy); g.lineTo(x, yy + 16); } g.stroke();
+  for (let x = x0; x < x1; x += 34) { const yy = lerp(y, y - 6, (x - x0) / (x1 - x0)); g.fillStyle = rgb(c.far); g.fillRect(x - 1, yy - 7, 1.5, 7); g.fillStyle = `rgba(255,214,150,${0.75 * c.lamp})`; g.fillRect(x - 1.5, yy - 9, 2.5, 2.5); }
+  for (const car of cars) { car.t += car.sp * 0.016 * car.dir; if (car.t > 1) car.t -= 1; if (car.t < 0) car.t += 1; const x = lerp(x0, x1, car.t), yy = lerp(y, y - 6, car.t) - 2; g.fillStyle = car.dir > 0 ? `rgba(255,245,220,${0.5 + 0.5 * c.lamp})` : `rgba(230,40,40,${0.5 + 0.5 * c.lamp})`; g.fillRect(x, yy, 2.4, 1.6); }
+}
+// --- the domes: an old hotel-turned-college with silver onion domes and crescents (a hometown nod)
+function domes(x, c, t) {
+  const base = HOR, col = c.far.map(v => v * 1.08), shine = `rgba(225,225,235,${0.25 + 0.25 * c.sun + 0.1 * c.lamp})`;
+  g.fillStyle = rgb(col); g.fillRect(x - 110, base - 42, 220, 42); for (let i = 0; i < 9; i++) { g.fillStyle = `rgba(255,214,150,${0.5 * c.win})`; g.fillRect(x - 100 + i * 24, base - 30, 3, 6); g.fillStyle = rgb(col); }
+  const D = [[-96, 62, 13], [-48, 88, 16], [0, 104, 20], [48, 80, 15], [96, 66, 12]];
+  for (const [dx, h, r] of D) { const cx = x + dx, top = base - h;
+    g.fillStyle = rgb(col); g.fillRect(cx - r * 0.55, top + r, r * 1.1, h - r - 40);
+    g.beginPath(); g.moveTo(cx - r, top + r * 1.2); g.bezierCurveTo(cx - r * 1.25, top - r * 0.4, cx - r * 0.2, top - r * 0.6, cx, top - r * 1.3); g.bezierCurveTo(cx + r * 0.2, top - r * 0.6, cx + r * 1.25, top - r * 0.4, cx + r, top + r * 1.2); g.fill();
+    g.strokeStyle = shine; g.lineWidth = 1.2; g.beginPath(); g.moveTo(cx - r * 0.6, top + r * 0.6); g.bezierCurveTo(cx - r * 0.75, top - r * 0.1, cx - r * 0.2, top - r * 0.4, cx - r * 0.05, top - r * 1.0); g.stroke();
+    g.fillStyle = rgb(col); g.fillRect(cx - 0.6, top - r * 1.3 - 9, 1.2, 9); g.strokeStyle = shine; g.beginPath(); g.arc(cx + 1, top - r * 1.3 - 12, 3.2, Math.PI * 0.6, Math.PI * 1.7); g.stroke(); }
+}
+// --- the hotel: an Art Deco tower with a rooftop neon sign that flickers
+const neonK = (t) => (Math.sin(t * 37) > 0.97 || (t % 9 > 6.2 && t % 9 < 6.5)) ? 0.25 : 1;
+function hotel(x, c, t) {
+  const col = c.far.map(v => v * 0.95); g.fillStyle = rgb(col);
+  g.fillRect(x - 34, HOR - 175, 68, 175); g.fillRect(x - 24, HOR - 200, 48, 26); g.fillRect(x - 14, HOR - 222, 28, 24); g.fillRect(x - 2, HOR - 250, 4, 30);
+  for (let i = 0; i < 4; i++) g.fillRect(x - 40 + i * 2, HOR - 120 + i * 30, 80 - i * 4, 3);
+  for (let r = 0; r < 18; r++) for (let k = 0; k < 6; k++) { const lit = ((r * 7 + k * 3) % 10) / 10 < c.win; if (lit) { g.fillStyle = `rgba(255,214,150,${0.6})`; g.fillRect(x - 28 + k * 10, HOR - 168 + r * 9, 3, 4); } }
+  const n = neonK(t) * c.neon; g.save(); g.font = 'bold 15px "Bebas Neue", Impact, sans-serif'; g.textAlign = 'center'; g.shadowColor = `rgba(255,40,40,${n})`; g.shadowBlur = 16 * n;
+  g.fillStyle = rgb(col); g.fillRect(x - 46, HOR - 226, 92, 20); g.fillStyle = `rgba(255,${70 + 40 * n | 0},${70 + 30 * n | 0},${0.35 + 0.65 * n})`; g.fillText('HOTEL CORONADO', x, HOR - 211); g.restore();
+  g.fillStyle = `rgba(255,40,40,${0.6 + 0.4 * Math.sin(t * 3)})`; g.fillRect(x - 1.5, HOR - 253, 3, 3);
+}
+// --- the shipyard: gantry cranes with slow-blinking red lights
+function cranes(x, c, t) {
+  const col = c.far.map(v => v * 0.9); g.strokeStyle = rgb(col); g.fillStyle = rgb(col); g.lineWidth = 3;
+  [[0, 1], [110, 0.85], [205, 1.1]].forEach(([dx, s], i) => {
+    const cx = x + dx, h = 120 * s; g.beginPath(); g.moveTo(cx - 18 * s, HOR); g.lineTo(cx - 12 * s, HOR - h); g.moveTo(cx + 18 * s, HOR); g.lineTo(cx + 12 * s, HOR - h); g.moveTo(cx - 16 * s, HOR - h * 0.45); g.lineTo(cx + 16 * s, HOR - h * 0.45); g.stroke();
+    g.fillRect(cx - 70 * s, HOR - h - 6, 140 * s, 6); g.fillRect(cx + 40 * s, HOR - h - 6, 3, h * 0.55); g.fillRect(cx - 14 * s, HOR - h - 22 * s, 28 * s, 16 * s);
+    g.lineWidth = 1; g.beginPath(); g.moveTo(cx, HOR - h - 22 * s); g.lineTo(cx - 64 * s, HOR - h - 6); g.moveTo(cx, HOR - h - 22 * s); g.lineTo(cx + 66 * s, HOR - h - 6); g.stroke(); g.lineWidth = 3;
+    const on = Math.sin(t * 1.6 + i * 1.3) > 0.2; if (on) { g.save(); g.shadowColor = 'red'; g.shadowBlur = 10; g.fillStyle = 'rgba(255,50,40,.95)'; g.fillRect(cx - 70 * s, HOR - h - 9, 3, 3); g.fillRect(cx + 67 * s, HOR - h - 9, 3, 3); g.fillRect(cx - 1, HOR - h - 25 * s, 3, 3); g.restore(); }
+  });
+  g.fillRect(x - 60, HOR - 14, 300, 14); for (let i = 0; i < 12; i++) { g.fillStyle = rgb(col.map(v => v * (0.8 + (i % 3) * 0.15))); g.fillRect(x - 50 + i * 22, HOR - 24 - (i % 2) * 8, 20, 10 + (i % 2) * 8); }
+}
+// --- the Ferris wheel on the old pier, turning slowly; its bulbs come on after dark
+function wheel(x, c, t) {
+  const cy = 300, R = 78, col = c.mid2.map(v => v * 1.15), lit = Math.max(c.lamp * 0.9, 0.15);
+  g.fillStyle = rgb(col); g.fillRect(x - 140, 468, 280, 6); for (let i = 0; i < 8; i++) g.fillRect(x - 130 + i * 38, 468, 4, 40);
+  g.strokeStyle = rgb(col); g.lineWidth = 3; g.beginPath(); g.moveTo(x - 46, 468); g.lineTo(x, cy); g.lineTo(x + 46, 468); g.stroke();
+  g.lineWidth = 2; g.beginPath(); g.arc(x, cy, R, 0, 7); g.stroke(); g.lineWidth = 1;
+  const a0 = t * 0.12; g.beginPath(); for (let i = 0; i < 16; i++) { const a = a0 + i * Math.PI / 8; g.moveTo(x, cy); g.lineTo(x + Math.cos(a) * R, cy + Math.sin(a) * R); } g.stroke();
+  for (let i = 0; i < 16; i++) { const a = a0 + i * Math.PI / 8, px = x + Math.cos(a) * R, py = cy + Math.sin(a) * R;
+    g.fillStyle = rgb(col); g.fillRect(px - 5, py + 2, 10, 8); g.fillStyle = `rgba(255,${190 + (i % 3) * 25},${120 + (i % 2) * 60},${lit * (0.6 + 0.4 * Math.sin(t * 2 + i))})`; g.beginPath(); g.arc(px, py, 1.8, 0, 7); g.fill(); }
+  g.fillStyle = rgb(col); g.beginPath(); g.arc(x, cy, 5, 0, 7); g.fill();
+}
+requestAnimationFrame(frame);
+// ---------- interaction
+let drag = null;
+stage.addEventListener('pointerdown', e => { drag = { x: e.clientX }; stage.setPointerCapture(e.pointerId); stage.style.cursor = 'grabbing'; });
+stage.addEventListener('pointermove', e => { if (!drag) return; const dx = e.clientX - drag.x; drag.x = e.clientX; panVel = 0; pan -= dx / stage.clientWidth * 0.5; });
+const up = () => { drag = null; stage.style.cursor = 'grab'; }; stage.addEventListener('pointerup', up); stage.addEventListener('pointercancel', up);
+const lbl = document.getElementById('lbl'), NAMES = { golden: 'golden hour', evening: 'evening', rain: 'rainy night' }, SAT = { golden: 80, evening: 70, rain: 25 };
+function setSat(v) { sat = v / 100; document.getElementById('sat').value = v; document.getElementById('satv').textContent = v + '%'; cv.style.filter = `saturate(${sat}) contrast(1.05)`; }
+document.querySelectorAll('[data-sky]').forEach(b => b.onclick = () => { document.querySelectorAll('[data-sky]').forEach(x => x.classList.toggle('on', x === b)); sky = b.dataset.sky; lbl.textContent = 'Coquina City · ' + NAMES[sky]; setSat(SAT[sky]); });
+document.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { ON[b.dataset.m] = !ON[b.dataset.m]; b.classList.toggle('on', !!ON[b.dataset.m]); });
+document.querySelectorAll('[data-cam]').forEach(b => b.onclick = () => { document.querySelectorAll('[data-cam]').forEach(x => x.classList.toggle('on', x === b)); camMode = b.dataset.cam; });
+document.getElementById('fg').onclick = e => { fgOn = !fgOn; e.target.classList.toggle('on', fgOn); };
+document.getElementById('sat').oninput = e => setSat(+e.target.value);
+setSat(80);
+</script>
+</body>
+</html>
