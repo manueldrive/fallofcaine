@@ -155,6 +155,8 @@
   <div class="bar"><a class="ideaLink" href="mocks/handheld/" target="_blank" rel="noopener">Dev mode ↗</a></div></div>
   <h4 id="moodsH">Mood</h4>
   <div class="bar"><span id="moods" style="display:contents"></span></div>
+  <h4 id="optsH" hidden></h4>
+  <div class="bar"><span id="opts" style="display:contents"></span></div>
 </div>
 
 <script type="module">
@@ -1777,10 +1779,87 @@ function buildLot() {
   add(new THREE.Mesh(new THREE.BoxGeometry(1.3, 2.4, 0.08), mat({ color: 0x2c2e30, roughness: .5, metalness: .4 }))).position.set(doorX, 1.2, Z0 + 0.04);
   add(new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.12, 0.5), mat({ color: 0x1a1a1a }))).position.set(doorX, 2.75, Z0 + 0.25);
   add(new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.14, 1.2), mat({ color: 0x77736c }))).position.set(doorX, 0.07, Z0 + 0.6);
-  const signTex = canvasTex(512, (g, s) => { g.fillStyle = '#121212'; g.fillRect(0, 0, s, s); g.fillStyle = '#e9e4d4'; g.textAlign = 'center'; g.font = 'bold 64px Georgia'; g.fillText('COQUINA CITY', s / 2, s * .42); g.font = '44px Georgia'; g.fillText('POLICE · STAFF ONLY', s / 2, s * .64); });
-  signTex.wrapS = signTex.wrapT = THREE.ClampToEdgeWrapping;
-  const sign = add(new THREE.Mesh(new THREE.PlaneGeometry(2.4, 1.0), new THREE.MeshStandardMaterial({ map: signTex, emissive: 0xffffff, emissiveMap: signTex, emissiveIntensity: .35, roughness: .6 })), false);
-  sign.position.set(doorX, 3.55, Z0 + 0.02);
+  // --- the precinct's rear entrance: three sign treatments to compare (☰ → Door sign)
+  const doorSigns = {};
+  {
+    const ZF = Z0 + 0.005;   // wall face
+    const cvTex = (w, h, draw) => { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; };
+    // letters standing out of a stone band: shadow below-right, a lit edge above-left
+    const stoneText = (lines, w, h) => cvTex(w, h, (g, W, H) => {
+      g.fillStyle = '#8b867c'; g.fillRect(0, 0, W, H);
+      for (let i = 0; i < W * H / 40; i++) { const v = 110 + Math.random() * 60; g.fillStyle = `rgba(${v},${v - 4},${v - 10},.25)`; g.fillRect(Math.random() * W, Math.random() * H, 2, 2); }
+      g.fillStyle = 'rgba(0,0,0,.25)'; g.fillRect(0, 0, W, 6); g.fillRect(0, H - 8, W, 8);
+      for (const [txt, y, size, sp] of lines) {
+        g.font = `600 ${size}px Georgia, 'Times New Roman', serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+        const draw = (dx, dy, col) => { g.fillStyle = col; let x = W / 2 - (g.measureText(txt).width + sp * (txt.length - 1)) / 2; for (const ch of txt) { const cw = g.measureText(ch).width; g.textAlign = 'left'; g.fillText(ch, x + dx, y + dy); x += cw + sp; } };
+        draw(4, 5, 'rgba(20,18,15,.75)'); draw(-2, -2, 'rgba(235,230,215,.6)'); draw(0, 0, '#a19b8f');
+      }
+    });
+    const stoneM = mat({ color: 0x8b867c, roughness: .9 });
+    // a green police globe on a wrought bracket (or on the wall), lit from inside
+    const globeTex = cvTex(512, 128, (g, W, H) => { g.fillStyle = '#2f8a4a'; g.fillRect(0, 0, W, H); const gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, 'rgba(0,0,0,.25)'); gr.addColorStop(.5, 'rgba(255,255,255,.12)'); gr.addColorStop(1, 'rgba(0,0,0,.3)'); g.fillStyle = gr; g.fillRect(0, 0, W, H);
+      g.fillStyle = '#f1f6e8'; g.font = 'bold 54px Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('POLICE', W * 0.25, H * 0.52); g.fillText('POLICE', W * 0.75, H * 0.52); });
+    const ironM = mat({ color: 0x18191a, roughness: .45, metalness: .7 });
+    function globe(parent, x, y, armLen) {
+      const grp = new THREE.Group(); grp.position.set(x, y, ZF); parent.add(grp);
+      const arm = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, armLen), ironM); arm.position.set(0, 0.32, armLen / 2); grp.add(arm);
+      const brace = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, armLen * 0.9), ironM); brace.position.set(0, 0.1, armLen * 0.4); brace.rotation.x = 0.42; grp.add(brace);
+      const plate = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.42, 0.03), ironM); plate.position.set(0, 0.2, 0.015); grp.add(plate);
+      const hang = new THREE.Group(); hang.position.set(0, 0.32, armLen); grp.add(hang);
+      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.14, 0.1, 16), ironM); cap.position.y = -0.06; hang.add(cap);
+      const ball = new THREE.Mesh(new THREE.SphereGeometry(0.2, 28, 18), new THREE.MeshStandardMaterial({ map: globeTex, emissive: 0x3aff7a, emissiveMap: globeTex, emissiveIntensity: 0.9, roughness: .25, metalness: 0 }));
+      ball.position.y = -0.3; hang.add(ball);
+      const base = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.05, 0.06, 12), ironM); base.position.y = -0.52; hang.add(base);
+      const gl = new THREE.PointLight(0x4dff8a, 3, 6, 1.6); gl.position.set(0, -0.3, 0.15); hang.add(gl);
+      return grp;
+    }
+    // a blue porcelain enamel plaque, bolted on
+    const enamel = (lines, w, h) => cvTex(w, h, (g, W, H) => {
+      const r = 26; g.fillStyle = '#e8e2cf'; g.beginPath(); g.roundRect(0, 0, W, H, r); g.fill();
+      g.fillStyle = '#1f3a6e'; g.beginPath(); g.roundRect(10, 10, W - 20, H - 20, r - 8); g.fill();
+      g.strokeStyle = '#e8e2cf'; g.lineWidth = 4; g.beginPath(); g.roundRect(22, 22, W - 44, H - 44, r - 14); g.stroke();
+      g.fillStyle = '#efe9d6'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      for (const [txt, y, size] of lines) { g.font = `bold ${size}px Georgia, serif`; g.fillText(txt, W / 2, y); }
+      for (const [bx, by] of [[34, 34], [W - 34, 34], [34, H - 34], [W - 34, H - 34]]) { g.fillStyle = '#9a9a96'; g.beginPath(); g.arc(bx, by, 7, 0, 7); g.fill(); }
+      for (let i = 0; i < 14; i++) { g.fillStyle = 'rgba(30,20,10,.5)'; g.beginPath(); g.arc(Math.random() * W, Math.random() < .5 ? 12 + Math.random() * 6 : H - 14 - Math.random() * 6, 2 + Math.random() * 4, 0, 7); g.fill(); }   // chips in the enamel
+    });
+    const plaque = (parent, tex, w, h, x, y) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map: tex, roughness: .22, metalness: .05, transparent: true })); m.position.set(x, y, ZF + 0.012); parent.add(m); return m; };
+    // stencilled paint on the steel door / brick, worn
+    const stencil = (txt, w, h, size, col) => cvTex(w, h, (g, W, H) => {
+      g.clearRect(0, 0, W, H); g.fillStyle = col; g.font = `bold ${size}px 'Courier New', monospace`; g.textAlign = 'center'; g.textBaseline = 'middle';
+      const lines = txt.split('\n'); lines.forEach((ln, i) => g.fillText(ln, W / 2, H / 2 + (i - (lines.length - 1) / 2) * size * 1.1));
+      g.globalCompositeOperation = 'destination-out'; g.fillStyle = '#000';
+      for (let x = 0; x < W; x += size * 0.62) g.fillRect(x + size * 0.27, 0, size * 0.05, H);   // stencil bridges
+      for (let i = 0; i < W * H / 90; i++) { g.globalAlpha = Math.random(); g.fillRect(Math.random() * W, Math.random() * H, 2 + Math.random() * 3, 2 + Math.random() * 3); }
+    });
+    const decal = (parent, tex, w, h, x, y, z) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map: tex, transparent: true, roughness: .7, polygonOffset: true, polygonOffsetFactor: -2 })); m.position.set(x, y, z); parent.add(m); return m; };
+    const doorFront = Z0 + 0.085;
+
+    // A · REAR ENTRANCE — one green globe, raised NINTH PRECINCT band, stencilled door, enamel plaque
+    { const g = new THREE.Group(); group.add(g); doorSigns['A · Rear entrance'] = g;
+      const band = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.5, 0.14), stoneM); band.position.set(doorX, 3.35, Z0 + 0.07); g.add(band);
+      const face = new THREE.Mesh(new THREE.PlaneGeometry(3.0, 0.5), mat({ map: stoneText([['NINTH  PRECINCT', 64, 70, 10]], 1024, 170), roughness: .9 })); face.position.set(doorX, 3.35, Z0 + 0.142); g.add(face);
+      globe(g, doorX + 0.95, 2.35, 0.55);
+      decal(g, stencil('OFFICERS\nONLY', 512, 256, 78, 'rgba(225,220,205,.9)'), 0.95, 0.48, doorX, 1.55, doorFront);
+      plaque(g, enamel([['COQUINA CITY', 70, 34], ['POLICE DEPT.', 118, 42], ['REAR ENTRANCE', 168, 24]], 420, 220), 0.56, 0.29, doorX - 1.15, 1.55);
+    }
+    // B · FRONT-DOOR GRANDEUR — twin globes, carved lintel with the city name, precinct number
+    { const g = new THREE.Group(); group.add(g); doorSigns['B · Grand front'] = g;
+      const lintel = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.9, 0.2), stoneM); lintel.position.set(doorX, 3.45, Z0 + 0.1); g.add(lintel);
+      const face = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 0.9), mat({ map: stoneText([['COQUINA CITY POLICE', 92, 74, 6], ['· NINTH PRECINCT ·', 200, 46, 8]], 1280, 320), roughness: .9 })); face.position.set(doorX, 3.45, Z0 + 0.202); g.add(face);
+      for (const sd of [-1, 1]) { const p = new THREE.Mesh(new THREE.BoxGeometry(0.34, 3.0, 0.18), stoneM); p.position.set(doorX + sd * 1.0, 1.5, Z0 + 0.09); g.add(p); globe(g, doorX + sd * 1.0, 2.2, 0.42); }
+    }
+    // C · UTILITARIAN — no fuss: painted brick lettering, a big stencilled 9, plaque, the caged lamp you already had
+    { const g = new THREE.Group(); group.add(g); doorSigns['C · Painted brick'] = g;
+      decal(g, stencil('POLICE DEPARTMENT\nNO PARKING · OFFICIAL VEHICLES', 1536, 256, 66, 'rgba(232,226,210,.85)'), 4.6, 0.77, doorX + 0.2, 3.55, ZF + 0.01);
+      decal(g, stencil('9', 256, 256, 230, 'rgba(232,226,210,.85)'), 0.9, 0.9, doorX + 1.35, 1.5, ZF + 0.01);
+      decal(g, stencil('KEEP\nCLEAR', 512, 256, 80, 'rgba(225,220,205,.9)'), 0.8, 0.4, doorX, 1.55, doorFront);
+      plaque(g, enamel([['POLICE', 80, 44], ['OFFICERS ONLY', 150, 28]], 360, 210), 0.48, 0.28, doorX - 1.1, 1.55);
+    }
+  }
+  let doorSign = 'A · Rear entrance'; try { doorSign = localStorage.getItem('caineDoorSign') || doorSign; } catch (e) {}
+  const showSign = (k) => { if (!doorSigns[k]) k = 'A · Rear entrance'; doorSign = k; for (const n in doorSigns) doorSigns[n].visible = n === k; try { localStorage.setItem('caineDoorSign', k); } catch (e) {} };
+  showSign(doorSign);
   const doorLamp = new THREE.SpotLight(0xffe2b0, 90, 12, 0.75, 0.5, 1.6); doorLamp.position.set(doorX, 2.7, Z0 + 0.5); doorLamp.target.position.set(doorX, 0, Z0 + 3);
   doorLamp.castShadow = true; doorLamp.shadow.mapSize.set(1024, 1024); doorLamp.shadow.bias = -0.0005; group.add(doorLamp, doorLamp.target);
   add(new THREE.Mesh(new THREE.SphereGeometry(0.1, 12, 8), new THREE.MeshBasicMaterial({ color: 0xffe8c0 })), false).position.set(doorX, 2.66, Z0 + 0.5);
@@ -1838,6 +1917,7 @@ function buildLot() {
     exposure: 1.3,
     fog: new THREE.FogExp2(0x050506, 0.016),
     skyline: { sky: 'rain', face: Math.PI * 0.25 },
+    options: { title: 'Door sign (mock)', items: Object.keys(doorSigns), get current() { return doorSign; }, pick: (k) => showSign(k) },
     bounds: { minX: X0, maxX: X1, minZ: Z0, maxZ: Z1 },
     blocked(x, z) {
       if (x < X0 + r || x > X1 - r || z < Z0 + 0.35 + r || z > Z1 - r) return !(z > Z1 - 1.2 && x > X0 && x < X0 + 3.4 && z < Z1 + 0.5);
@@ -3142,6 +3222,8 @@ function loadScene(key, { instant = false, spawn = null } = {}) {
 }
 const moodsEl = document.getElementById('moods');
 function buildMoodButtons() {
+  const optsEl = document.getElementById('opts'), optsH = document.getElementById('optsH'); optsEl.innerHTML = ''; optsH.hidden = !S.options;
+  if (S.options) { optsH.textContent = S.options.title; for (const k of S.options.items) { const b = document.createElement('button'); b.textContent = k; b.classList.toggle('on', k === S.options.current); b.onclick = () => { S.options.pick(k); [...optsEl.children].forEach(x => x.classList.toggle('on', x === b)); }; optsEl.appendChild(b); } }
   moodsEl.innerHTML = '';
   document.getElementById('moodsH').style.display = S.moods ? '' : 'none';
   if (!S.moods) return;
