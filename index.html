@@ -110,6 +110,12 @@
   .bar button { background: rgba(0,0,0,.55); color: #bbb; border: 1px solid #555; padding: 7px 12px; font: inherit; font-size: 13px;
     letter-spacing: .08em; text-transform: uppercase; cursor: pointer; }
   .bar button.on { border-color: #ddd; color: #fff; }
+  #gas { position: fixed; right: 18px; bottom: calc(84px + env(safe-area-inset-bottom, 0px)); z-index: 3; display: none; flex-direction: column; align-items: center; gap: 6px; user-select: none; -webkit-user-select: none; }
+  #gas.show { display: flex; }
+  #gas .spd { color: #eee; font: 30px/1 'Bebas Neue', Impact, sans-serif; letter-spacing: .06em; text-shadow: 0 1px 4px rgba(0,0,0,.7); text-align: center; }
+  #gas .spd small { display: block; font-size: 11px; letter-spacing: .3em; opacity: .7; }
+  #gas button { width: 78px; height: 78px; border-radius: 50%; border: 2px solid #e9e4d4; background: rgba(0,0,0,.55); color: #e9e4d4; font: 20px 'Bebas Neue', Impact, sans-serif; letter-spacing: .2em; cursor: pointer; touch-action: none; -webkit-tap-highlight-color: transparent; transition: transform .08s, background .08s; }
+  #gas button.on { background: #e9e4d4; color: #111; transform: scale(.94); }
   #hint { position: fixed; bottom: calc(78px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%); width: max-content; max-width: calc(100% - 32px); box-sizing: border-box; text-align: center; color: #ddd; background: rgba(0,0,0,.65); padding: 7px 14px; font-size: 13px; letter-spacing: .15em;
     text-transform: uppercase; pointer-events: none; transition: opacity 1.5s; }
   #fade { position: fixed; inset: 0; background: #000; pointer-events: none; opacity: 1; transition: opacity .6s; }
@@ -3649,6 +3655,16 @@ function buildBridge() {
     canvas.style.filter = m.bw ? 'grayscale(1) contrast(1.15)' : '';
   }
 
+  // --- the gas pedal (hold it; works on phones), with the speedometer above it
+  const gasEl = document.createElement('div'); gasEl.id = 'gas'; gasEl.innerHTML = '<div class="spd"><span>40</span><small>MPH</small></div><button>GAS</button>'; document.body.appendChild(gasEl);
+  const gasBtn = gasEl.querySelector('button'), mphEl = gasEl.querySelector('span'); let gas = false, mphShown = -1;
+  const gasOn = (e) => { e.preventDefault(); e.stopPropagation(); gas = true; gasBtn.classList.add('on'); try { gasBtn.setPointerCapture(e.pointerId); } catch (er) {} };
+  const gasOff = () => { gas = false; gasBtn.classList.remove('on'); };
+  gasBtn.addEventListener('pointerdown', gasOn); ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(k => gasBtn.addEventListener(k, gasOff));
+  ['click', 'pointerup', 'contextmenu'].forEach(k => gasEl.addEventListener(k, e => { e.stopPropagation(); if (k === 'contextmenu') e.preventDefault(); }));
+  addEventListener('keydown', e => { if (S === self && e.code === 'Space') { e.preventDefault(); gas = true; gasBtn.classList.add('on'); } });
+  addEventListener('keyup', e => { if (e.code === 'Space') gasOff(); });
+
   // --- input
   const keys = new Set(); let self;
   const KEYMAP = { ArrowUp: 'u', KeyW: 'u', ArrowDown: 'd', KeyS: 'd', ArrowLeft: 'l', KeyA: 'l', ArrowRight: 'r', KeyD: 'r' };
@@ -3688,11 +3704,11 @@ function buildBridge() {
       for (const Lg of [legL, legR]) { Lg.hip.rotation.x = -1.45; Lg.knee.rotation.x = 1.4; Lg.ankle.rotation.x = 0.05; }
       for (const A of [armL, armR]) { A.sh.rotation.x = -0.95; A.el.rotation.x = -0.6; }
       armL.sh.rotation.z = 0.32; armR.sh.rotation.z = -0.1;
-      applyMood(M);
-      const hn = document.getElementById('hint'); hn.textContent = matchMedia('(pointer: coarse)').matches ? 'Tap left or right to change lanes' : 'Arrows or WASD to drive'; hn.style.opacity = 1;
+      applyMood(M); gasEl.classList.add('show'); gasOff();
+      const hn = document.getElementById('hint'); hn.textContent = matchMedia('(pointer: coarse)').matches ? 'Hold GAS to speed up · tap left or right to switch lanes' : 'Hold Space or ↑ for gas · ← → to switch lanes'; hn.style.opacity = 1;
       clearTimeout(self._ht); self._ht = setTimeout(() => hn.style.opacity = 0, 7000);
     },
-    onExit() { camera.far = 100; camera.updateProjectionMatrix(); scene.add(man); man.rotation.set(0, 0, 0); armL.sh.rotation.z = 0.08; armR.sh.rotation.z = -0.08; canvas.style.filter = ''; keys.clear(); },
+    onExit() { gasEl.classList.remove('show'); gasOff(); camera.far = 100; camera.updateProjectionMatrix(); scene.add(man); man.rotation.set(0, 0, 0); armL.sh.rotation.z = 0.08; armR.sh.rotation.z = -0.08; canvas.style.filter = ''; keys.clear(); },
     onClick(e) {
       if (fork) return;
       if (e.clientX < innerWidth * 0.4) st.lane = 0; else if (e.clientX > innerWidth * 0.6) st.lane = 1; else return;
@@ -3711,8 +3727,9 @@ function buildBridge() {
       car.g.updateMatrixWorld(true);
       if (mode === 'over') {     // a drone following the car, high and behind, like the aerial shots of the Skyway
         st.camHead += (st.heading - st.camHead) * Math.min(1, st.dt * 2);
-        const [ox, oz] = rot(9, 20, st.camHead), [lx, lz] = rot(-1, -30, st.camHead);   // off the right-hand rail, so the stays and pylons never come between us and the car
-        outPos.set(st.x + ox, st.y + 15, st.z + oz); outLook.set(st.x + lx, st.y, st.z + lz);
+        const pull = Math.max(0, st.v - 18) * 0.35;   // the drone falls back a little as you open it up
+        const [ox, oz] = rot(9, 20 + pull, st.camHead), [lx, lz] = rot(-1, -30, st.camHead);   // off the right-hand rail, so the stays and pylons never come between us and the car
+        outPos.set(st.x + ox, st.y + 15 + pull * 0.3, st.z + oz); outLook.set(st.x + lx, st.y, st.z + lz);
       } else {
         const bob = Math.sin(st.t * 9) * 0.006 * st.v / 13;
         outPos.copy(car.g.localToWorld(new THREE.Vector3(0.3, 1.85 + bob, 1.75)));
@@ -3726,21 +3743,22 @@ function buildBridge() {
       for (const t of traffic) t.z += t.dir * t.v * dt * Math.cos(fork && t.dir < 0 && t.z < fork.zf ? Math.atan((fork.zf - t.z) / R) : 0);
       const onBranch = fork && st.z < fork.zf;
       if (manual) {
-        if (keys.has('u')) st.v = Math.min(28, st.v + 6 * dt); else if (keys.has('d')) st.v = Math.max(0, st.v - 10 * dt);
+        if (keys.has('u') || gas) st.v = Math.min(32, st.v + 7 * dt); else if (keys.has('d')) st.v = Math.max(0, st.v - 10 * dt);
         const steer = (keys.has('l') ? 1 : 0) - (keys.has('r') ? 1 : 0);
         st.heading += (steer * 0.3 * Math.min(1, st.v / 6) - st.heading) * Math.min(1, dt * 3);
         st.lane = Math.abs(st.x - LANES[0]) < Math.abs(st.x - LANES[1]) ? 0 : 1;
       } else {
-        let want = keys.has('u') ? 26 : 18;
+        const floor = gas || keys.has('u');
+        let want = floor ? 32 : 18;
         const laneX = LANES[st.lane];
-        const ahead = traffic.find(t => !t.hidden && t.dir < 0 && Math.abs(t.x - laneX) < 1.5 && st.z - t.z > 0 && st.z - t.z < 26);
+        const ahead = traffic.find(t => !t.hidden && t.dir < 0 && Math.abs(t.x - laneX) < 1.5 && st.z - t.z > 0 && st.z - t.z < (floor ? 48 : 26));
         if (ahead) {
           const other = 1 - st.lane, ox = LANES[other];
           const clear = !fork && !traffic.some(t => !t.hidden && t.dir < 0 && Math.abs(t.x - ox) < 1.5 && t.z > st.z - 28 && t.z < st.z + 9);
           if (clear && Math.abs(st.x - laneX) < 0.4) st.lane = other;
-          else if (st.z - ahead.z < 18) want = Math.min(want, ahead.v);
+          else if (st.z - ahead.z < (floor ? 12 : 18)) want = Math.min(want, ahead.v);
         }
-        st.v += Math.sign(want - st.v) * Math.min(Math.abs(want - st.v), 3 * dt);
+        st.v += Math.sign(want - st.v) * Math.min(Math.abs(want - st.v), (want > st.v ? (floor ? 7 : 3) : 5) * dt);
         if (!onBranch) { const tgt = THREE.MathUtils.clamp(-0.1 * (LANES[st.lane] - st.x), -0.09, 0.09); st.heading += (tgt - st.heading) * Math.min(1, dt * 2.5); }
       }
       if (onBranch) {        // follow the ramp, easing out whatever lane offset we came in with
@@ -3754,6 +3772,7 @@ function buildBridge() {
       const yNow = onBranch ? bpath(fork.side, fork.zf)(fork.zf - st.z)[1] : h(st.z);
       const pitch = Math.atan((onBranch ? (bpath(fork.side, fork.zf)(fork.zf - st.z + 0.5)[1] - bpath(fork.side, fork.zf)(Math.max(0, fork.zf - st.z - 0.5))[1]) : grade(st.z)));
       st.y = yNow;
+      const mph = Math.round(st.v * 2.237); if (mph !== mphShown) { mphShown = mph; mphEl.textContent = mph; }
       // traffic: bump, recycle, pose
       for (const t of traffic) {
         if (t.hidden) continue;
