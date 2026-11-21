@@ -1857,8 +1857,9 @@ function buildLot() {
       plaque(g, enamel([['POLICE', 80, 44], ['OFFICERS ONLY', 150, 28]], 360, 210), 0.48, 0.28, doorX - 1.1, 1.55);
     }
   }
-  let doorSign = 'A · Rear entrance'; try { doorSign = localStorage.getItem('caineDoorSign') || doorSign; } catch (e) {}
-  const showSign = (k) => { if (!doorSigns[k]) k = 'A · Rear entrance'; doorSign = k; for (const n in doorSigns) doorSigns[n].visible = n === k; try { localStorage.setItem('caineDoorSign', k); } catch (e) {} };
+  // chosen: C (painted brick). A and B stay built but hidden — B's twin globes and carved lintel are kept for a future front entrance
+  let doorSign = 'C · Painted brick';
+  const showSign = (k) => { if (!doorSigns[k]) k = 'C · Painted brick'; doorSign = k; for (const n in doorSigns) doorSigns[n].visible = n === k; };
   showSign(doorSign);
   const doorLamp = new THREE.SpotLight(0xffe2b0, 90, 12, 0.75, 0.5, 1.6); doorLamp.position.set(doorX, 2.7, Z0 + 0.5); doorLamp.target.position.set(doorX, 0, Z0 + 3);
   doorLamp.castShadow = true; doorLamp.shadow.mapSize.set(1024, 1024); doorLamp.shadow.bias = -0.0005; group.add(doorLamp, doorLamp.target);
@@ -1917,7 +1918,6 @@ function buildLot() {
     exposure: 1.3,
     fog: new THREE.FogExp2(0x050506, 0.016),
     skyline: { sky: 'rain', face: Math.PI * 0.25 },
-    options: { title: 'Door sign (mock)', items: Object.keys(doorSigns), get current() { return doorSign; }, pick: (k) => showSign(k) },
     bounds: { minX: X0, maxX: X1, minZ: Z0, maxZ: Z1 },
     blocked(x, z) {
       if (x < X0 + r || x > X1 - r || z < Z0 + 0.35 + r || z > Z1 - r) return !(z > Z1 - 1.2 && x > X0 && x < X0 + 3.4 && z < Z1 + 0.5);
