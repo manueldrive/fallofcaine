@@ -3178,6 +3178,7 @@ const Skyline = (() => {
     rain:    { top: [16, 18, 20], mid: [36, 39, 42], hor: [74, 78, 82], far: [30, 32, 35], mid2: [20, 22, 24], near: [9, 9, 10], water: [28, 30, 33], fog: [110, 115, 120], fogA: .34, win: .45, sun: 0, stars: 0, rain: 1, neon: .9, lamp: 1 },
     // the drive: far-off and hazy, so the city reads as miles down the road
     overcast: { top: [104, 104, 106], mid: [176, 176, 178], hor: [224, 224, 224], far: [172, 172, 176], mid2: [150, 150, 154], near: [120, 120, 124], water: [190, 190, 194], fog: [214, 214, 216], fogA: .45, win: 0, sun: 0, stars: 0, rain: 0, neon: .3, lamp: .1 },
+    day:     { top: [70, 140, 200], mid: [140, 190, 225], hor: [214, 234, 242], far: [150, 172, 188], mid2: [124, 146, 162], near: [96, 112, 124], water: [40, 150, 160], fog: [204, 228, 238], fogA: .3, win: 0, sun: 0, stars: 0, rain: 0, neon: .2, lamp: .1 },
     dusk:    { top: [30, 32, 64], mid: [100, 80, 112], hor: [240, 192, 144], far: [120, 92, 108], mid2: [96, 76, 92], near: [60, 48, 62], water: [150, 116, 116], fog: [220, 160, 136], fogA: .35, win: .2, sun: 1, stars: 0, rain: 0, neon: .6, lamp: .4 },
   };
   const ON = { lighthouse: 1, causeway: 1, domes: 1, hotel: 1, wheel: 1, cranes: 1 };
@@ -3355,7 +3356,440 @@ const Vista = (() => {
   return { cam, get k() { return k; } };
 })();
 
-const BUILDERS = { front: buildFront, doorway: buildDoorway, alley: buildAlley, office: buildOffice, precinct: buildPrecinct, warehouse: buildWarehouse, cemetery: buildCemetery, drive: buildDrive, lot: buildLot };
+/* =========================================================
+   SCENE 7b — the drive, over the bay: a long causeway with a cable-stayed span
+   (after the Sunshine Skyway), open water both sides, and a fork once you pick where you're going.
+   The old main-street drive (buildDrive) is still above, unused.
+   ========================================================= */
+function buildBridge() {
+  const group = new THREE.Group();
+  const L = 40, NSEG = 16, P = L * NSEG, WL = -3.6;            // segment length, repeat period, water level
+  const ZP = -60, HUMP = 9, W = 150, TOP = HUMP + 50;           // first pylon, how high the span climbs, half-length of the climb, pylon top
+  const LANES = [2.6, 6.0], ONC = [-2.6, -6.0], EDGE = 8, R = 300;
+  const rand = (a, b) => a + Math.random() * (b - a), pick = (a) => a[Math.floor(Math.random() * a.length)];
+  const ss = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+  const dP = (z) => { let d = (z - ZP) % P; if (d < -P / 2) d += P; if (d >= P / 2) d -= P; return d; };   // signed distance to the nearest pylon
+  const h = (z) => { const d = dP(z); return Math.abs(d) < W ? HUMP * 0.5 * (1 + Math.cos(Math.PI * d / W)) : 0; };
+  const grade = (z) => h(z - 0.5) - h(z + 0.5);                 // rise per metre, travelling forward (−z)
+
+  // --- materials
+  const roadTex = (lines) => canvasTex(512, (g, s) => {
+    g.fillStyle = 'rgb(92,90,86)'; g.fillRect(0, 0, s, s); noise(g, s, 18); stains(g, s, 26, .12);
+    for (const [u, col, dash, w = 7] of lines) { g.fillStyle = col; if (dash) for (let y = 0; y < s; y += 128) g.fillRect(u * s - w / 2, y, w, 70); else g.fillRect(u * s - w / 2, 0, w, s); }
+  });
+  const Y = 'rgb(214,176,60)', Wh = 'rgb(226,224,214)';
+  const oursRoad = roadTex([[0.06, 'rgba(0,0,0,.12)', 0, 60], [0.12, Y], [4.3 / 8, Wh, 1], [7.4 / 8, Wh]]);
+  const oncRoad = roadTex([[0.94, 'rgba(0,0,0,.12)', 0, 60], [0.88, Y], [3.7 / 8, Wh, 1], [0.6 / 8, Wh]]);
+  const rampRoad = roadTex([[0.08, Y], [0.92, Wh]]);
+  const DS = THREE.DoubleSide;
+  const roadMat = (t) => new THREE.MeshStandardMaterial({ map: t, roughness: .92, side: DS });
+  const mOurs = roadMat(oursRoad), mOnc = roadMat(oncRoad), mRamp = roadMat(rampRoad);
+  const concTex = canvasTex(256, (g, s) => { g.fillStyle = 'rgb(200,198,190)'; g.fillRect(0, 0, s, s); noise(g, s, 22); stains(g, s, 20, .1); g.fillStyle = 'rgba(0,0,0,.12)'; for (let y = 0; y < s; y += 64) g.fillRect(0, y, s, 2); });
+  const conc = new THREE.MeshStandardMaterial({ map: concTex, roughness: .95, side: DS });
+  const under = new THREE.MeshStandardMaterial({ color: 0x8a8880, roughness: 1, side: DS });
+  const pylonMat = new THREE.MeshStandardMaterial({ map: concTex, color: 0xe8e4da, roughness: .8, emissive: 0xffb050, emissiveIntensity: 0 });
+  const cableMat = new THREE.MeshStandardMaterial({ color: 0xf0c430, roughness: .5, metalness: .2, emissive: 0xffc040, emissiveIntensity: 0 });
+  const rockMat = new THREE.MeshStandardMaterial({ color: 0xa8a294, roughness: 1, flatShading: true });
+  const steel = new THREE.MeshStandardMaterial({ color: 0x8a9096, roughness: .5, metalness: .5 });
+  const bulbMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, emissive: 0xffd08a, emissiveIntensity: 0 });
+  const poolMat = new THREE.MeshBasicMaterial({ map: canvasTex(128, (g, s) => { const r = g.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2); r.addColorStop(0, 'rgba(255,200,130,.5)'); r.addColorStop(1, 'rgba(255,200,130,0)'); g.fillStyle = r; g.fillRect(0, 0, s, s); }), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 });
+  const CAR_COLORS = [0x3a4a5a, 0x5a2a2a, 0x2a3a2a, 0x8a8070, 0x1a1a1a, 0x6a7a8a, 0x4a3a2a, 0xd8d0b8, 0x7a9a9a];
+
+  // --- extrude a cross-section along a path. path(a) → [x, y, z, heading]; sec is a polyline of [sideways, up]; each edge is its own strip
+  function ribbon(path, a0, a1, n, sec, material, vLen = 20, lift = 0) {
+    const pos = [], uv = [], idx = [], pts = [];
+    for (let i = 0; i <= n; i++) { const a = a0 + (a1 - a0) * i / n; pts.push([a, path(a)]); }
+    for (let e = 0; e < sec.length - 1; e++) {
+      const base = pos.length / 3;
+      for (const [a, [x, y, z, hd]] of pts) {
+        const rx = Math.cos(hd), rz = -Math.sin(hd);
+        for (const k of [0, 1]) { const [l, u] = sec[e + k]; pos.push(x + rx * l, y + u + lift, z + rz * l); uv.push(k, a / vLen); }
+      }
+      for (let i = 0; i < n; i++) { const p = base + i * 2; idx.push(p, p + 1, p + 2, p + 1, p + 3, p + 2); }
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    geo.setIndex(idx); geo.computeVertexNormals();
+    const m = new THREE.Mesh(geo, material); m.receiveShadow = true; return m;
+  }
+  const jersey = (c) => [[c - 0.3, 0], [c - 0.15, 0.28], [c - 0.1, 0.84], [c + 0.1, 0.84], [c + 0.15, 0.28], [c + 0.3, 0]];
+  const unitCyl = new THREE.CylinderGeometry(1, 1, 1, 6, 1);
+  const UP = new THREE.Vector3(0, 1, 0);
+  function rod(a, b, r, m) { const d = b.clone().sub(a), len = d.length(); const o = new THREE.Mesh(unitCyl, m); o.scale.set(r, len, r); o.position.copy(a).addScaledVector(d, 0.5); o.quaternion.setFromUnitVectors(UP, d.normalize()); return o; }
+  function lamp(parent, x, y, z, side) {            // side: which way the arm reaches (−1 = toward −x)
+    const p = new THREE.Mesh(unitCyl, steel); p.scale.set(0.07, 4.6, 0.07); p.position.set(x, y + 0.84 + 2.3, z); p.castShadow = true; parent.add(p);
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.07, 0.07), steel); arm.position.set(x + side * 0.7, y + 5.4, z); parent.add(arm);
+    const b = new THREE.Mesh(new THREE.SphereGeometry(0.2, 10, 6), bulbMat); b.position.set(x + side * 1.4, y + 5.25, z); parent.add(b);
+    const pool = new THREE.Mesh(new THREE.PlaneGeometry(10, 10), poolMat); pool.rotation.x = -Math.PI / 2; pool.position.set(x + side * 2.2, y + 0.03, z); parent.add(pool);
+  }
+
+  // --- one 40 m piece of causeway, built where it sits in the repeat (so the climb is baked in and stays right when it's recycled)
+  const mainPath = (a) => [0, h(-a), -a, 0];
+  const segs = [];
+  function makeSegment(i) {
+    const sg = new THREE.Group(), ours = new THREE.Group(), onc = new THREE.Group(); sg.add(ours, onc); group.add(sg);
+    const a0 = 40 * i - 40, a1 = 40 * i, n = 8;
+    ours.add(ribbon(mainPath, a0, a1, n, [[0, 0], [EDGE, 0]], mOurs));
+    onc.add(ribbon(mainPath, a0, a1, n, [[-EDGE, 0], [0, 0]], mOnc));
+    ours.add(ribbon(mainPath, a0, a1, n, [[EDGE, 0], [EDGE, -1.1], [0, -1.1]], under));
+    onc.add(ribbon(mainPath, a0, a1, n, [[0, -1.1], [-EDGE, -1.1], [-EDGE, 0]], under));
+    ours.add(ribbon(mainPath, a0, a1, n, jersey(EDGE - 0.3), conc, 6));
+    ours.add(ribbon(mainPath, a0, a1, n, jersey(0), conc, 6));
+    onc.add(ribbon(mainPath, a0, a1, n, jersey(-EDGE + 0.3), conc, 6));
+    const zm = -(a0 + 20);
+    lamp(ours, EDGE - 0.3, h(zm), zm, -1); lamp(onc, -EDGE + 0.3, h(zm), zm, 1);
+    for (const a of [a0 + 10, a0 + 30]) {                // pier bents, except out in the main span
+      const z = -a; if (Math.abs(dP(z)) < 48) continue;
+      const top = h(z) - 1.1;
+      for (const [g, s] of [[ours, 1], [onc, -1]]) {
+        const col = new THREE.Mesh(new THREE.BoxGeometry(1.1, top - WL + 1, 1.1), under); col.position.set(s * 4.4, (top + WL - 1) / 2, z); g.add(col);
+        const cap = new THREE.Mesh(new THREE.BoxGeometry(EDGE - 0.4, 0.8, 1.4), under); cap.position.set(s * EDGE / 2, top - 0.4, z); g.add(cap);
+      }
+    }
+    sg.userData = { ours, zc: -(a0 + 20) };
+    return sg;
+  }
+  for (let i = 0; i < NSEG; i++) segs.push(makeSegment(i));
+
+  // --- the pylons: one tall tower in the median, a single plane of yellow stays, a rock island round its foot
+  function makePylon(zp) {
+    const g = new THREE.Group(); group.add(g);
+    const hgt = TOP - WL + 1;
+    const tower = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 1.15, hgt, 4, 1), pylonMat); tower.rotation.y = Math.PI / 4; tower.position.set(0, WL - 1 + hgt / 2, zp); tower.scale.set(0.95, 1, 2.2); tower.castShadow = true; g.add(tower);
+    const cap = new THREE.Mesh(new THREE.ConeGeometry(0.9, 2.2, 4), pylonMat); cap.rotation.y = Math.PI / 4; cap.scale.set(0.8, 1, 1.9); cap.position.set(0, TOP + 1.1, zp); g.add(cap);
+    for (let k = 0; k < 13; k++) for (const s of [1, -1]) {
+      const za = zp + s * (12 + k * 6.2);
+      g.add(rod(new THREE.Vector3(0, h(za) + 0.9, za), new THREE.Vector3(0, TOP - 3 - k * 1.4, zp + s * 0.6), 0.045, cableMat));
+    }
+    // rock island ("dolphin") — a long mound of white riprap, boulders round its rim
+    const mound = new THREE.Mesh(new THREE.SphereGeometry(1, 18, 8, 0, Math.PI * 2, 0, Math.PI / 2), rockMat);
+    const mp = mound.geometry.attributes.position; for (let i = 0; i < mp.count; i++) { const f = 1 + (Math.random() - .5) * 0.12; mp.setXYZ(i, mp.getX(i) * f, mp.getY(i) * (0.9 + Math.random() * 0.25), mp.getZ(i) * f); } mound.geometry.computeVertexNormals();
+    mound.scale.set(11, 1.7, 21); mound.position.set(0, WL - 0.5, zp); g.add(mound);
+    for (let k = 0; k < 90; k++) { const a = Math.random() * Math.PI * 2, r = 0.8 + Math.random() * 0.25; const b = new THREE.Mesh(new THREE.DodecahedronGeometry(rand(0.5, 1.2)), rockMat); b.position.set(Math.cos(a) * 11 * r, WL + rand(-0.2, 0.5), zp + Math.sin(a) * 21 * r); b.rotation.set(rand(0, 3), rand(0, 3), 0); g.add(b); }
+    // round fender caissons off the main piers, like the white drums in the bay
+    for (const [x, dz] of [[-17, 70], [17, -70], [-17, -70], [17, 70]]) { const c = new THREE.Mesh(new THREE.CylinderGeometry(3.4, 3.6, 2.2, 24), conc); c.position.set(x, WL + 0.6, zp + dz); g.add(c); }
+    g.userData.zp = zp;
+    return g;
+  }
+  const pylons = [makePylon(ZP), makePylon(ZP - P)];
+
+  // --- the fork. Branch 0 bears left and climbs over the other carriageway; branch 1 bears right and drops toward the shore
+  const bpath = (side, zf) => (a) => {
+    const s = side ? 1 : -1, x = LANES[side] + s * a * a / (2 * R), z = zf - a;
+    const dy = side ? -2.2 * ss(10, 120, a) : 7.5 * ss(0, 100, a);
+    return [x, h(z) + dy, z, Math.atan(-s * a / R)];
+  };
+  const validFork = (zf) => { const d = dP(zf); return d <= -100 || d >= 290; };     // clear of the stays, and done before the next pylon
+  const nextFork = (z) => { let zf = Math.floor(z / 40) * 40; while (!validFork(zf)) zf -= 40; return zf; };
+  let fork = null;
+  function buildFork(zf, side) {
+    const g = new THREE.Group(); group.add(g);
+    for (const sd of [0, 1]) {
+      const path = bpath(sd, zf), A = 200, n = 100, s = sd ? 1 : -1;
+      g.add(ribbon(path, 0, A, n, [[-2.1, 0], [2.1, 0]], mRamp, 20, sd ? 0.004 : 0.02));
+      g.add(ribbon(path, 0, A, n, [[2.1, 0], [2.1, -1.0], [-2.1, -1.0], [-2.1, 0]], under));
+      g.add(ribbon(path, 0, A, n, jersey(s * 1.85), conc, 6));                                  // outer wall
+      g.add(ribbon(path, 15, A, n - 8, jersey(-s * 1.85), conc, 6));                            // inner wall, from the gore on
+      for (let a = 30; a < A; a += 32) { const [x, y, z] = path(a); lamp(g, x + s * 1.85, y, z, -s); }
+      for (let a = 20; a < A; a += 20) {
+        const [x, y, z] = path(a); if (x > -EDGE - 1.6 && x < EDGE + 1.6) continue;             // no piers through the main deck
+        const col = new THREE.Mesh(new THREE.BoxGeometry(1.1, y - 1 - WL + 1, 1.1), under); col.position.set(x, (y - 1 + WL - 1) / 2, z); g.add(col);
+      }
+    }
+    // crash cushion at the gore
+    const barrelMat = new THREE.MeshStandardMaterial({ color: 0xe8c020, roughness: .7 });
+    for (let k = 0; k < 4; k++) { const z = zf - 9 - k * 1.1; const b = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.95, 12), barrelMat); b.position.set(4.3, h(z) + 0.48, z); b.castShadow = true; g.add(b); }
+    // a strip of shore off to the right, with palms, for the low road to run toward
+    const sand = new THREE.Mesh(new THREE.CircleGeometry(1, 40), new THREE.MeshStandardMaterial({ color: 0xe6dcc0, roughness: 1 })); sand.rotation.x = -Math.PI / 2; sand.scale.set(150, 260, 1); sand.position.set(190, WL + 0.15, zf - 330); g.add(sand);
+    const scrub = new THREE.Mesh(new THREE.CircleGeometry(1, 40), new THREE.MeshStandardMaterial({ color: 0x5a7a4a, roughness: 1 })); scrub.rotation.x = -Math.PI / 2; scrub.scale.set(130, 230, 1); scrub.position.set(205, WL + 0.2, zf - 340); g.add(scrub);
+    for (let k = 0; k < 26; k++) palm(g, rand(60, 150), WL + 0.2, zf - rand(140, 420));
+    g.userData.zf = zf;
+    for (const sg of segs) sg.userData.ours.visible = sg.userData.zc + sg.position.z > zf;
+    return { zf, side, g, a: 0, off: null };
+  }
+  const trunkMat = new THREE.MeshStandardMaterial({ color: 0x7a6a50, roughness: 1 }), frondMat = new THREE.MeshStandardMaterial({ color: 0x3e6a34, roughness: .9, side: DS });
+  function palm(parent, x, y, z) {
+    const ht = rand(6, 10), lean = rand(-0.15, 0.15);
+    const t = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.28, ht, 6), trunkMat); t.position.set(x, y + ht / 2, z); t.rotation.z = lean; parent.add(t);
+    const tx = x - Math.sin(lean) * ht / 2, ty = y + ht;
+    for (let k = 0; k < 7; k++) { const f = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 0.7), frondMat); const a = k / 7 * Math.PI * 2; f.position.set(tx + Math.cos(a) * 1.4, ty - 0.3, z + Math.sin(a) * 1.4); f.rotation.set(0, -a, -0.5); f.rotation.order = 'YXZ'; parent.add(f); }
+  }
+
+  // --- the overhead sign before the split: dark green panels, one over each lane
+  const gantry = new THREE.Group(); group.add(gantry);
+  for (const x of [0.6, EDGE + 0.2]) { const p = new THREE.Mesh(new THREE.BoxGeometry(0.3, 6.6, 0.3), steel); p.position.set(x, 3.3 + 0.84, 0); gantry.add(p); }
+  const beam = new THREE.Mesh(new THREE.BoxGeometry(EDGE + 0.2, 0.5, 0.5), steel); beam.position.set(EDGE / 2 + 0.4, 7.0, 0); gantry.add(beam);
+  const signCv = [0, 1].map(() => { const c = document.createElement('canvas'); c.width = 512; c.height = 256; return c; });
+  const signTex = signCv.map(c => { const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; });
+  const signMat = signTex.map(t => new THREE.MeshStandardMaterial({ map: t, roughness: .7, emissive: 0xffffff, emissiveMap: t, emissiveIntensity: 0.05 }));
+  [0, 1].forEach(i => { const p = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1.6), signMat[i]); p.position.set(LANES[i], 5.9, 0.3); gantry.add(p); });
+  function drawSigns(opts) {
+    signCv.forEach((c, i) => {
+      const g = c.getContext('2d'); g.fillStyle = '#1d4a33'; g.fillRect(0, 0, 512, 256);
+      g.strokeStyle = '#efe6c8'; g.lineWidth = 8; g.strokeRect(14, 14, 484, 228);
+      g.fillStyle = '#efe6c8'; g.font = 'bold 74px Georgia'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      const label = (DEST[opts[i]] && DEST[opts[i]].label || '').toUpperCase(); g.fillText(label, 256, 100);
+      g.save(); g.translate(256, 190); g.rotate(i ? Math.PI / 4 : -Math.PI / 4); g.fillRect(-6, -22, 12, 44); g.beginPath(); g.moveTo(-22, -16); g.lineTo(0, -40); g.lineTo(22, -16); g.fill(); g.restore();
+      signTex[i].needsUpdate = true;
+    });
+  }
+  let gz = 0, lastOpts = null;
+  const placeGantry = (z) => { gz = z; gantry.position.set(0, h(z), z); };
+
+  // --- the water: a big plane that follows you, waves from a sum of sines, fresnel sky reflection, sun glitter,
+  // the bridge's shadow laid across it, fading into the haze toward the horizon
+  const waterU = {
+    uT: { value: 0 }, uDeep: { value: new THREE.Color() }, uShal: { value: new THREE.Color() }, uSkyTop: { value: new THREE.Color() }, uSkyHor: { value: new THREE.Color() },
+    uHor: { value: new THREE.Color() }, uSun: { value: new THREE.Color() }, uSunDir: { value: new THREE.Vector3(0, 1, 0) }, uSpec: { value: 1 }, uPow: { value: 120 },
+    uFar: { value: 520 }, uShadow: { value: 0.5 }, uFork: { value: -1e9 },
+  };
+  const water = new THREE.Mesh(new THREE.PlaneGeometry(1400, 1400, 1, 1), new THREE.ShaderMaterial({
+    uniforms: waterU,
+    vertexShader: `varying vec3 vW; void main(){ vec4 w = modelMatrix * vec4(position, 1.); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
+    fragmentShader: `
+      uniform float uT, uSpec, uPow, uFar, uShadow, uFork; uniform vec3 uDeep, uShal, uSkyTop, uSkyHor, uHor, uSun, uSunDir; varying vec3 vW;
+      vec2 wv(vec2 p, vec2 d, float f, float a, float s){ return d * (a * f * cos(dot(p, d) * f + uT * s)); }
+      float hump(float z){ float d = mod(z - (${ZP.toFixed(1)}) + ${(P / 2).toFixed(1)}, ${P.toFixed(1)}) - ${(P / 2).toFixed(1)}; return abs(d) < ${W.toFixed(1)} ? ${HUMP.toFixed(1)} * 0.5 * (1. + cos(3.14159 * d / ${W.toFixed(1)})) : 0.; }
+      void main(){
+        vec2 p = vW.xz, g = vec2(0.);
+        g += wv(p, normalize(vec2(1., .3)), .11, .38, 1.0);
+        g += wv(p, normalize(vec2(-.4, 1.)), .23, .17, 1.6);
+        g += wv(p, normalize(vec2(.8, -.7)), .52, .07, 2.4);
+        g += wv(p, normalize(vec2(-.9, -.25)), 1.07, .03, 3.3);
+        g += wv(p, normalize(vec2(.25, .95)), 2.3, .012, 4.6);
+        vec3 V = cameraPosition - vW; float dist = length(V); V /= dist;
+        float k = 1. / (1. + dist * .015);
+        vec3 N = normalize(vec3(-g.x * k, 1., -g.y * k));
+        float F = .02 + .98 * pow(1. - max(dot(N, V), 0.), 5.);
+        vec3 Rf = reflect(-V, N);
+        vec3 sky = mix(uSkyHor, uSkyTop, pow(clamp(Rf.y, 0., 1.), .5));
+        float depthTone = .5 + .5 * sin(p.x * .013 + 1.3) * sin(p.y * .009);       // sandbars and channels
+        vec3 col = mix(mix(uShal, uDeep, depthTone), sky, F * .85);
+        // the bridge's shadow: march from here toward the sun up to deck height and see if we land on the deck
+        float H = ${(-WL).toFixed(1)} + hump(p.y);
+        vec2 hit = p + uSunDir.xz / max(uSunDir.y, .15) * H;
+        float half0 = hit.y < uFork ? 0. : 8.;
+        float inS = step(-8., hit.x) * step(hit.x, half0);
+        col *= 1. - uShadow * inS;
+        col += uSun * pow(max(dot(Rf, uSunDir), 0.), uPow) * uSpec * (1. - inS);
+        col = mix(col, uHor, smoothstep(uFar * .2, uFar, dist));
+        gl_FragColor = vec4(col, 1.);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }`,
+  }));
+  water.rotation.x = -Math.PI / 2; water.position.y = WL; water.renderOrder = -5; group.add(water);
+
+  // --- a few sailboats out on the bay
+  const boats = [];
+  const sailMat = new THREE.MeshStandardMaterial({ color: 0xf4f0e6, roughness: .8, side: DS }), hullMat = new THREE.MeshStandardMaterial({ color: 0xf8f8f4, roughness: .5 });
+  const sailGeo = (() => { const s = new THREE.Shape(); s.moveTo(0, 0); s.lineTo(0, 6); s.lineTo(2.6, 0.2); s.lineTo(0, 0); return new THREE.ShapeGeometry(s); })();
+  for (let k = 0; k < 9; k++) {
+    const b = new THREE.Group();
+    const hull = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 6, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), hullMat); hull.scale.set(1.1, 0.7, 3.4); b.add(hull);
+    const mast = new THREE.Mesh(unitCyl, steel); mast.scale.set(0.05, 7, 0.05); mast.position.y = 3.5; b.add(mast);
+    const sail = new THREE.Mesh(sailGeo, sailMat); sail.position.set(0, 0.6, 0.2); sail.rotation.y = Math.PI / 2 + rand(-0.4, 0.4); b.add(sail);
+    group.add(b); boats.push({ b, x: 0, z: 0, ph: rand(0, 6), v: rand(0.6, 1.6), hd: rand(0, 6) });
+  }
+  const placeBoat = (o, z0) => { o.x = (Math.random() < .5 ? -1 : 1) * rand(30, 220); o.z = z0; o.b.rotation.y = o.hd; };
+
+  // --- the detective's convertible + traffic
+  const car = makeCar({ color: 0x1c1c1c, convertible: true, seat: 0x9a7a5a }); car.g.rotation.order = 'YXZ'; group.add(car.g);
+  const headlight = new THREE.SpotLight(0xfff0d0, 0, 45, 0.45, 0.5, 1.4); headlight.position.set(0, 0.9, -2.1); headlight.target.position.set(0, 0, -14); car.g.add(headlight, headlight.target);
+  const st = { x: LANES[0], y: 0, z: 0, heading: 0, v: 18, lane: 0, manualUntil: 0, camHead: 0, dt: 0.016, t: 0 };
+  const traffic = [];
+  const START_TRAFFIC = [[LANES[0], -45, -1, 13], [LANES[0], -120, -1, 13], [LANES[1], -25, -1, 11], [LANES[1], -85, -1, 11], [LANES[1], -150, -1, 11],
+    [ONC[0], -30, 1, 17], [ONC[0], -100, 1, 17], [ONC[0], -170, 1, 17], [ONC[1], -60, 1, 14], [ONC[1], -140, 1, 14], [ONC[1], 10, 1, 14]];
+  for (const [x, z, dir, v] of START_TRAFFIC) { const c = makeCar({ color: pick(CAR_COLORS) }); c.g.rotation.order = 'YXZ'; group.add(c.g); traffic.push({ c, x, z, dir, v, z0: z, hidden: false }); }
+  function trafficPose(t) {         // where a car actually is: on the main deck, or out on a branch past the fork
+    if (fork && t.dir < 0 && t.z < fork.zf) { const [x, y, , hd] = bpath(t.x < 4.3 ? 0 : 1, fork.zf)(fork.zf - t.z); return [x, y, hd, 0]; }
+    return [t.x, h(t.z), t.dir < 0 ? 0 : Math.PI, grade(t.z) * (t.dir < 0 ? 1 : -1)];
+  }
+
+  // --- lights
+  const hemi = new THREE.HemisphereLight(0xd0d0d0, 0x3a3a3a, 0.9); group.add(hemi);
+  const sun = new THREE.DirectionalLight(0xffffff, 1.6);
+  sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.03;
+  Object.assign(sun.shadow.camera, { left: -30, right: 30, top: 34, bottom: -34, near: 1, far: 120 });
+  group.add(sun, sun.target);
+  const fog = new THREE.FogExp2(0xbcbcbc, 0.003);
+
+  // --- moods
+  const C = (hex) => new THREE.Color(hex);
+  const moods = {
+    overcast: { bw: true, sky: 'overcast', exposure: 1.2, fog: [0xc8c8c8, 0.0032], hemi: [0xe0e0e0, 0x4a4a4a, 1.6], sun: [0xffffff, 1.7], sunOff: new THREE.Vector3(-14, 30, -20), lamps: 0, glow: 0,
+      w: { deep: 0x2e4a50, shal: 0x5a7a7c, top: 0x8a8a8c, hor: 0xd4d4d4, haze: 0xbebec2, sun: 0xffffff, spec: .35, pow: 40, shadow: .12 } },
+    midday: { bw: false, sky: 'day', exposure: 1.05, fog: [0xc6e2ea, 0.0024], hemi: [0xd8ecff, 0x7a9a8a, 1.35], sun: [0xfff2dc, 2.7], sunOff: new THREE.Vector3(-18, 34, 10), lamps: 0, glow: 0,
+      w: { deep: 0x0b7f88, shal: 0x2fc4bc, top: 0x4f9ccc, hor: 0xc4e4ee, haze: 0x3c9aa2, sun: 0xfff6e0, spec: 2.2, pow: 260, shadow: .45 } },
+    dusk: { bw: false, sky: 'dusk', exposure: 1.15, fog: [0x7a6070, 0.0036], hemi: [0x8a7aa0, 0x2a2018, 0.55], sun: [0xffa868, 1.1], sunOff: new THREE.Vector3(-8, 6, -40), lamps: 1, glow: 1,
+      w: { deep: 0x1a2436, shal: 0x2e3a4e, top: 0x2a2c52, hor: 0xe0a080, haze: 0x96747a, sun: 0xffa050, spec: 3, pow: 140, shadow: .1 } },
+  };
+  let M = moods.midday;
+  function applyMood(m) {
+    M = m; if (self && self._sky) Skyline.setSky(self, m.sky);
+    fog.color.set(m.fog[0]); fog.density = m.fog[1];
+    hemi.color.set(m.hemi[0]); hemi.groundColor.set(m.hemi[1]); hemi.intensity = m.hemi[2];
+    sun.color.set(m.sun[0]); sun.intensity = m.sun[1];
+    headMat.emissiveIntensity = 2.2 * m.lamps; tailMat.emissiveIntensity = 1.8 * m.lamps; bulbMat.emissiveIntensity = 3 * m.lamps; headlight.intensity = 60 * m.lamps;
+    poolMat.opacity = m.lamps; poolMat.visible = m.lamps > 0;
+    pylonMat.emissiveIntensity = 0.35 * m.glow; cableMat.emissiveIntensity = 0.5 * m.glow; signMat.forEach(s => s.emissiveIntensity = 0.05 + 0.4 * m.lamps);
+    const w = m.w; waterU.uDeep.value.set(w.deep); waterU.uShal.value.set(w.shal); waterU.uSkyTop.value.set(w.top); waterU.uSkyHor.value.set(w.hor); waterU.uHor.value.set(w.haze);
+    waterU.uSun.value.set(w.sun); waterU.uSpec.value = w.spec; waterU.uPow.value = w.pow; waterU.uShadow.value = w.shadow; waterU.uSunDir.value.copy(m.sunOff).normalize();
+    renderer.toneMappingExposure = m.exposure;
+    canvas.style.filter = m.bw ? 'grayscale(1) contrast(1.15)' : '';
+  }
+
+  // --- input
+  const keys = new Set(); let self;
+  const KEYMAP = { ArrowUp: 'u', KeyW: 'u', ArrowDown: 'd', KeyS: 'd', ArrowLeft: 'l', KeyA: 'l', ArrowRight: 'r', KeyD: 'r' };
+  addEventListener('keydown', e => { if (S !== self || !KEYMAP[e.code]) return; e.preventDefault(); keys.add(KEYMAP[e.code]); if (!fork) st.manualUntil = performance.now() / 1000 + 5; });
+  addEventListener('keyup', e => { if (KEYMAP[e.code]) keys.delete(KEYMAP[e.code]); });
+
+  function reset() {
+    Object.assign(st, { x: LANES[0], y: h(0), z: 0, heading: 0, v: 18, lane: 0, manualUntil: 0, camHead: 0, t: 0 });
+    if (fork) { group.remove(fork.g); fork = null; }
+    for (const sg of segs) { sg.position.z = 0; sg.userData.ours.visible = true; }
+    pylons.forEach((p, i) => p.position.z = 0);
+    traffic.forEach((t, i) => { t.x = START_TRAFFIC[i][0]; t.z = t.z0; t.hidden = false; t.c.g.visible = true; });
+    boats.forEach((o, i) => placeBoat(o, -rand(-40, 420)));
+    placeGantry(nextFork(-110) + 8); lastOpts = null; waterU.uFork.value = -1e9;
+  }
+
+  const rot = (x, z, a) => [x * Math.cos(a) + z * Math.sin(a), -x * Math.sin(a) + z * Math.cos(a)];
+  self = {
+    group,
+    name: 'The Drive',
+    drive: true,
+    skyline: { sky: 'day', face: Math.PI, noGround: true, radius: 82, repeat: 3 },   // Coquina City far across the bay, dead ahead
+    get exposure() { return M.exposure; },
+    fog,
+    bounds: { minX: -1, maxX: 1, minZ: -1, maxZ: 1 },
+    blocked() { return false; },
+    groundY() { return 0; },
+    start: { x: 0, z: 0, heading: 0 },
+    patrol: [{ p: [0, 0] }],
+    moods: { 'Overcast': () => applyMood(moods.overcast), 'Midday': () => applyMood(moods.midday), 'Dusk': () => applyMood(moods.dusk) },
+    defaultMood: 'Midday',
+    onEnter() {
+      reset();
+      camera.far = 700; camera.updateProjectionMatrix();
+      car.g.add(man); man.position.set(-0.42, 0.31, 0.12); man.rotation.set(0, Math.PI, 0);
+      hips.position.y = 0.56; hips.rotation.set(0, 0, 0); chest.rotation.set(0.02, 0, 0); skirt.rotation.x = -0.9;
+      for (const Lg of [legL, legR]) { Lg.hip.rotation.x = -1.45; Lg.knee.rotation.x = 1.4; Lg.ankle.rotation.x = 0.05; }
+      for (const A of [armL, armR]) { A.sh.rotation.x = -0.95; A.el.rotation.x = -0.6; }
+      armL.sh.rotation.z = 0.32; armR.sh.rotation.z = -0.1;
+      applyMood(M);
+      const hn = document.getElementById('hint'); hn.textContent = matchMedia('(pointer: coarse)').matches ? 'Tap left or right to change lanes' : 'Arrows or WASD to drive'; hn.style.opacity = 1;
+      clearTimeout(self._ht); self._ht = setTimeout(() => hn.style.opacity = 0, 7000);
+    },
+    onExit() { camera.far = 100; camera.updateProjectionMatrix(); scene.add(man); man.rotation.set(0, 0, 0); armL.sh.rotation.z = 0.08; armR.sh.rotation.z = -0.08; canvas.style.filter = ''; keys.clear(); },
+    onClick(e) {
+      if (fork) return;
+      if (e.clientX < innerWidth * 0.4) st.lane = 0; else if (e.clientX > innerWidth * 0.6) st.lane = 1; else return;
+      st.manualUntil = 0; document.getElementById('hint').style.opacity = 0;
+    },
+    // picked a destination: split the road at the sign ahead (or the next clear stretch), and take that side
+    onChoose(i) {
+      if (fork) return;
+      let zf = gz - 8;
+      if (st.z - zf < 30) { zf = nextFork(st.z - 70); placeGantry(zf + 8); }
+      fork = buildFork(zf, i); st.lane = i; st.manualUntil = 0; waterU.uFork.value = zf;
+      for (const t of traffic) if (t.dir < 0 && (st.z - t.z > 70 || t.z > st.z + 5)) { t.hidden = true; t.c.g.visible = false; }
+    },
+    arrived() { return !!fork && fork.a > 85; },
+    camTargets(mode, outPos, outLook) {
+      car.g.updateMatrixWorld(true);
+      if (mode === 'over') {     // a drone following the car, high and behind, like the aerial shots of the Skyway
+        st.camHead += (st.heading - st.camHead) * Math.min(1, st.dt * 2);
+        const [ox, oz] = rot(9, 20, st.camHead), [lx, lz] = rot(-1, -30, st.camHead);   // off the right-hand rail, so the stays and pylons never come between us and the car
+        outPos.set(st.x + ox, st.y + 15, st.z + oz); outLook.set(st.x + lx, st.y, st.z + lz);
+      } else {
+        const bob = Math.sin(st.t * 9) * 0.006 * st.v / 13;
+        outPos.copy(car.g.localToWorld(new THREE.Vector3(0.3, 1.85 + bob, 1.75)));
+        outLook.copy(car.g.localToWorld(new THREE.Vector3(-0.1, 1.25, -14)));
+      }
+    },
+    update(dt, now) {
+      st.dt = dt; st.t += dt;
+      if (drv.opts !== lastOpts) { lastOpts = drv.opts; drawSigns(drv.opts); }
+      const manual = !fork && performance.now() / 1000 < st.manualUntil;
+      for (const t of traffic) t.z += t.dir * t.v * dt * Math.cos(fork && t.dir < 0 && t.z < fork.zf ? Math.atan((fork.zf - t.z) / R) : 0);
+      const onBranch = fork && st.z < fork.zf;
+      if (manual) {
+        if (keys.has('u')) st.v = Math.min(28, st.v + 6 * dt); else if (keys.has('d')) st.v = Math.max(0, st.v - 10 * dt);
+        const steer = (keys.has('l') ? 1 : 0) - (keys.has('r') ? 1 : 0);
+        st.heading += (steer * 0.3 * Math.min(1, st.v / 6) - st.heading) * Math.min(1, dt * 3);
+        st.lane = Math.abs(st.x - LANES[0]) < Math.abs(st.x - LANES[1]) ? 0 : 1;
+      } else {
+        let want = keys.has('u') ? 26 : 18;
+        const laneX = LANES[st.lane];
+        const ahead = traffic.find(t => !t.hidden && t.dir < 0 && Math.abs(t.x - laneX) < 1.5 && st.z - t.z > 0 && st.z - t.z < 26);
+        if (ahead) {
+          const other = 1 - st.lane, ox = LANES[other];
+          const clear = !fork && !traffic.some(t => !t.hidden && t.dir < 0 && Math.abs(t.x - ox) < 1.5 && t.z > st.z - 28 && t.z < st.z + 9);
+          if (clear && Math.abs(st.x - laneX) < 0.4) st.lane = other;
+          else if (st.z - ahead.z < 18) want = Math.min(want, ahead.v);
+        }
+        st.v += Math.sign(want - st.v) * Math.min(Math.abs(want - st.v), 3 * dt);
+        if (!onBranch) { const tgt = THREE.MathUtils.clamp(-0.1 * (LANES[st.lane] - st.x), -0.09, 0.09); st.heading += (tgt - st.heading) * Math.min(1, dt * 2.5); }
+      }
+      if (onBranch) {        // follow the ramp, easing out whatever lane offset we came in with
+        fork.a = fork.zf - st.z; if (fork.off === null) fork.off = st.x - LANES[fork.side];
+        const [x, , , hd] = bpath(fork.side, fork.zf)(fork.a);
+        st.heading = hd; st.z += -Math.cos(hd) * st.v * dt; st.x = x + fork.off * Math.exp(-fork.a / 10);
+      } else {
+        st.x += -Math.sin(st.heading) * st.v * dt; st.z += -Math.cos(st.heading) * st.v * dt;
+        if (st.x < 1.1) { st.x = 1.1; st.heading *= 0.5; } if (st.x > EDGE - 1.1) { st.x = EDGE - 1.1; st.heading *= 0.5; st.v *= 0.99; }
+      }
+      const yNow = onBranch ? bpath(fork.side, fork.zf)(fork.zf - st.z)[1] : h(st.z);
+      const pitch = Math.atan((onBranch ? (bpath(fork.side, fork.zf)(fork.zf - st.z + 0.5)[1] - bpath(fork.side, fork.zf)(Math.max(0, fork.zf - st.z - 0.5))[1]) : grade(st.z)));
+      st.y = yNow;
+      // traffic: bump, recycle, pose
+      for (const t of traffic) {
+        if (t.hidden) continue;
+        if (!onBranch && t.dir < 0 && Math.abs(t.x - st.x) < 1.85 && t.z < st.z && st.z - t.z < 4.6) { st.v = Math.min(st.v, t.v * 0.9); st.z = t.z + 4.6; }
+      }
+      for (const t of traffic) {
+        const behind = t.z - st.z > 40, tooFar = st.z - t.z > 330;
+        if (behind || tooFar) {
+          if (fork && t.dir < 0) { t.hidden = true; t.c.g.visible = false; continue; }
+          const lane = traffic.filter(o => o !== t && Math.abs(o.x - t.x) < 0.5);
+          t.z = Math.min(st.z - 160, ...lane.map(o => o.z - 20)) - rand(0, 40);
+        }
+        if (t.hidden) continue;
+        const [x, y, hd, pt] = trafficPose(t);
+        t.c.g.position.set(x, y, t.z); t.c.g.rotation.set(pt, hd, 0);
+        for (const w of t.c.wheels) w.rotation.x -= t.v * dt / 0.36;
+      }
+      // recycle the causeway and the pylons
+      for (const sg of segs) if (sg.userData.zc + sg.position.z - 20 > st.z + 50) { sg.position.z -= P; sg.userData.ours.visible = !fork || sg.userData.zc + sg.position.z > fork.zf; }
+      for (const p of pylons) if (p.userData.zp + p.position.z > st.z + 170) p.position.z -= 2 * P;
+      if (!fork && gz > st.z + 12) placeGantry(nextFork(st.z - 150) + 8);
+      for (const o of boats) {
+        o.ph += dt; o.z += -Math.cos(o.hd) * o.v * dt; o.x += -Math.sin(o.hd) * o.v * dt;
+        if (o.z > st.z + 80) placeBoat(o, st.z - rand(380, 520));
+        o.b.position.set(o.x, WL + 0.1 + Math.sin(o.ph * 1.3) * 0.12, o.z); o.b.rotation.z = Math.sin(o.ph) * 0.05;
+      }
+      // keep coordinates small (a whole number of repeats, so the bridge stays the same shape)
+      if (st.z < -3 * P) {
+        const k = 3 * P; st.z += k; for (const sg of segs) sg.position.z += k; for (const p of pylons) p.position.z += k; for (const t of traffic) t.z += k; for (const o of boats) o.z += k;
+        placeGantry(gz + k); if (fork) { fork.zf += k; fork.g.position.z += k; waterU.uFork.value = fork.zf; }
+      }
+      // car pose
+      car.g.position.set(st.x, st.y, st.z); car.g.rotation.set(pitch, st.heading, 0);
+      for (const w of car.wheels) w.rotation.x -= st.v * dt / 0.36;
+      car.steering.rotation.z = st.heading * 7;
+      head.rotation.y = st.heading * 1.5 + Math.sin(now * 0.4) * 0.05;
+      // world follows
+      waterU.uT.value = now; water.position.set(st.x, WL, st.z);
+      if (self._sky) self._sky.grp.position.set(st.x, camera.position.y - 2.4, st.z);   // the city stays on the horizon, wherever the camera is
+      sun.position.set(st.x, st.y, st.z).add(M.sunOff); sun.target.position.set(st.x, st.y, st.z - 10);
+    },
+  };
+  return self;
+}
+
+const BUILDERS = { front: buildFront, doorway: buildDoorway, alley: buildAlley, office: buildOffice, precinct: buildPrecinct, warehouse: buildWarehouse, cemetery: buildCemetery, drive: buildBridge, lot: buildLot };
 const built = {};
 const fadeEl = document.getElementById('fade');
 const scenesBar = document.getElementById('scenes');
@@ -3500,7 +3934,7 @@ function setRoutes() {
 }
 function chooseDest(i) {
   if (currentKey !== 'drive' || drv.chosen) return;
-  drv.chosen = drv.opts[i]; drv.left = 4; whereTo.classList.add('chosen'); whereQ.textContent = 'Heading to ' + DEST[drv.chosen].say + '…';
+  drv.chosen = drv.opts[i]; drv.left = 4; S.onChoose && S.onChoose(i); whereTo.classList.add('chosen'); whereQ.textContent = 'Heading to ' + DEST[drv.chosen].say + '…';
 }
 whereTo.querySelectorAll('button').forEach(b => b.onclick = (e) => { e.stopPropagation(); chooseDest(+b.dataset.i); });
 addEventListener('keydown', e => { if (currentKey !== 'drive') return; if (e.code === 'KeyQ' || e.code === 'Digit1') chooseDest(0); if (e.code === 'KeyE' || e.code === 'Digit2') chooseDest(1); });
@@ -3512,7 +3946,7 @@ function driveChoice(dt) {
   if (!drv.t) setRoutes();
   drv.t += dt;
   if (drv.t > 2.5 && !whereTo.classList.contains('show')) whereTo.classList.add('show');
-  if (drv.chosen && drv.chosen !== 'gone') { drv.left -= dt; if (drv.left <= 0) { const to = drv.chosen; drv.chosen = 'gone'; whereTo.classList.remove('show'); DEST[to].go(); } }
+  if (drv.chosen && drv.chosen !== 'gone') { drv.left -= dt; if (S.arrived ? S.arrived() || drv.left < -25 : drv.left <= 0) { const to = drv.chosen; drv.chosen = 'gone'; whereTo.classList.remove('show'); DEST[to].go(); } }
 }
 
 // --- dev mode: three quick taps on the logo show or hide the Dev section in the menu
