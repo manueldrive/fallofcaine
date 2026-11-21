@@ -2850,7 +2850,7 @@ function buildDrive() {
   };
   let M = moods.overcast;
   function applyMood(m) {
-    M = m; skyMat.map = m.sky; skyMat.needsUpdate = true; hillMat.color.set(m.hill);
+    M = m; skyMat.map = m.sky; skyMat.needsUpdate = true; hillMat.color.set(m.hill); if (self && self._sky) { sky.visible = hills.visible = false; Skyline.setSky(self, m === moods.dusk ? 'dusk' : 'overcast'); }
     fog.color.set(m.fog[0]); fog.density = m.fog[1];
     hemi.color.set(m.hemi[0]); hemi.groundColor.set(m.hemi[1]); hemi.intensity = m.hemi[2];
     sun.color.set(m.sun[0]); sun.intensity = m.sun[1];
@@ -2874,6 +2874,7 @@ function buildDrive() {
     group,
     name: 'The Drive',
     drive: true,
+    skyline: { sky: 'overcast', face: Math.PI, noGround: true, radius: 82, repeat: 3 },   // Coquina City far down the road, dead ahead
     get exposure() { return M.exposure; },
     fog,
     bounds: { minX: -1, maxX: 1, minZ: -1, maxZ: 1 },
@@ -2970,6 +2971,7 @@ function buildDrive() {
       }
       // world follows
       sky.position.set(st.x, -6, st.z); hills.position.set(0, 7, st.z - 86);
+      if (self._sky) self._sky.grp.position.set(st.x, 0, st.z);   // the city stays put ahead of you (it's miles away), no sliding
       sun.position.set(st.x, 0, st.z).add(M.sunOff); sun.target.position.set(st.x, 0, st.z - 8);
     },
   };
@@ -3174,6 +3176,9 @@ const Skyline = (() => {
     golden:  { top: [38, 34, 46], mid: [120, 78, 54], hor: [232, 160, 92], far: [46, 36, 38], mid2: [30, 24, 26], near: [12, 10, 10], water: [70, 52, 48], fog: [210, 150, 100], fogA: .18, win: .18, sun: 1, stars: 0, rain: 0, neon: .55, lamp: .35 },
     evening: { top: [10, 13, 26], mid: [40, 42, 70], hor: [110, 92, 108], far: [24, 26, 40], mid2: [16, 17, 28], near: [7, 7, 11], water: [22, 26, 44], fog: [120, 110, 140], fogA: .16, win: .55, sun: 0, stars: 1, rain: 0, neon: 1, lamp: 1 },
     rain:    { top: [16, 18, 20], mid: [36, 39, 42], hor: [74, 78, 82], far: [30, 32, 35], mid2: [20, 22, 24], near: [9, 9, 10], water: [28, 30, 33], fog: [110, 115, 120], fogA: .34, win: .45, sun: 0, stars: 0, rain: 1, neon: .9, lamp: 1 },
+    // the drive: far-off and hazy, so the city reads as miles down the road
+    overcast: { top: [104, 104, 106], mid: [176, 176, 178], hor: [224, 224, 224], far: [172, 172, 176], mid2: [150, 150, 154], near: [120, 120, 124], water: [190, 190, 194], fog: [214, 214, 216], fogA: .45, win: 0, sun: 0, stars: 0, rain: 0, neon: .3, lamp: .1 },
+    dusk:    { top: [30, 32, 64], mid: [100, 80, 112], hor: [240, 192, 144], far: [120, 92, 108], mid2: [96, 76, 92], near: [60, 48, 62], water: [150, 116, 116], fog: [220, 160, 136], fogA: .35, win: .2, sun: 1, stars: 0, rain: 0, neon: .6, lamp: .4 },
   };
   const ON = { lighthouse: 1, causeway: 1, domes: 1, hotel: 1, wheel: 1, cranes: 1 };
   const lerp = (a, b, t) => a + (b - a) * t, rgb = (c, a = 1) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
@@ -3294,21 +3299,22 @@ function wheel(x, c, t) {
     const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping; return t;
   }
   // ---- the 3D side: a ring around the scene + a dark plane of ground/water out to it
-  const R = 46;
+  const RING = 46;
   const thetaOf = (X) => 2 * Math.PI * (1 - X / WW);   // canvas x → angle round the ring (after the flip)
   function make(S) {
-    const conf = S.skyline, c = SKIES[conf.sky || 'evening'];
+    const conf = S.skyline, c = SKIES[conf.sky || 'evening'], R = conf.radius || RING;
     const cv = document.createElement('canvas'); cv.width = 4096; cv.height = 512; draw(cv, c, 0);
-    const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = THREE.RepeatWrapping; tex.repeat.x = -1; tex.anisotropy = 4;   // seen from inside, so flip it back
-    const H = 2 * Math.PI * R / 8, bottom = 2.2 + (conf.lift || 0) - H * 0.38;   // lift: raise the city for enclosed scenes, so it shows over the rooftops   // the painted horizon (62% down the canvas) lands a little above the ground
+    const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = THREE.RepeatWrapping; tex.repeat.x = -(conf.repeat || 1); tex.anisotropy = 4;   // seen from inside, so flip it back
+    const H = 2 * Math.PI * R / (8 * (conf.repeat || 1)), bottom = 2.2 + (conf.lift || 0) - H * 0.38;   // lift: raise the city for enclosed scenes, so it shows over the rooftops   // the painted horizon (62% down the canvas) lands a little above the ground
     const ring = new THREE.Mesh(new THREE.CylinderGeometry(R, R, H, 96, 1, true), new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide, fog: false, toneMapped: false, depthWrite: false }));
     ring.position.y = bottom + H / 2; ring.renderOrder = -10;
     const gr = new THREE.Mesh(new THREE.CircleGeometry(R, 64), new THREE.MeshBasicMaterial({ color: new THREE.Color(...c.water.map(v => v * 0.35 / 255)), fog: false, depthWrite: false })); gr.rotation.x = -Math.PI / 2; gr.position.y = -0.06; gr.renderOrder = -11;
     const dome = new THREE.Mesh(new THREE.SphereGeometry(R - 0.5, 48, 16, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshBasicMaterial({ map: drawDome(c), side: THREE.BackSide, fog: false, toneMapped: false, depthWrite: false }));
     dome.position.y = bottom + H - 0.3; dome.renderOrder = -12;
-    const grp = new THREE.Group(); grp.add(ring, gr, dome); const face = conf.face || 0; grp.rotation.y = face - thetaOf(1150);   // turn the city so the heart of the skyline sits in this scene's 'view' direction
+    gr.visible = !conf.noGround;
+    const grp = new THREE.Group(); grp.add(ring, gr, dome); const face = conf.face || 0; grp.rotation.y = face - thetaOf(1150) / (conf.repeat || 1);   // turn the city so the heart of the skyline sits in this scene's 'view' direction
     const b = S.bounds; grp.position.set((b.minX + b.maxX) / 2, 0, (b.minZ + b.maxZ) / 2);
-    return { grp, cv, tex, c, t: 0, acc: 0, face, lift: conf.lift || 0, top: new THREE.Color(...c.top.map(v => v / 255)) };
+    return { grp, cv, tex, c, t: 0, acc: 0, face, dome, lift: conf.lift || 0, top: new THREE.Color(...c.top.map(v => v / 255)) };
   }
   let enabled = true; try { enabled = localStorage.getItem('caineSkyline') !== 'off'; } catch (e) {}
   function apply(S) {
@@ -3317,10 +3323,11 @@ function wheel(x, c, t) {
   }
   function update(S, dt) {
     const k = S && S._sky; if (!k || !enabled) return;
-    k.t += dt; k.acc += dt; if (k.acc < (Vista.k > 0.01 ? 1 / 10 : 1)) return; k.acc = 0;   // repaint the lights 10×/s while you're looking out, once a second otherwise
+    k.t += dt; k.acc += dt; if (k.acc < (Vista.k > 0.01 || S.drive ? 1 / 8 : 1)) return; k.acc = 0;   // repaint the lights 10×/s while you're looking out, once a second otherwise
     draw(k.cv, k.c, k.t); k.tex.needsUpdate = true;
   }
-  return { apply, update, face: (S) => S && S._sky && enabled ? S._sky.face : null, lift: (S) => (S && S._sky && S._sky.lift) || 0, top: (S) => S && S._sky ? S._sky.top : null, get enabled() { return enabled; }, set enabled(v) { enabled = v; try { localStorage.setItem('caineSkyline', v ? 'on' : 'off'); } catch (e) {} if (S) apply(S); } };
+  function setSky(S, name) { const k = S && S._sky; if (!k || !SKIES[name] || k.c === SKIES[name]) return; k.c = SKIES[name]; draw(k.cv, k.c, k.t); k.tex.needsUpdate = true; k.dome.material.map = drawDome(k.c); k.dome.material.needsUpdate = true; }
+  return { apply, update, setSky, face: (S) => S && S._sky && enabled ? S._sky.face : null, lift: (S) => (S && S._sky && S._sky.lift) || 0, top: (S) => S && S._sky ? S._sky.top : null, get enabled() { return enabled; }, set enabled(v) { enabled = v; try { localStorage.setItem('caineSkyline', v ? 'on' : 'off'); } catch (e) {} if (S) apply(S); } };
 })();
 
 /* ---------------------------------------------------------
