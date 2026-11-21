@@ -1656,6 +1656,7 @@ function buildAlley() {
     exposure: 1.15,
     fog: new THREE.FogExp2(0x000000, 0.035),
     bounds: { minX: -W, maxX: W, minZ: Z0 - 6, maxZ: Z1 },
+    skyline: { sky: 'evening', face: Math.PI, lift: 9 },
     blocked(x, z) {
       if (z > Z1 - 0.5) return true;
       if (z < Z0 - 0.5) return Math.abs(x) > 1.0 - r || z < Z0 - 5.8;            // inside the arch passage
@@ -1803,6 +1804,7 @@ function buildLot() {
     name: 'The Parking Lot',
     exposure: 1.3,
     fog: new THREE.FogExp2(0x050506, 0.016),
+    skyline: { sky: 'rain', face: Math.PI * 0.25 },
     bounds: { minX: X0, maxX: X1, minZ: Z0, maxZ: Z1 },
     blocked(x, z) {
       if (x < X0 + r || x > X1 - r || z < Z0 + 0.35 + r || z > Z1 - r) return !(z > Z1 - 1.2 && x > X0 && x < X0 + 3.4 && z < Z1 + 0.5);
@@ -2888,6 +2890,180 @@ function updateCamera(dt, snap = false) {
 /* =========================================================
    Scene switching
    ========================================================= */
+/* =========================================================
+   COQUINA CITY — the painted backdrop every outdoor scene looks out at (old-Hollywood matte style):
+   a ring of skyline around the scene, far across the water, with the lighthouse, causeway, domes,
+   Hotel Coronado, the pier wheel and the shipyard cranes. Same city everywhere; each scene turns it
+   to face its own direction, and picks its sky (golden hour / evening / rain).
+   ========================================================= */
+const Skyline = (() => {
+  const SKIES = {
+    golden:  { top: [38, 34, 46], mid: [120, 78, 54], hor: [232, 160, 92], far: [46, 36, 38], mid2: [30, 24, 26], near: [12, 10, 10], water: [70, 52, 48], fog: [210, 150, 100], fogA: .18, win: .18, sun: 1, stars: 0, rain: 0, neon: .55, lamp: .35 },
+    evening: { top: [10, 13, 26], mid: [40, 42, 70], hor: [110, 92, 108], far: [24, 26, 40], mid2: [16, 17, 28], near: [7, 7, 11], water: [22, 26, 44], fog: [120, 110, 140], fogA: .16, win: .55, sun: 0, stars: 1, rain: 0, neon: 1, lamp: 1 },
+    rain:    { top: [16, 18, 20], mid: [36, 39, 42], hor: [74, 78, 82], far: [30, 32, 35], mid2: [20, 22, 24], near: [9, 9, 10], water: [28, 30, 33], fog: [110, 115, 120], fogA: .34, win: .45, sun: 0, stars: 0, rain: 1, neon: .9, lamp: 1 },
+  };
+  const ON = { lighthouse: 1, causeway: 1, domes: 1, hotel: 1, wheel: 1, cranes: 1 };
+  const lerp = (a, b, t) => a + (b - a) * t, rgb = (c, a = 1) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const WW = 4800, HOR = 372;   // the landmarks sit in the first half; the rest is the quieter side of town
+  const far = []; for (let x = 0; x < WW;) { const w = 26 + rnd() * 52, h = 28 + Math.pow(rnd(), 1.6) * 150 * (x < 2400 ? 1 - Math.abs(x / 2400 - 0.55) * 0.9 : 0.3 + 0.2 * Math.sin(x / 600)); if (!(x > 40 && x < 400)) far.push({ x, w, h, wins: [...Array(Math.floor(w * h / 260))].map(() => [rnd(), rnd(), rnd()]) }); x += w + rnd() * 6; }
+  const haze = []; for (let x = 0; x < WW;) { const w = 40 + rnd() * 70, h = 50 + Math.pow(rnd(), 1.3) * 120; haze.push({ x, w, h }); x += w + rnd() * 20; }
+  const mid = []; for (let x = 0; x < WW;) { const w = 50 + rnd() * 80, h = 10 + rnd() * 30; if (rnd() < 0.5 && !(x > 1460 && x < 1720)) mid.push({ x, w, h, tank: rnd() < 0.3 }); x += w + 30 + rnd() * 140; }
+  const stars = [...Array(160)].map(() => [rnd(), rnd() * 0.55, rnd()]);
+  const cars = [...Array(14)].map((_, i) => ({ t: rnd(), dir: i % 2 ? 1 : -1, sp: 0.05 + rnd() * 0.05 }));
+  let g = null;
+  function fogBand(y, h, col, a) { const fg = g.createLinearGradient(0, y, 0, y + h); fg.addColorStop(0, rgb(col, 0)); fg.addColorStop(0.5, rgb(col, a)); fg.addColorStop(1, rgb(col, 0)); g.fillStyle = fg; g.fillRect(0, y, WW, h); }
+  function tank(x, y, s, col) { g.fillStyle = rgb(col); g.fillRect(x - 1 * s, y - 34 * s, 2 * s, 34 * s); g.fillRect(x + 18 * s, y - 34 * s, 2 * s, 34 * s); g.fillRect(x - 4 * s, y - 60 * s, 28 * s, 28 * s); g.beginPath(); g.moveTo(x - 6 * s, y - 60 * s); g.lineTo(x + 10 * s, y - 74 * s); g.lineTo(x + 26 * s, y - 60 * s); g.fill(); }
+// --- the lighthouse: out on the point, beam sweeping round (flares when it faces us)
+const beamK = (t) => Math.pow(Math.max(0, Math.cos(t * 0.9)), 18);
+function lighthouse(x, c, t) {
+  g.fillStyle = rgb(c.far); g.beginPath(); g.moveTo(x - 120, HOR); g.quadraticCurveTo(x - 40, HOR - 16, x + 10, HOR - 12); g.quadraticCurveTo(x + 70, HOR - 10, x + 140, HOR); g.fill();
+  g.beginPath(); g.moveTo(x - 9, HOR - 12); g.lineTo(x - 6, HOR - 118); g.lineTo(x + 6, HOR - 118); g.lineTo(x + 9, HOR - 12); g.fill();
+  g.fillStyle = rgb(c.far.map(v => v * 1.6)); for (let i = 0; i < 3; i++) g.fillRect(x - 8 + i * 0.6, HOR - 40 - i * 28, 16 - i * 1.2, 7);
+  g.fillStyle = rgb(c.far); g.fillRect(x - 10, HOR - 124, 20, 4); g.fillRect(x - 6, HOR - 138, 12, 14); g.beginPath(); g.moveTo(x - 8, HOR - 138); g.lineTo(x, HOR - 148); g.lineTo(x + 8, HOR - 138); g.fill();
+  const lx = x, ly = HOR - 131, a = t * 0.9, s = Math.sin(a), k = beamK(t), on = c.lamp;
+  g.fillStyle = `rgba(255,236,190,${(0.6 + 0.4 * k) * on})`; g.beginPath(); g.arc(lx, ly, 3.5 + k * 3, 0, 7); g.fill();
+  // the beam: a long wedge whose length follows the sweep
+  const len = 520 * Math.abs(s) + 30, dir = s > 0 ? 1 : -1;
+  const bg = g.createLinearGradient(lx, ly, lx + dir * len, ly); bg.addColorStop(0, `rgba(255,240,200,${0.42 * on})`); bg.addColorStop(1, 'rgba(255,240,200,0)');
+  g.fillStyle = bg; g.beginPath(); g.moveTo(lx, ly - 2); g.lineTo(lx + dir * len, ly - 22 - len * 0.03); g.lineTo(lx + dir * len, ly + 14 + len * 0.02); g.lineTo(lx, ly + 2); g.fill();
+  if (k > 0.01) { const fl = g.createRadialGradient(lx, ly, 0, lx, ly, 120); fl.addColorStop(0, `rgba(255,245,215,${0.7 * k * on})`); fl.addColorStop(1, 'rgba(255,245,215,0)'); g.fillStyle = fl; g.fillRect(lx - 120, ly - 120, 240, 240); }
+}
+// --- the causeway: low arches across the bay, lights along the deck, headlights crawling
+function causeway(c, t) {
+  const x0 = 330, x1 = 1120, y = HOR + 18;
+  const dk = rgb(c.near.map(v => v * 1.6)); g.strokeStyle = dk; g.fillStyle = dk;
+  g.beginPath(); g.moveTo(x0 - 40, y + 6); g.lineTo(x0, y); g.lineTo(x1, y - 6); g.lineTo(x1 + 30, y - 12); g.lineTo(x1 + 30, y - 8); g.lineTo(x1, y - 2); g.lineTo(x0, y + 4); g.lineTo(x0 - 40, y + 10); g.fill();
+  g.lineWidth = 2; g.beginPath(); for (let x = x0; x < x1; x += 34) { const yy = lerp(y, y - 6, (x - x0) / (x1 - x0)) + 4; g.moveTo(x, yy); g.quadraticCurveTo(x + 17, yy + 14, x + 34, yy - 0.26); g.moveTo(x, yy); g.lineTo(x, yy + 16); } g.stroke();
+  for (let x = x0; x < x1; x += 34) { const yy = lerp(y, y - 6, (x - x0) / (x1 - x0)); g.fillStyle = rgb(c.far); g.fillRect(x - 1, yy - 7, 1.5, 7); g.fillStyle = `rgba(255,214,150,${0.75 * c.lamp})`; g.fillRect(x - 1.5, yy - 9, 2.5, 2.5); }
+  for (const car of cars) { car.t += car.sp * 0.12 * car.dir; if (car.t > 1) car.t -= 1; if (car.t < 0) car.t += 1; const x = lerp(x0, x1, car.t), yy = lerp(y, y - 6, car.t) - 2; g.fillStyle = car.dir > 0 ? `rgba(255,245,220,${0.5 + 0.5 * c.lamp})` : `rgba(230,40,40,${0.5 + 0.5 * c.lamp})`; g.fillRect(x, yy, 2.4, 1.6); }
+}
+// --- the domes: an old hotel-turned-college with silver onion domes and crescents (a hometown nod)
+function domes(x, c, t) {
+  const base = HOR, col = c.far.map(v => v * 1.08), shine = `rgba(225,225,235,${0.25 + 0.25 * c.sun + 0.1 * c.lamp})`;
+  g.fillStyle = rgb(col); g.fillRect(x - 110, base - 42, 220, 42); for (let i = 0; i < 9; i++) { g.fillStyle = `rgba(255,214,150,${0.5 * c.win})`; g.fillRect(x - 100 + i * 24, base - 30, 3, 6); g.fillStyle = rgb(col); }
+  const D = [[-96, 62, 13], [-48, 88, 16], [0, 104, 20], [48, 80, 15], [96, 66, 12]];
+  for (const [dx, h, r] of D) { const cx = x + dx, top = base - h;
+    g.fillStyle = rgb(col); g.fillRect(cx - r * 0.55, top + r, r * 1.1, h - r - 40);
+    g.beginPath(); g.moveTo(cx - r, top + r * 1.2); g.bezierCurveTo(cx - r * 1.25, top - r * 0.4, cx - r * 0.2, top - r * 0.6, cx, top - r * 1.3); g.bezierCurveTo(cx + r * 0.2, top - r * 0.6, cx + r * 1.25, top - r * 0.4, cx + r, top + r * 1.2); g.fill();
+    g.strokeStyle = shine; g.lineWidth = 1.2; g.beginPath(); g.moveTo(cx - r * 0.6, top + r * 0.6); g.bezierCurveTo(cx - r * 0.75, top - r * 0.1, cx - r * 0.2, top - r * 0.4, cx - r * 0.05, top - r * 1.0); g.stroke();
+    g.fillStyle = rgb(col); g.fillRect(cx - 0.6, top - r * 1.3 - 9, 1.2, 9); g.strokeStyle = shine; g.beginPath(); g.arc(cx + 1, top - r * 1.3 - 12, 3.2, Math.PI * 0.6, Math.PI * 1.7); g.stroke(); }
+}
+// --- the hotel: an Art Deco tower with a rooftop neon sign that flickers
+const neonK = (t) => (Math.sin(t * 37) > 0.97 || (t % 9 > 6.2 && t % 9 < 6.5)) ? 0.25 : 1;
+function hotel(x, c, t) {
+  const col = c.far.map(v => v * 0.95); g.fillStyle = rgb(col);
+  g.fillRect(x - 34, HOR - 175, 68, 175); g.fillRect(x - 24, HOR - 200, 48, 26); g.fillRect(x - 14, HOR - 222, 28, 24); g.fillRect(x - 2, HOR - 250, 4, 30);
+  for (let i = 0; i < 4; i++) g.fillRect(x - 40 + i * 2, HOR - 120 + i * 30, 80 - i * 4, 3);
+  for (let r = 0; r < 18; r++) for (let k = 0; k < 6; k++) { const lit = ((r * 7 + k * 3) % 10) / 10 < c.win; if (lit) { g.fillStyle = `rgba(255,214,150,${0.6})`; g.fillRect(x - 28 + k * 10, HOR - 168 + r * 9, 3, 4); } }
+  const n = neonK(t) * c.neon; g.save(); g.font = 'bold 15px "Bebas Neue", Impact, sans-serif'; g.textAlign = 'center'; g.shadowColor = `rgba(255,40,40,${n})`; g.shadowBlur = 16 * n;
+  g.fillStyle = rgb(col); g.fillRect(x - 46, HOR - 226, 92, 20); g.fillStyle = `rgba(255,${70 + 40 * n | 0},${70 + 30 * n | 0},${0.35 + 0.65 * n})`; g.fillText('HOTEL CORONADO', x, HOR - 211); g.restore();
+  g.fillStyle = `rgba(255,40,40,${0.6 + 0.4 * Math.sin(t * 3)})`; g.fillRect(x - 1.5, HOR - 253, 3, 3);
+}
+// --- the shipyard: gantry cranes with slow-blinking red lights
+function cranes(x, c, t) {
+  const col = c.far.map(v => v * 0.9); g.strokeStyle = rgb(col); g.fillStyle = rgb(col); g.lineWidth = 3;
+  [[0, 1], [110, 0.85], [205, 1.1]].forEach(([dx, s], i) => {
+    const cx = x + dx, h = 120 * s; g.beginPath(); g.moveTo(cx - 18 * s, HOR); g.lineTo(cx - 12 * s, HOR - h); g.moveTo(cx + 18 * s, HOR); g.lineTo(cx + 12 * s, HOR - h); g.moveTo(cx - 16 * s, HOR - h * 0.45); g.lineTo(cx + 16 * s, HOR - h * 0.45); g.stroke();
+    g.fillRect(cx - 70 * s, HOR - h - 6, 140 * s, 6); g.fillRect(cx + 40 * s, HOR - h - 6, 3, h * 0.55); g.fillRect(cx - 14 * s, HOR - h - 22 * s, 28 * s, 16 * s);
+    g.lineWidth = 1; g.beginPath(); g.moveTo(cx, HOR - h - 22 * s); g.lineTo(cx - 64 * s, HOR - h - 6); g.moveTo(cx, HOR - h - 22 * s); g.lineTo(cx + 66 * s, HOR - h - 6); g.stroke(); g.lineWidth = 3;
+    const on = Math.sin(t * 1.6 + i * 1.3) > 0.2; if (on) { g.save(); g.shadowColor = 'red'; g.shadowBlur = 10; g.fillStyle = 'rgba(255,50,40,.95)'; g.fillRect(cx - 70 * s, HOR - h - 9, 3, 3); g.fillRect(cx + 67 * s, HOR - h - 9, 3, 3); g.fillRect(cx - 1, HOR - h - 25 * s, 3, 3); g.restore(); }
+  });
+  g.fillRect(x - 60, HOR - 14, 300, 14); for (let i = 0; i < 12; i++) { g.fillStyle = rgb(col.map(v => v * (0.8 + (i % 3) * 0.15))); g.fillRect(x - 50 + i * 22, HOR - 24 - (i % 2) * 8, 20, 10 + (i % 2) * 8); }
+}
+// --- the Ferris wheel on the old pier, turning slowly; its bulbs come on after dark
+function wheel(x, c, t) {
+  const cy = 300, R = 78, col = c.mid2.map(v => v * 1.15), lit = Math.max(c.lamp * 0.9, 0.15);
+  g.fillStyle = rgb(col); g.fillRect(x - 140, 468, 280, 6); for (let i = 0; i < 8; i++) g.fillRect(x - 130 + i * 38, 468, 4, 40);
+  g.strokeStyle = rgb(col); g.lineWidth = 3; g.beginPath(); g.moveTo(x - 46, 468); g.lineTo(x, cy); g.lineTo(x + 46, 468); g.stroke();
+  g.lineWidth = 2; g.beginPath(); g.arc(x, cy, R, 0, 7); g.stroke(); g.lineWidth = 1;
+  const a0 = t * 0.12; g.beginPath(); for (let i = 0; i < 16; i++) { const a = a0 + i * Math.PI / 8; g.moveTo(x, cy); g.lineTo(x + Math.cos(a) * R, cy + Math.sin(a) * R); } g.stroke();
+  for (let i = 0; i < 16; i++) { const a = a0 + i * Math.PI / 8, px = x + Math.cos(a) * R, py = cy + Math.sin(a) * R;
+    g.fillStyle = rgb(col); g.fillRect(px - 5, py + 2, 10, 8); g.fillStyle = `rgba(255,${190 + (i % 3) * 25},${120 + (i % 2) * 60},${lit * (0.6 + 0.4 * Math.sin(t * 2 + i))})`; g.beginPath(); g.arc(px, py, 1.8, 0, 7); g.fill(); }
+  g.fillStyle = rgb(col); g.beginPath(); g.arc(x, cy, 5, 0, 7); g.fill();
+}
+
+  function draw(cv, c, t) {
+    g = cv.getContext('2d'); const S = cv.height / 600; g.setTransform(S * cv.width / (WW * S), 0, 0, S, 0, 0);
+    const sg = g.createLinearGradient(0, 0, 0, HOR); sg.addColorStop(0, rgb(c.top)); sg.addColorStop(0.6, rgb(c.mid)); sg.addColorStop(1, rgb(c.hor)); g.fillStyle = sg; g.fillRect(0, 0, WW, HOR + 2);
+    if (c.stars) for (const [x, y, b] of stars) { g.fillStyle = `rgba(255,250,235,${(0.3 + 0.7 * b) * (0.7 + 0.3 * Math.sin(t * 2 + b * 9))})`; g.fillRect(x * WW, y * HOR, 1.6, 1.6); }
+    const sunX = 1500, sunY = HOR - 62;
+    if (c.sun) { const rg = g.createRadialGradient(sunX, sunY, 4, sunX, sunY, 300); rg.addColorStop(0, 'rgba(255,214,150,.75)'); rg.addColorStop(0.2, 'rgba(255,170,90,.35)'); rg.addColorStop(1, 'rgba(255,140,60,0)'); g.fillStyle = rg; g.fillRect(0, 0, WW, HOR + 40); g.fillStyle = 'rgb(255,226,170)'; g.beginPath(); g.arc(sunX, sunY, 26, 0, 7); g.fill(); }
+    g.fillStyle = rgb(c.far.map((v, i) => lerp(v, c.hor[i], 0.55))); for (const b of haze) g.fillRect(b.x, HOR - b.h, b.w, b.h);
+    fogBand(HOR - 70, 90, c.fog, c.fogA * 0.8);
+    for (const b of far) { const k = 0.85 + (b.x * 13 % 30) / 100; g.fillStyle = rgb(c.far.map(v => v * k)); g.fillRect(b.x, HOR - b.h, b.w, b.h); }
+    if (c.win) for (const b of far) for (const [u, v, k] of b.wins) if (k < c.win) { g.fillStyle = `rgba(255,${200 + k * 40 | 0},${130 + k * 60 | 0},${0.55 * (0.55 + 0.45 * Math.sin(t * 0.3 + k * 40))})`; g.fillRect(b.x + 3 + u * (b.w - 6), HOR - b.h + 4 + v * (b.h - 8), 1.6, 2.2); }
+    if (ON.domes) domes(760, c, t); if (ON.hotel) hotel(1250, c, t); if (ON.cranes) cranes(1880, c, t);
+    if (ON.lighthouse) { g.save(); g.translate(230, HOR); g.scale(1.45, 1.45); g.translate(-230, -HOR); lighthouse(230, c, t); g.restore(); }
+    const wg = g.createLinearGradient(0, HOR, 0, 600); wg.addColorStop(0, rgb(c.water.map(v => v * 1.25))); wg.addColorStop(1, rgb(c.water.map(v => v * 0.5))); g.fillStyle = wg; g.fillRect(0, HOR, WW, 600 - HOR);
+    if (c.sun) for (let i = 0; i < 40; i++) { const y = HOR + 4 + i * 5.5, w = (30 + i * 5) * (0.6 + 0.4 * Math.sin(t * 1.3 + i)); g.fillStyle = `rgba(255,200,130,${0.5 - i / 90})`; g.fillRect(sunX - w / 2 + Math.sin(t + i * 2) * 6, y, w, 1.5); }
+    for (let i = 0; i < 70; i++) { const x = (i * 97) % WW, y = HOR + 6 + ((i * 37) % 70); g.fillStyle = `rgba(255,210,150,${0.12 * c.win * (0.5 + 0.5 * Math.sin(t * 1.7 + i))})`; g.fillRect(x, y, 10 + (i % 5) * 4, 1); }
+    if (ON.lighthouse) { const k = beamK(t); g.fillStyle = `rgba(255,240,200,${(0.05 + 0.2 * k) * c.lamp})`; for (let i = 0; i < 10; i++) g.fillRect(212 + Math.sin(t * 2 + i) * 5, HOR + 6 + i * 7, 36, 2); }
+    if (ON.hotel) { g.fillStyle = `rgba(220,40,40,${0.18 * neonK(t) * c.neon})`; for (let i = 0; i < 8; i++) g.fillRect(1228 + Math.sin(t * 2 + i) * 4, HOR + 6 + i * 7, 46, 2); }
+    if (ON.causeway) causeway(c, t);
+    fogBand(HOR - 10, 60, c.fog, c.fogA * 0.6);
+    // the pier and a few low roofs on the near shore (the scene itself is the foreground)
+    g.save(); g.translate(0, 470 - 420); g.scale(1, 1);
+    if (ON.wheel) { g.save(); g.translate(1590, 420); g.scale(0.62, 0.62); g.translate(-1800, -470); wheel(1800, c, t); g.restore(); }
+    g.restore();
+    g.fillStyle = rgb(c.mid2); for (const b of mid) { g.fillRect(b.x, 470 - b.h, b.w, b.h + 140); if (b.tank) tank(b.x + b.w * 0.6, 470 - b.h, 0.5, c.mid2); }
+    fogBand(440, 70, c.fog, c.fogA * 0.5);
+    g.fillStyle = rgb(c.water.map(v => v * 0.4)); g.fillRect(0, 470, WW, 130);
+  }
+  // ---- the 3D side: a ring around the scene + a dark plane of ground/water out to it
+  const R = 46;
+  const thetaOf = (X) => 2 * Math.PI * (1 - X / WW);   // canvas x → angle round the ring (after the flip)
+  function make(S) {
+    const conf = S.skyline, c = SKIES[conf.sky || 'evening'];
+    const cv = document.createElement('canvas'); cv.width = 4096; cv.height = 512; draw(cv, c, 0);
+    const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = THREE.RepeatWrapping; tex.repeat.x = -1; tex.anisotropy = 4;   // seen from inside, so flip it back
+    const H = 2 * Math.PI * R / 8, bottom = 2.2 + (conf.lift || 0) - H * 0.38;   // lift: raise the city for enclosed scenes, so it shows over the rooftops   // the painted horizon (62% down the canvas) lands a little above the ground
+    const ring = new THREE.Mesh(new THREE.CylinderGeometry(R, R, H, 96, 1, true), new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide, fog: false, toneMapped: false, depthWrite: false }));
+    ring.position.y = bottom + H / 2; ring.renderOrder = -10;
+    const gr = new THREE.Mesh(new THREE.CircleGeometry(R, 64), new THREE.MeshBasicMaterial({ color: new THREE.Color(...c.water.map(v => v * 0.35 / 255)), fog: false, depthWrite: false })); gr.rotation.x = -Math.PI / 2; gr.position.y = -0.06; gr.renderOrder = -11;
+    const grp = new THREE.Group(); grp.add(ring, gr); const face = conf.face || 0; grp.rotation.y = face - thetaOf(1150);   // turn the city so the heart of the skyline sits in this scene's 'view' direction
+    const b = S.bounds; grp.position.set((b.minX + b.maxX) / 2, 0, (b.minZ + b.maxZ) / 2);
+    return { grp, cv, tex, c, t: 0, acc: 0, face, lift: conf.lift || 0, top: new THREE.Color(...c.top.map(v => v / 255)) };
+  }
+  let enabled = true; try { enabled = localStorage.getItem('caineSkyline') !== 'off'; } catch (e) {}
+  function apply(S) {
+    if (S.skyline && !S._sky) { S._sky = make(S); S.group.add(S._sky.grp); }
+    if (S._sky) S._sky.grp.visible = enabled;
+  }
+  function update(S, dt) {
+    const k = S && S._sky; if (!k || !enabled) return;
+    k.t += dt; k.acc += dt; if (k.acc < (Vista.k > 0.01 ? 1 / 10 : 1)) return; k.acc = 0;   // repaint the lights 10×/s while you're looking out, once a second otherwise
+    draw(k.cv, k.c, k.t); k.tex.needsUpdate = true;
+  }
+  return { apply, update, face: (S) => S && S._sky && enabled ? S._sky.face : null, lift: (S) => (S && S._sky && S._sky.lift) || 0, top: (S) => S && S._sky ? S._sky.top : null, get enabled() { return enabled; }, set enabled(v) { enabled = v; try { localStorage.setItem('caineSkyline', v ? 'on' : 'off'); } catch (e) {} if (S) apply(S); } };
+})();
+
+/* ---------------------------------------------------------
+   SELAH — stand still outside for a while and the camera eases round behind Caine and lifts to look
+   out over Coquina City; the music drops. Any input brings it back. (V does it straight away.)
+   --------------------------------------------------------- */
+const Vista = (() => {
+  let lastInput = performance.now() / 1000, k = 0, force = false, bgSet = false; const BLACK = new THREE.Color(0, 0, 0); const want = new THREE.Vector3(), look = new THREE.Vector3(), q = new THREE.Quaternion(), m4 = new THREE.Matrix4();
+  const poke = () => { lastInput = performance.now() / 1000; force = false; };
+  addEventListener('pointerdown', poke, true); addEventListener('touchstart', poke, true); addEventListener('wheel', poke, true);
+  addEventListener('keydown', e => { if (e.code === 'KeyV' && !e.repeat) { force = !force; if (force) return; } poke(); }, true);
+  function cam(dt, now) {
+    const face = Skyline.face(S), busy = PhoneUI.isOpen || S.drive || loading || walkAmt > 0.05;
+    const on = face !== null && !busy && (force || now - lastInput > 8);
+    k += ((on ? 1 : 0) - k) * Math.min(1, dt * (on ? 0.45 : 2.2));
+    audio.volume = 0.6 * (1 - 0.55 * k);
+    if (k < 0.002 || face === null) { if (bgSet) { scene.background.setRGB(0, 0, 0); bgSet = false; } return; }
+    scene.background.lerpColors(BLACK, Skyline.top(S), k); bgSet = true;   // above the painted city, the sky carries on
+    const dx = Math.sin(face), dz = Math.cos(face);
+    const side = Skyline.lift(S) ? 0 : 0.9;   // in a tight alley, stay dead behind him so the camera doesn't end up in a wall
+    want.set(pos.x - dx * 3.4 + dz * side, pos.y + 1.7, pos.z - dz * 3.4 - dx * side);
+    const lift = Skyline.lift(S); look.set(pos.x + dx * 40, pos.y + 4.2 + lift * 1.1, pos.z + dz * 40);
+    m4.lookAt(want, look, THREE.Object3D.DEFAULT_UP); q.setFromRotationMatrix(m4);
+    const e = k * k * (3 - 2 * k); camera.position.lerp(want, e); camera.quaternion.slerp(q, e);
+  }
+  return { cam, get k() { return k; } };
+})();
+
 const BUILDERS = { doorway: buildDoorway, alley: buildAlley, office: buildOffice, precinct: buildPrecinct, warehouse: buildWarehouse, cemetery: buildCemetery, drive: buildDrive, lot: buildLot };
 const built = {};
 const fadeEl = document.getElementById('fade');
@@ -2905,7 +3081,7 @@ function loadScene(key, { instant = false, spawn = null } = {}) {
     window.__closeTalk && window.__closeTalk();   // leaving a scene ends any conversation
     S = built[key] || (built[key] = BUILDERS[key]());
     currentKey = key;
-    scene.add(S.group); scene.fog = S.fog; renderer.toneMappingExposure = S.exposure;
+    scene.add(S.group); scene.fog = S.fog; renderer.toneMappingExposure = S.exposure; Skyline.apply(S);
     S.onEnter && S.onEnter();
     nav = S._nav || (S._nav = buildNav(S));
     const st = (spawn && S.spawns && S.spawns[spawn]) || S.start;
@@ -4186,9 +4362,10 @@ const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.05), now = performance.now() / 1000;
   keyWalk(dt); driveChoice(dt);
-  if (!paused) { if (!S.drive) updateWalker(dt, now); S.update && S.update(dt, now); Pigeons.update(dt, now); }
+  if (!paused) { if (!S.drive) updateWalker(dt, now); S.update && S.update(dt, now); Pigeons.update(dt, now); Skyline.update(S, dt); }
   PhoneUI.poseCaine();
   updateCamera(dt);
+  Vista.cam(dt, now);
   Dialogue.cam(dt);
   PhoneUI.povCamera();
   drawGrain();
