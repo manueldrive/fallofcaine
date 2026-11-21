@@ -3541,13 +3541,19 @@ function buildBridge() {
   const waterU = {
     uT: { value: 0 }, uDeep: { value: new THREE.Color() }, uShal: { value: new THREE.Color() }, uSkyTop: { value: new THREE.Color() }, uSkyHor: { value: new THREE.Color() },
     uHor: { value: new THREE.Color() }, uSun: { value: new THREE.Color() }, uSunDir: { value: new THREE.Vector3(0, 1, 0) }, uSpec: { value: 1 }, uPow: { value: 120 },
-    uFar: { value: 520 }, uShadow: { value: 0.5 }, uFork: { value: -1e9 },
+    uFar: { value: 520 }, uShadow: { value: 0.5 }, uFork: { value: -1e9 }, uCaus: { value: 0.4 }, uCausCol: { value: new THREE.Color(0xd8fff4) },
   };
   const water = new THREE.Mesh(new THREE.PlaneGeometry(1400, 1400, 1, 1), new THREE.ShaderMaterial({
     uniforms: waterU,
     vertexShader: `varying vec3 vW; void main(){ vec4 w = modelMatrix * vec4(position, 1.); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
     fragmentShader: `
-      uniform float uT, uSpec, uPow, uFar, uShadow, uFork; uniform vec3 uDeep, uShal, uSkyTop, uSkyHor, uHor, uSun, uSunDir; varying vec3 vW;
+      uniform float uT, uSpec, uPow, uFar, uShadow, uFork, uCaus; uniform vec3 uDeep, uShal, uSkyTop, uSkyHor, uHor, uSun, uSunDir, uCausCol; varying vec3 vW;
+      // the shark lagoon's caustics: loops of sin/cos that make the bright wobbly net of sunlight in shallow water
+      float caustic(vec2 uv, float t) {
+        vec2 p = mod(uv * 6.28318, 6.28318) - 250.0, i = p; float c = 1.0, inten = 0.005;
+        for (int n = 0; n < 4; n++) { float tt = t * (1.0 - (3.5 / float(n + 1))); i = p + vec2(cos(tt - i.x) + sin(tt + i.y), sin(tt - i.y) + cos(tt + i.x)); c += 1.0 / length(vec2(p.x / (sin(i.x + tt) / inten), p.y / (cos(i.y + tt) / inten))); }
+        c /= 4.0; c = 1.17 - pow(c, 1.4); return clamp(pow(abs(c), 8.0), 0.0, 2.0);
+      }
       vec2 wv(vec2 p, vec2 d, float f, float a, float s){ return d * (a * f * cos(dot(p, d) * f + uT * s)); }
       float hump(float z){ float d = mod(z - (${ZP.toFixed(1)}) + ${(P / 2).toFixed(1)}, ${P.toFixed(1)}) - ${(P / 2).toFixed(1)}; return abs(d) < ${W.toFixed(1)} ? ${HUMP.toFixed(1)} * 0.5 * (1. + cos(3.14159 * d / ${W.toFixed(1)})) : 0.; }
       void main(){
@@ -3564,13 +3570,17 @@ function buildBridge() {
         vec3 Rf = reflect(-V, N);
         vec3 sky = mix(uSkyHor, uSkyTop, pow(clamp(Rf.y, 0., 1.), .5));
         float depthTone = .5 + .5 * sin(p.x * .013 + 1.3) * sin(p.y * .009);       // sandbars and channels
-        vec3 col = mix(mix(uShal, uDeep, depthTone), sky, F * .85);
+        vec3 col = mix(uShal, uDeep, depthTone);
+        float near = 1. - smoothstep(70., 260., dist);                           // only up close, where the net is bigger than a pixel
+        vec2 cw = p + g * 2.5;                                                    // let the waves bend it
+        col += uCausCol * (caustic(cw * .085, uT * .45) * .8 + caustic(cw * .19 + 3.7, uT * .6) * .35) * uCaus * near * (1. - depthTone * .6);
+        col = mix(col, sky, F * .85);
         // the bridge's shadow: march from here toward the sun up to deck height and see if we land on the deck
         float H = ${(-WL).toFixed(1)} + hump(p.y);
         vec2 hit = p + uSunDir.xz / max(uSunDir.y, .15) * H;
         float half0 = hit.y < uFork ? 0. : 8.;
         float inS = step(-8., hit.x) * step(hit.x, half0);
-        col *= 1. - uShadow * inS;
+        col *= 1. - uShadow * inS * (1. + .5 * uCaus);
         col += uSun * pow(max(dot(Rf, uSunDir), 0.), uPow) * uSpec * (1. - inS);
         col = mix(col, uHor, smoothstep(uFar * .2, uFar, dist));
         gl_FragColor = vec4(col, 1.);
@@ -3618,11 +3628,11 @@ function buildBridge() {
   const C = (hex) => new THREE.Color(hex);
   const moods = {
     overcast: { bw: true, sky: 'overcast', exposure: 1.2, fog: [0xc8c8c8, 0.0032], hemi: [0xe0e0e0, 0x4a4a4a, 1.6], sun: [0xffffff, 1.7], sunOff: new THREE.Vector3(-14, 30, -20), lamps: 0, glow: 0,
-      w: { deep: 0x2e4a50, shal: 0x5a7a7c, top: 0x8a8a8c, hor: 0xd4d4d4, haze: 0xbebec2, sun: 0xffffff, spec: .35, pow: 40, shadow: .12 } },
+      w: { deep: 0x2e4a50, shal: 0x5a7a7c, top: 0x8a8a8c, hor: 0xd4d4d4, haze: 0xbebec2, sun: 0xffffff, spec: .35, pow: 40, shadow: .12, caus: .12, causCol: 0xffffff } },
     midday: { bw: false, sky: 'day', exposure: 1.05, fog: [0xc6e2ea, 0.0024], hemi: [0xd8ecff, 0x7a9a8a, 1.35], sun: [0xfff2dc, 2.7], sunOff: new THREE.Vector3(-18, 34, 10), lamps: 0, glow: 0,
-      w: { deep: 0x0b7f88, shal: 0x2fc4bc, top: 0x4f9ccc, hor: 0xc4e4ee, haze: 0x3c9aa2, sun: 0xfff6e0, spec: 2.2, pow: 260, shadow: .45 } },
+      w: { deep: 0x0a6f80, shal: 0x2ab8b4, top: 0x4f9ccc, hor: 0xc4e4ee, haze: 0x3c9aa2, sun: 0xfff6e0, spec: 2.2, pow: 260, shadow: .45, caus: .42, causCol: 0xd8fff4 } },
     dusk: { bw: false, sky: 'dusk', exposure: 1.15, fog: [0x7a6070, 0.0036], hemi: [0x8a7aa0, 0x2a2018, 0.55], sun: [0xffa868, 1.1], sunOff: new THREE.Vector3(-8, 6, -40), lamps: 1, glow: 1,
-      w: { deep: 0x1a2436, shal: 0x2e3a4e, top: 0x2a2c52, hor: 0xe0a080, haze: 0x96747a, sun: 0xffa050, spec: 3, pow: 140, shadow: .1 } },
+      w: { deep: 0x1a2436, shal: 0x2e3a4e, top: 0x2a2c52, hor: 0xe0a080, haze: 0x96747a, sun: 0xffa050, spec: 3, pow: 140, shadow: .1, caus: .1, causCol: 0xffc890 } },
   };
   let M = moods.midday;
   function applyMood(m) {
@@ -3634,7 +3644,7 @@ function buildBridge() {
     poolMat.opacity = m.lamps; poolMat.visible = m.lamps > 0;
     pylonMat.emissiveIntensity = 0.35 * m.glow; cableMat.emissiveIntensity = 0.5 * m.glow; signMat.forEach(s => s.emissiveIntensity = 0.05 + 0.4 * m.lamps);
     const w = m.w; waterU.uDeep.value.set(w.deep); waterU.uShal.value.set(w.shal); waterU.uSkyTop.value.set(w.top); waterU.uSkyHor.value.set(w.hor); waterU.uHor.value.set(w.haze);
-    waterU.uSun.value.set(w.sun); waterU.uSpec.value = w.spec; waterU.uPow.value = w.pow; waterU.uShadow.value = w.shadow; waterU.uSunDir.value.copy(m.sunOff).normalize();
+    waterU.uSun.value.set(w.sun); waterU.uSpec.value = w.spec; waterU.uPow.value = w.pow; waterU.uShadow.value = w.shadow; waterU.uCaus.value = w.caus; waterU.uCausCol.value.set(w.causCol); waterU.uSunDir.value.copy(m.sunOff).normalize();
     renderer.toneMappingExposure = m.exposure;
     canvas.style.filter = m.bw ? 'grayscale(1) contrast(1.15)' : '';
   }
