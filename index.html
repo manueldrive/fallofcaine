@@ -1490,6 +1490,39 @@ function buildAlley() {
   // a ledge band on each building
   box(0.12, 0.18, 32, mat({ color: 0x3a3a3a, roughness: .8 }), -W + 0.05, 3.0, (Z0 + Z1) / 2);
   box(0.12, 0.18, 32, mat({ color: 0x3a3a3a, roughness: .8 }), W - 0.05, 3.2, (Z0 + Z1) / 2);
+  // --- rooftops on both buildings, so the alley sits inside a block of the city instead of floating in the dark
+  {
+    const tar = canvasTex(512, (g, s) => { g.fillStyle = 'rgb(78,76,72)'; g.fillRect(0, 0, s, s); noise(g, s, 26); stains(g, s, 40, .25); g.strokeStyle = 'rgba(0,0,0,.35)'; g.lineWidth = 2; for (let y = 0; y < s; y += 64) { g.beginPath(); g.moveTo(0, y); g.lineTo(s, y); g.stroke(); } }, [3, 12]);
+    const roofM = mat({ map: tar, roughness: .95 }), capM = mat({ color: 0x8a857c, roughness: .85 }), tinM = mat({ color: 0x3c3e40, roughness: .55, metalness: .5 }), woodTank = mat({ color: 0x3a2e24, roughness: .9 });
+    const rp = (w, h, d, m, x, y, z) => { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); o.position.set(x, y, z); o.receiveShadow = true; group.add(o); return o; };
+    const RD = 9;   // how far back each roof runs
+    for (const [side, top] of [[-1, LH], [1, RH]]) {
+      const x0 = side * (W + 0.4), xc = x0 + side * RD / 2;
+      rp(RD, 0.2, 40, roofM, xc, top - 0.1, -6);                                   // the roof deck
+      rp(0.32, 0.7, 40, capM, x0 - side * 0.04, top + 0.35, -6);                 // parapet along the alley edge
+      rp(0.32, 0.7, 40, capM, x0 + side * RD, top + 0.35, -6);                   // and the far edge
+      rp(RD, 0.7, 0.32, capM, xc, top + 0.35, 14);
+      rp(RD, 0.7, 0.32, capM, xc, top + 0.35, -26);
+      for (const z of [-20, -9, 2]) {                                              // vents, an AC box, a skylight
+        rp(0.9, 0.7, 0.9, tinM, x0 + side * 2.2, top + 0.35, z);
+        const sk = rp(1.6, 0.5, 1.1, mat({ color: 0x2a2620, roughness: .3, emissive: 0xffb060, emissiveIntensity: z === -9 ? 0.5 : 0.08 }), x0 + side * 5.4, top + 0.25, z + 3); sk.rotation.z = side * 0.25;   // one skylight still lit below
+        rp(0.35, 1.4, 0.35, capM, x0 + side * 7.5, top + 0.7, z - 2);              // chimney stack
+      }
+      rp(1.8, 2.2, 1.6, capM, x0 + side * 4, top + 1.1, -14);                      // stair hut
+      rp(0.8, 1.9, 0.06, mat({ color: 0x151515 }), x0 + side * 4 - side * 0.5, top + 0.95, -13.2);
+      // a bare bulb over the stair-hut door throws a little pool of light on the roof
+      const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffd9a0 })); bulb.position.set(x0 + side * 4 - side * 0.5, top + 2.05, -13.05); group.add(bulb);
+      const bl = new THREE.PointLight(0xffc27a, 3, 6, 1.6); bl.position.set(x0 + side * 4 - side * 0.5, top + 1.95, -12.8); group.add(bl);
+    }
+    // a wooden water tower on the taller right-hand roof
+    const tx = W + 0.4 + 5.5, tz = -4, ty = RH;
+    for (const [dx, dz] of [[-0.9, -0.9], [0.9, -0.9], [-0.9, 0.9], [0.9, 0.9]]) rp(0.14, 3, 0.14, tinM, tx + dx, ty + 1.5, tz + dz);
+    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.3, 2.4, 20), woodTank); barrel.position.set(tx, ty + 4.2, tz); barrel.castShadow = true; group.add(barrel);
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(1.45, 1.0, 20), mat({ color: 0x2a2a2a, roughness: .8 })); cone.position.set(tx, ty + 5.9, tz); group.add(cone);
+    for (const y of [3.4, 4.2, 5.0]) { const hoop = new THREE.Mesh(new THREE.TorusGeometry(1.31, 0.03, 6, 24), tinM); hoop.rotation.x = Math.PI / 2; hoop.position.set(tx, ty + y, tz); group.add(hoop); }
+    // a TV aerial on the left roof
+    rp(0.06, 3, 0.06, tinM, -W - 3.5, LH + 1.5, -17); rp(1.6, 0.05, 0.05, tinM, -W - 3.5, LH + 2.6, -17); rp(1.1, 0.05, 0.05, tinM, -W - 3.5, LH + 2.2, -17);
+  }
 
   // windows: mostly dark, a few lit with drawn shades
   const darkGlass = mat({ color: 0x0a0a0a, roughness: .15, metalness: .2 });
@@ -3010,6 +3043,16 @@ function wheel(x, c, t) {
     fogBand(440, 70, c.fog, c.fogA * 0.5);
     g.fillStyle = rgb(c.water.map(v => v * 0.4)); g.fillRect(0, 470, WW, 130);
   }
+  // the sky overhead: a dome that picks up exactly where the painted sky leaves off
+  function drawDome(c) {
+    const cv = document.createElement('canvas'); cv.width = 1024; cv.height = 512; const d = cv.getContext('2d');
+    const gr = d.createLinearGradient(0, 512, 0, 0); gr.addColorStop(0, rgb(c.top)); gr.addColorStop(1, rgb(c.top.map(v => v * 0.45))); d.fillStyle = gr; d.fillRect(0, 0, 1024, 512);
+    let s2 = 11; const r2 = () => (s2 = (s2 * 16807) % 2147483647) / 2147483647;
+    if (c.rain) for (let i = 0; i < 90; i++) { const x = r2() * 1024, y = 120 + r2() * 380, rx = 60 + r2() * 160, ry = 14 + r2() * 30, gg = d.createRadialGradient(x, y, 0, x, y, rx); const v = 40 + r2() * 30; gg.addColorStop(0, `rgba(${v},${v + 2},${v + 5},.35)`); gg.addColorStop(1, 'rgba(0,0,0,0)'); d.save(); d.translate(x, y); d.scale(1, ry / rx); d.translate(-x, -y); d.fillStyle = gg; d.fillRect(x - rx, y - rx, rx * 2, rx * 2); d.restore(); }
+    if (c.stars) { for (let i = 0; i < 700; i++) { d.fillStyle = `rgba(255,250,235,${0.2 + r2() * 0.7})`; const z = r2() < 0.05 ? 2 : 1.2; d.fillRect(r2() * 1024, r2() * 470, z, z); } for (let i = 0; i < 18; i++) { const x = r2() * 1024, y = 300 + r2() * 200; d.fillStyle = 'rgba(70,72,100,.12)'; d.fillRect(x, y, 120 + r2() * 200, 6 + r2() * 8); } }
+    if (c.sun) for (let i = 0; i < 26; i++) { const x = r2() * 1024, y = 320 + r2() * 180; d.fillStyle = `rgba(230,150,90,${0.08 + r2() * 0.12})`; d.fillRect(x, y, 140 + r2() * 260, 3 + r2() * 6); }
+    const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping; return t;
+  }
   // ---- the 3D side: a ring around the scene + a dark plane of ground/water out to it
   const R = 46;
   const thetaOf = (X) => 2 * Math.PI * (1 - X / WW);   // canvas x → angle round the ring (after the flip)
@@ -3021,7 +3064,9 @@ function wheel(x, c, t) {
     const ring = new THREE.Mesh(new THREE.CylinderGeometry(R, R, H, 96, 1, true), new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide, fog: false, toneMapped: false, depthWrite: false }));
     ring.position.y = bottom + H / 2; ring.renderOrder = -10;
     const gr = new THREE.Mesh(new THREE.CircleGeometry(R, 64), new THREE.MeshBasicMaterial({ color: new THREE.Color(...c.water.map(v => v * 0.35 / 255)), fog: false, depthWrite: false })); gr.rotation.x = -Math.PI / 2; gr.position.y = -0.06; gr.renderOrder = -11;
-    const grp = new THREE.Group(); grp.add(ring, gr); const face = conf.face || 0; grp.rotation.y = face - thetaOf(1150);   // turn the city so the heart of the skyline sits in this scene's 'view' direction
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(R - 0.5, 48, 16, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshBasicMaterial({ map: drawDome(c), side: THREE.BackSide, fog: false, toneMapped: false, depthWrite: false }));
+    dome.position.y = bottom + H - 0.3; dome.renderOrder = -12;
+    const grp = new THREE.Group(); grp.add(ring, gr, dome); const face = conf.face || 0; grp.rotation.y = face - thetaOf(1150);   // turn the city so the heart of the skyline sits in this scene's 'view' direction
     const b = S.bounds; grp.position.set((b.minX + b.maxX) / 2, 0, (b.minZ + b.maxZ) / 2);
     return { grp, cv, tex, c, t: 0, acc: 0, face, lift: conf.lift || 0, top: new THREE.Color(...c.top.map(v => v / 255)) };
   }
@@ -3052,8 +3097,7 @@ const Vista = (() => {
     const on = face !== null && !busy && (force || now - lastInput > 8);
     k += ((on ? 1 : 0) - k) * Math.min(1, dt * (on ? 0.45 : 2.2));
     audio.volume = 0.6 * (1 - 0.55 * k);
-    if (k < 0.002 || face === null) { if (bgSet) { scene.background.setRGB(0, 0, 0); bgSet = false; } return; }
-    scene.background.lerpColors(BLACK, Skyline.top(S), k); bgSet = true;   // above the painted city, the sky carries on
+    if (k < 0.002 || face === null) return;
     const dx = Math.sin(face), dz = Math.cos(face);
     const side = Skyline.lift(S) ? 0 : 0.9;   // in a tight alley, stay dead behind him so the camera doesn't end up in a wall
     want.set(pos.x - dx * 3.4 + dz * side, pos.y + 1.7, pos.z - dz * 3.4 - dx * side);
