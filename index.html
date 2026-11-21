@@ -115,6 +115,10 @@
   #gas .spd { color: #eee; font: 30px/1 'Bebas Neue', Impact, sans-serif; letter-spacing: .06em; text-shadow: 0 1px 4px rgba(0,0,0,.7); text-align: center; }
   #gas .spd small { display: block; font-size: 11px; letter-spacing: .3em; opacity: .7; }
   #gas { pointer-events: none; right: 22px; }
+  #gas .lights { display: none; pointer-events: auto; width: 54px; height: 54px; border-radius: 50%; border: 2px solid rgba(233,228,212,.8); background: rgba(0,0,0,.55); color: #e9e4d4; cursor: pointer; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+  #gas.cop .lights { display: flex; }
+  #gas .lights.on { background: #b3140c; border-color: #ff6a50; color: #fff; animation: copflash .5s steps(2) infinite; }
+  @keyframes copflash { 50% { background: #4a0604; } }
   #gas.kick .spd { animation: kick .5s ease-out; }
   @keyframes kick { 0% { transform: scale(1.35); color: #f3d27a; } 100% { transform: scale(1); } }
   #hint { position: fixed; bottom: calc(78px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%); width: max-content; max-width: calc(100% - 32px); box-sizing: border-box; text-align: center; color: #ddd; background: rgba(0,0,0,.65); padding: 7px 14px; font-size: 13px; letter-spacing: .15em;
@@ -3612,13 +3616,31 @@ function buildBridge() {
   const placeBoat = (o, z0) => { o.x = (Math.random() < .5 ? -1 : 1) * rand(30, 220); o.z = z0; o.b.rotation.y = o.hd; };
 
   // --- the detective's convertible + traffic
-  const car = makeCar({ color: 0x1c1c1c, convertible: true, seat: 0x9a7a5a }); car.g.rotation.order = 'YXZ'; group.add(car.g);
-  const headlight = new THREE.SpotLight(0xfff0d0, 0, 45, 0.45, 0.5, 1.4); headlight.position.set(0, 0.9, -2.1); headlight.target.position.set(0, 0, -14); car.g.add(headlight, headlight.target);
+  // two cars: Caine's own convertible (out front on Bayshore), and the unmarked detective sedan from the lot behind the precinct,
+  // with a red gumball light on the roof, flashers in the grille, a pillar spotlight and a whip aerial
+  const convertible = makeCar({ color: 0x1c1c1c, convertible: true, seat: 0x9a7a5a });
+  const cruiser = makeCar({ color: 0x16181d });
+  const beaconMat = new THREE.MeshStandardMaterial({ color: 0x6a0c0c, emissive: 0xff1a10, emissiveIntensity: 0, roughness: .25, transparent: true, opacity: .92 });
+  const flashMat = [0, 1].map(() => new THREE.MeshStandardMaterial({ color: 0x5a0a0a, emissive: 0xff2010, emissiveIntensity: 0, roughness: .3 }));
+  {
+    const chromeM = new THREE.MeshStandardMaterial({ color: 0xd8d8d8, roughness: .25, metalness: .4 });
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.17, 0.06, 16), chromeM); base.position.set(0, 1.37, 0.2); cruiser.g.add(base);
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), beaconMat); dome.scale.y = 1.4; dome.position.set(0, 1.4, 0.2); cruiser.g.add(dome);
+    for (const s of [-1, 1]) { const f = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), flashMat[s > 0 ? 1 : 0]); f.position.set(s * 0.3, 0.72, -2.24); cruiser.g.add(f); }
+    const spot = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.06, 0.16, 12), chromeM); spot.rotation.x = Math.PI / 2; spot.position.set(-0.82, 1.12, -0.5); cruiser.g.add(spot);
+    const whip = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.012, 2.2, 5), chromeM); whip.position.set(0.7, 1.9, 2.0); whip.rotation.x = 0.25; cruiser.g.add(whip);
+  }
+  const beacon = new THREE.PointLight(0xff2010, 0, 16, 1.6); beacon.position.set(0, 1.9, 0.2); cruiser.g.add(beacon);
+  const headlight = new THREE.SpotLight(0xfff0d0, 0, 45, 0.45, 0.5, 1.4); headlight.position.set(0, 0.9, -2.1); headlight.target.position.set(0, 0, -14);
+  for (const c of [convertible, cruiser]) { c.g.rotation.order = 'YXZ'; group.add(c.g); }
+  let car = convertible, police = false, siren = false;
+  function useCar(c) { car = c; convertible.g.visible = c === convertible; cruiser.g.visible = c === cruiser; car.g.add(headlight, headlight.target); for (const b of blinkers) car.g.add(b); police = c === cruiser; setSiren(false); gasEl.classList.toggle('cop', police); }
   const st = { x: SLOTS[0], y: 0, z: 0, heading: 0, v: 18, slot: 0, mine: 0, camHead: 0, dt: 0.016, t: 0 };
   const VMAX = 44.7, CRUISE = 18;                                 // 100 mph flat out, 40 mph cruising
   // blinkers: amber lamps at the four corners of our car, flashing on the side we're moving toward
   const blinkMat = [-1, 1].map(() => new THREE.MeshStandardMaterial({ color: 0x8a6420, emissive: 0xffa020, emissiveIntensity: 0, roughness: .4 }));
-  for (const [si, s] of [[0, -1], [1, 1]]) for (const [z, y] of [[-2.12, 0.66], [2.24, 0.8]]) { const bl = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.1, 0.08), blinkMat[si]); bl.position.set(s * 0.8, y, z); car.g.add(bl); }
+  const blinkers = [];
+  for (const [si, s] of [[0, -1], [1, 1]]) for (const [z, y] of [[-2.12, 0.66], [2.24, 0.8]]) { const bl = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.1, 0.08), blinkMat[si]); bl.position.set(s * 0.8, y, z); blinkers.push(bl); }
   let blinkSide = 0, blinkUntil = 0;
   function moveSlot(d) {
     const to = Math.max(0, Math.min(2, st.slot + d)); if (to === st.slot) return;
@@ -3627,10 +3649,10 @@ function buildBridge() {
   const traffic = [];
   const START_TRAFFIC = [[LANES[0], -45, -1, 12], [LANES[1], -45, -1, 12], [LANES[0], -130, -1, 12], [LANES[1], -95, -1, 12], [LANES[1], -150, -1, 12], [LANES[0], -210, -1, 12], [LANES[1], -210, -1, 12],
     [ONC[0], -30, 1, 17], [ONC[0], -100, 1, 17], [ONC[0], -170, 1, 17], [ONC[1], -60, 1, 14], [ONC[1], -140, 1, 14], [ONC[1], 10, 1, 14]];
-  for (const [x, z, dir, v] of START_TRAFFIC) { const c = makeCar({ color: pick(CAR_COLORS) }); c.g.rotation.order = 'YXZ'; group.add(c.g); traffic.push({ c, x, z, dir, v, z0: z, hidden: false }); }
+  for (const [x, z, dir, v] of START_TRAFFIC) { const c = makeCar({ color: pick(CAR_COLORS) }); c.g.rotation.order = 'YXZ'; group.add(c.g); traffic.push({ c, x, ex: x, z, dir, v, z0: z, hidden: false }); }
   function trafficPose(t) {         // where a car actually is: on the main deck, or out on a branch past the fork
     if (fork && t.dir < 0 && t.z < fork.zf) { const [x, y, , hd] = bpath(t.x < 4.2 ? 0 : 1, fork.zf)(fork.zf - t.z); return [x, y, hd, 0]; }
-    return [t.x, h(t.z), t.dir < 0 ? 0 : Math.PI, grade(t.z) * (t.dir < 0 ? 1 : -1)];
+    return [t.ex, h(t.z), t.dir < 0 ? 0 : Math.PI, grade(t.z) * (t.dir < 0 ? 1 : -1)];
   }
 
   // --- lights
@@ -3674,6 +3696,30 @@ function buildBridge() {
   addEventListener('keydown', e => { if (S === self && e.code === 'Space') { e.preventDefault(); gas = true; } });
   addEventListener('keyup', e => { if (e.code === 'Space') gasOff(); });
 
+  // --- police lights + siren (detective car only). Cars ahead pull aside, away from whichever spot we're in
+  const yieldX = (t) => { const left = t.x < 4.2; if (st.slot === 0) return left ? 4.5 : 6.5; if (st.slot === 2) return left ? 1.5 : 3.9; return left ? 1.5 : 6.5; };
+  let actx = null, sirenNodes = null;
+  function setSiren(on) {
+    siren = on && police; lightsBtn.classList.toggle('on', siren);
+    if (siren && !sirenNodes) {
+      try {
+        actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume && actx.resume();
+        const osc = actx.createOscillator(), lfo = actx.createOscillator(), lg = actx.createGain(), lp = actx.createBiquadFilter(), g = actx.createGain();
+        osc.type = 'sawtooth'; osc.frequency.value = 760; lfo.frequency.value = 0.32; lg.gain.value = 330; lp.type = 'lowpass'; lp.frequency.value = 1500;
+        g.gain.value = 0; g.gain.linearRampToValueAtTime(0.035, actx.currentTime + 0.4);
+        lfo.connect(lg); lg.connect(osc.frequency); osc.connect(lp); lp.connect(g); g.connect(actx.destination); osc.start(); lfo.start();
+        sirenNodes = { osc, lfo, g };
+      } catch (er) { sirenNodes = null; }
+    } else if (!siren && sirenNodes) {
+      const n = sirenNodes; sirenNodes = null; try { n.g.gain.linearRampToValueAtTime(0, actx.currentTime + 0.5); setTimeout(() => { n.osc.stop(); n.lfo.stop(); }, 600); } catch (er) {}
+    }
+  }
+  const lightsBtn = document.createElement('button'); lightsBtn.className = 'lights'; lightsBtn.title = 'Lights (L)';
+  lightsBtn.innerHTML = '<svg viewBox="0 0 24 24" width="26" height="26"><path d="M7 17 V12 a5 5 0 0 1 10 0 V17 Z" fill="currentColor"/><rect x="5" y="17" width="14" height="3" rx="1" fill="currentColor"/><path d="M12 2v3M4.2 5.2l2 2M19.8 5.2l-2 2M2 12h2.5M22 12h-2.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
+  gasEl.prepend(lightsBtn);
+  ['pointerdown', 'pointerup', 'click'].forEach(k => lightsBtn.addEventListener(k, e => { e.stopPropagation(); if (k === 'click') setSiren(!siren); }));
+  addEventListener('keydown', e => { if (S === self && e.code === 'KeyL' && !e.repeat) setSiren(!siren); });
+
   // --- input
   const keys = new Set(); let self;
   const KEYMAP = { ArrowUp: 'u', KeyW: 'u', ArrowDown: 'd', KeyS: 'd', ArrowLeft: 'l', KeyA: 'l', ArrowRight: 'r', KeyD: 'r' };
@@ -3685,7 +3731,7 @@ function buildBridge() {
     if (fork) { group.remove(fork.g); fork = null; }
     for (const sg of segs) { sg.position.z = 0; sg.userData.ours.visible = true; }
     pylons.forEach((p, i) => p.position.z = 0);
-    traffic.forEach((t, i) => { t.x = START_TRAFFIC[i][0]; t.z = t.z0; t.hidden = false; t.c.g.visible = true; });
+    traffic.forEach((t, i) => { t.x = t.ex = START_TRAFFIC[i][0]; t.z = t.z0; t.hidden = false; t.c.g.visible = true; });
     boats.forEach((o, i) => placeBoat(o, -rand(-40, 420)));
     placeGantry(nextFork(-110) + 8); lastOpts = null; waterU.uFork.value = -1e9;
   }
@@ -3708,16 +3754,18 @@ function buildBridge() {
     onEnter() {
       reset();
       camera.far = 700; camera.updateProjectionMatrix();
+      // which car: the sedan if you came from the lot behind the precinct, the convertible from out front; otherwise whichever you left in
+      if (lastSpawn === 'lot') useCar(cruiser); else if (lastSpawn === 'front' || !self._used) useCar(convertible); else useCar(car); self._used = true;
       car.g.add(man); man.position.set(-0.42, 0.31, 0.12); man.rotation.set(0, Math.PI, 0);
       hips.position.y = 0.56; hips.rotation.set(0, 0, 0); chest.rotation.set(0.02, 0, 0); skirt.rotation.x = -0.9;
       for (const Lg of [legL, legR]) { Lg.hip.rotation.x = -1.45; Lg.knee.rotation.x = 1.4; Lg.ankle.rotation.x = 0.05; }
       for (const A of [armL, armR]) { A.sh.rotation.x = -0.95; A.el.rotation.x = -0.6; }
       armL.sh.rotation.z = 0.32; armR.sh.rotation.z = -0.1;
       applyMood(M); gasEl.classList.add('show'); gasOff();
-      const hn = document.getElementById('hint'); hn.textContent = matchMedia('(pointer: coarse)').matches ? 'Tap left or right to move over — split the lanes if you dare · double-tap to floor it' : '← → to move over (split the lanes if you dare) · double-click or hold Space to floor it, ↓ to brake'; hn.style.opacity = 1;
+      const hn = document.getElementById('hint'); hn.textContent = police ? 'Detective car · tap the red light (or L) to clear the road · double-tap to floor it' : matchMedia('(pointer: coarse)').matches ? 'Tap left or right to move over — split the lanes if you dare · double-tap to floor it' : '← → to move over (split the lanes if you dare) · double-click or hold Space to floor it, ↓ to brake'; hn.style.opacity = 1;
       clearTimeout(self._ht); self._ht = setTimeout(() => hn.style.opacity = 0, 7000);
     },
-    onExit() { gasEl.classList.remove('show'); gasOff(); camera.far = 100; camera.updateProjectionMatrix(); scene.add(man); man.rotation.set(0, 0, 0); armL.sh.rotation.z = 0.08; armR.sh.rotation.z = -0.08; canvas.style.filter = ''; keys.clear(); },
+    onExit() { gasEl.classList.remove('show'); gasOff(); setSiren(false); camera.far = 100; camera.updateProjectionMatrix(); scene.add(man); man.rotation.set(0, 0, 0); armL.sh.rotation.z = 0.08; armR.sh.rotation.z = -0.08; canvas.style.filter = ''; keys.clear(); },
     onClick(e) {     // tap a side to move that way; tap twice quickly to put your foot down (again to keep it there)
       const t = performance.now() / 1000, dbl = t - lastTap < 0.33 && Math.abs(e.clientX - lastX) < 120; lastTap = dbl ? 0 : t; lastX = e.clientX;
       if (dbl) { boostUntil = Math.min(Math.max(boostUntil, t) + 4, t + 8); gasEl.classList.remove('kick'); void gasEl.offsetWidth; gasEl.classList.add('kick'); document.getElementById('hint').style.opacity = 0; }
@@ -3744,27 +3792,27 @@ function buildBridge() {
         outPos.set(st.x + ox, st.y + 15 + pull * 0.3, st.z + oz); outLook.set(st.x + lx, st.y, st.z + lz);
       } else {
         const bob = Math.sin(st.t * 9) * 0.006 * st.v / 13;
-        outPos.copy(car.g.localToWorld(new THREE.Vector3(0.3, 1.85 + bob, 1.75)));
-        outLook.copy(car.g.localToWorld(new THREE.Vector3(-0.1, 1.25, -14)));
+        if (police) { outPos.copy(car.g.localToWorld(new THREE.Vector3(0.4, 1.24 + bob, 0.2))); outLook.copy(car.g.localToWorld(new THREE.Vector3(0.3, 1.15, -14))); }   // riding shotgun, Caine at the wheel beside you, over the long hood
+        else { outPos.copy(car.g.localToWorld(new THREE.Vector3(0.3, 1.85 + bob, 1.75))); outLook.copy(car.g.localToWorld(new THREE.Vector3(-0.1, 1.25, -14))); }
       }
     },
     update(dt, now) {
       st.dt = dt; st.t += dt;
       if (drv.opts !== lastOpts) { lastOpts = drv.opts; drawSigns(drv.opts); }
-      for (const t of traffic) t.z += t.dir * t.v * dt * Math.cos(fork && t.dir < 0 && t.z < fork.zf ? Math.atan((fork.zf - t.z) / R) : 0);
+      for (const t of traffic) t.z += t.dir * t.v * (t.slow ? 0.7 : 1) * dt * Math.cos(fork && t.dir < 0 && t.z < fork.zf ? Math.atan((fork.zf - t.z) / R) : 0);
       const onBranch = fork && st.z < fork.zf;
       {
         const T = performance.now() / 1000, floor = boosting();
         let want = keys.has('d') ? 0 : floor ? VMAX : CRUISE;
         const px = SLOTS[st.slot], look = 22 + st.v * 1.6;
-        const inPath = (x) => (t) => !t.hidden && t.dir < 0 && Math.abs(t.x - x) < CAR_W && st.z - t.z > 0 && st.z - t.z < look;
+        const inPath = (x) => (t) => !t.hidden && t.dir < 0 && Math.abs(t.ex - x) < CAR_W && st.z - t.z > 0 && st.z - t.z < look;
         const ahead = traffic.filter(inPath(px)).sort((a, b) => b.z - a.z)[0];
         if (ahead) {
           // left to itself (you haven't steered lately), it pulls out to pass if a neighbouring spot is clear
           let moved = false;
           if (!fork && T > st.mine && Math.abs(st.x - px) < 0.4) for (const d of st.slot === 1 ? [-1, 1] : [st.slot ? -1 : 1, st.slot ? -2 : 2]) {
             const ns = st.slot + d; if (ns < 0 || ns > 2) continue; const nx = SLOTS[ns];
-            if (!traffic.some(t => !t.hidden && t.dir < 0 && Math.abs(t.x - nx) < CAR_W && t.z > st.z - look && t.z < st.z + 8)) { st.slot = ns; blinkSide = Math.sign(d); blinkUntil = T + 1.6; moved = true; break; }
+            if (!siren && !traffic.some(t => !t.hidden && t.dir < 0 && Math.abs(t.ex - nx) < CAR_W && t.z > st.z - look && t.z < st.z + 8)) { st.slot = ns; blinkSide = Math.sign(d); blinkUntil = T + 1.6; moved = true; break; }
           }
           const gap = st.z - ahead.z;
           if (!moved && gap < st.v * 1.1 + 9) want = Math.min(want, ahead.v * (gap < 8 ? 0.8 : 1));
@@ -3791,10 +3839,10 @@ function buildBridge() {
       // traffic: bump, recycle, pose
       for (const t of traffic) {
         if (t.hidden) continue;
-        if (onBranch || t.dir > 0 || Math.abs(t.x - st.x) >= CAR_W - 0.08) continue;
+        if (onBranch || t.dir > 0 || Math.abs(t.ex - st.x) >= CAR_W - 0.08) continue;
         const dz = st.z - t.z;
         if (dz > 3.6 && dz < 4.6) { st.v = Math.min(st.v, t.v * 0.9); st.z = t.z + 4.6; }                                   // nose to tail: tuck in behind
-        else if (Math.abs(dz) <= 3.6) { st.x = t.x + Math.sign(st.x - t.x || 1) * CAR_W; st.v *= 0.97; st.slot = SLOTS.reduce((bi, sx, k) => Math.abs(sx - st.x) < Math.abs(SLOTS[bi] - st.x) ? k : bi, 0); }   // side by side: scrape off
+        else if (Math.abs(dz) <= 3.6) { st.x = t.ex + Math.sign(st.x - t.ex || 1) * CAR_W; st.v *= 0.97; st.slot = SLOTS.reduce((bi, sx, k) => Math.abs(sx - st.x) < Math.abs(SLOTS[bi] - st.x) ? k : bi, 0); }   // side by side: scrape off
       }
       for (const t of traffic) {
         const behind = t.z - st.z > 40, tooFar = st.z - t.z > 330;
@@ -3806,8 +3854,11 @@ function buildBridge() {
             const mate = traffic.find(o => o !== t && !o.hidden && o.dir < 0 && Math.abs(o.x - t.x) > 2 && o.z < st.z - 140 && o.z > st.z - 280 && !traffic.some(q => q !== t && q !== o && Math.abs(q.x - t.x) < 0.5 && Math.abs(q.z - o.z) < 8));
             if (mate) t.z = mate.z;
           }
+          t.ex = t.x;
         }
         if (t.hidden) continue;
+        // lights on: everything ahead of us on our side eases over and lets us through
+        if (t.dir < 0) { const yld = siren && !onBranch && t.z < st.z + 3 && st.z - t.z < 170; t.ex += ((yld ? yieldX(t) : t.x) - t.ex) * Math.min(1, dt * (yld ? 1.4 : 0.6)); t.slow = yld; }
         const [x, y, hd, pt] = trafficPose(t);
         t.c.g.position.set(x, y, t.z); t.c.g.rotation.set(pt, hd, 0);
         for (const w of t.c.wheels) w.rotation.x -= t.v * dt / 0.36;
@@ -3829,7 +3880,12 @@ function buildBridge() {
       // car pose
       car.g.position.set(st.x, st.y, st.z); car.g.rotation.set(pitch, st.heading, 0);
       for (const w of car.wheels) w.rotation.x -= st.v * dt / 0.36;
-      car.steering.rotation.z = st.heading * 7;
+      if (car.steering) car.steering.rotation.z = st.heading * 7;
+      if (police) {        // the gumball turns: a slow red pulse sweeping round, the grille flashers alternating
+        const k = siren ? Math.pow(0.5 + 0.5 * Math.sin(now * 9), 2) : 0, alt = Math.floor(now * 4) % 2;
+        beaconMat.emissiveIntensity = siren ? 0.6 + 3.4 * k : 0.15; beacon.intensity = siren ? 26 * k : 0;
+        flashMat[0].emissiveIntensity = siren && alt ? 3 : 0; flashMat[1].emissiveIntensity = siren && !alt ? 3 : 0;
+      }
       head.rotation.y = st.heading * 1.5 + Math.sin(now * 0.4) * 0.05;
       // world follows
       waterU.uT.value = now; water.position.set(st.x, WL, st.z);
