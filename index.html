@@ -594,14 +594,12 @@ function buildOffice() {
 
   // door
   const doorX = RX - 0.25 + 6.5;
-  const oSlab = add(new THREE.Mesh(new THREE.BoxGeometry(0.85, 2.2, 0.05), mat({ color: 0x3a2416, roughness: .5 }))); oSlab.position.set(doorX, 1.1, RZ - 0.02);
+  add(new THREE.Mesh(new THREE.BoxGeometry(0.85, 2.2, 0.05), mat({ color: 0x3a2416, roughness: .5 }))).position.set(doorX, 1.1, RZ - 0.02);
   const glass = add(new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.8), mat({ color: 0x8a8460, roughness: .2, emissive: 0x2a2410, emissiveIntensity: .6 })), false);
   glass.position.set(doorX, 1.6, RZ + 0.01);
-  const oKnob = add(new THREE.Mesh(new THREE.SphereGeometry(0.03, 10, 8), brass)); oKnob.position.set(doorX + 0.32, 1.05, RZ + 0.04);
+  add(new THREE.Mesh(new THREE.SphereGeometry(0.03, 10, 8), brass)).position.set(doorX + 0.32, 1.05, RZ + 0.04);
   for (const [w, h, x, y] of [[1.05, 0.1, 0, 2.3], [0.1, 2.25, -0.475, 1.125], [0.1, 2.25, 0.475, 1.125]])
     add(new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.08), darkWood)).position.set(doorX + x, y, RZ + 0.03);
-  const oDoor = swingDoor(group, [oSlab, glass, oKnob], new THREE.Vector3(doorX - 0.425, 0, RZ - 0.02));
-  const oGlow = doorGlow(group, doorX, RZ - 0.02, 0, 1, { color: 0xe8c48a, w: 0.85, h: 2.2, behind: 0.4, room: 0.7, fan: 0.35 });
 
   // filing cabinets
   function cabinet(x) {
@@ -798,7 +796,7 @@ function buildOffice() {
     renderer.toneMappingExposure = m.exposure;
   }
   applyMood(golden);
-  const officePulse = () => {};   // a real door now
+  const officePulse = portalMarker(group, doorX, RZ + 0.45);
 
   return {
     group,
@@ -825,8 +823,8 @@ function buildOffice() {
     },
     groundY() { return 0; },
     start: { x: doorX, z: RZ + 0.45, heading: 0 },
-    spawns: { precinct: { x: doorX, z: RZ - 0.2, heading: 0, out: [doorX, RZ + 1.3] } },
-    portals: [{ x: doorX, z: RZ + 0.55, to: 'precinct', spawn: 'office', label: 'Squad room', door: { pivot: oDoor, open: 1.4, x: doorX, z: RZ - 0.02, nx: 0, nz: 1, depth: 0.45, glow: oGlow } }],
+    spawns: { precinct: { x: doorX, z: RZ + 0.45, heading: 0 } },
+    portals: [{ x: doorX, z: RZ + 0.45, to: 'precinct', spawn: 'office', label: 'Squad room' }],
     props: [{ id: 'notebook', mesh: notebookProp, label: 'Read notebook' }, { id: 'map', mesh: mapProp, label: 'Open map' }, { id: 'board', mesh: corkFace, label: 'Study the board', reach: 1.5, ui: boardUI, view: { x: 1.6, y: 1.85, z: RZ + 0.055, dist: 1.05, panX: 0.42, panY: 0.3 } }],
     patrol: [
       { p: [2.6, 0.3] },
@@ -932,21 +930,6 @@ function gait(R, p, a, now) {
 }
 
 /* simple floor marker for doors you can walk through */
-// --- doors you walk through: a hinged pivot for the door leaf, and the warm light that spills out when it opens
-function swingDoor(group, meshes, hinge) {
-  group.updateMatrixWorld(true); const pivot = new THREE.Group(); pivot.position.copy(hinge); group.add(pivot); pivot.updateMatrixWorld(true);
-  for (const m of meshes) pivot.attach(m); return pivot;
-}
-let _fanTex = null;
-function doorGlow(group, x, z, nx, nz, { color = 0xffc27a, w = 1.0, h = 2.2, behind = 0.25, room = 0.85, fan = 0.5 } = {}) {
-  if (!_fanTex) { const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d'); const gr = g.createRadialGradient(128, 30, 4, 128, 30, 220); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.35, 'rgba(255,255,255,.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 256, 256); _fanTex = new THREE.CanvasTexture(c); }
-  const yaw = Math.atan2(nx, nz);
-  const back = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0, depthWrite: false, toneMapped: false }));
-  back.position.set(x - nx * behind, h / 2, z - nz * behind); back.rotation.y = yaw; group.add(back);
-  const f = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 2.4), new THREE.MeshBasicMaterial({ color, map: _fanTex, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
-  f.rotation.order = 'YXZ'; f.rotation.set(-Math.PI / 2, yaw + Math.PI, 0); f.position.set(x + nx * 1.15, 0.02, z + nz * 1.15); group.add(f);
-  return { set(k) { back.material.opacity = k * room; f.material.opacity = k * fan; } };
-}
 function portalMarker(group, x, z, label) {
   const ring = new THREE.Mesh(new THREE.RingGeometry(0.32, 0.42, 40), new THREE.MeshBasicMaterial({ color: 0xffc46a, transparent: true, opacity: .5, depthWrite: false }));
   ring.rotation.x = -Math.PI / 2; ring.position.set(x, 0.015, z); group.add(ring);
@@ -1063,15 +1046,13 @@ function buildPrecinct() {
   wall(X0, OX, OZ + 0.2, { holes: [{ x0: doorX - X0 - 0.48, x1: doorX - X0 + 0.48, y0: 0, y1: 2.2 }], flip: true });
   wall(Z0, OZ + 0.2, OX + 0.2, { alongZ: true, holes: [{ x0: 1.6, x1: 3.0, y0: 1.1, y1: 2.3 }], flip: true });
   // office door, frosted glass with lettering, warm light behind it
-  const offSlab = box(0.9, 2.18, 0.05, wood, doorX, 1.09, OZ + 0.07);
+  box(0.9, 2.18, 0.05, wood, doorX, 1.09, OZ + 0.07);
   const glass = new THREE.Mesh(new THREE.PlaneGeometry(0.66, 0.8), mat({ color: 0xd8c08a, roughness: .3, emissive: 0xffb860, emissiveIntensity: .55 }));
   glass.position.set(doorX, 1.55, OZ + 0.1); group.add(glass);
   const lettering = new THREE.Mesh(new THREE.PlaneGeometry(0.66, 0.66), new THREE.MeshBasicMaterial({ map: signTex('DETECTIVE', '#2a1a0a', 'rgba(0,0,0,0)', 'bold 70px Georgia'), transparent: true }));
   lettering.position.set(doorX, 1.62, OZ + 0.105); group.add(lettering);
-  const offKnob = box(0.06, 0.06, 0.06, brass, doorX + 0.35, 1.02, OZ + 0.12);
+  box(0.06, 0.06, 0.06, brass, doorX + 0.35, 1.02, OZ + 0.12);
   for (const [w, h, x, y] of [[1.08, 0.1, 0, 2.25], [0.09, 2.2, -0.5, 1.1], [0.09, 2.2, 0.5, 1.1]]) box(w, h, 0.08, darkWood, doorX + x, y, OZ + 0.08);
-  const officeDoor = swingDoor(group, [offSlab, glass, lettering, offKnob], new THREE.Vector3(doorX - 0.45, 0, OZ + 0.07));
-  const officeDoorGlow = doorGlow(group, doorX, OZ + 0.07, 0, 1, { w: 0.92, h: 2.18, behind: 0.35 });
   // interior window on the office's side wall: glowing blinds
   {
     const zc = OZ + 0.2 - 2.3;
@@ -1328,7 +1309,7 @@ function buildPrecinct() {
   moon.castShadow = true; moon.shadow.mapSize.set(2048, 2048); moon.shadow.bias = -0.0004;
   group.add(moon, moon.target);
 
-  const pulse = () => {}, lotPulse = portalMarker(group, 8.3, 5.3), frontPulse = portalMarker(group, -2.2, 5.3);   // the office is a real door now, no ring
+  const pulse = portalMarker(group, doorX, OZ + 0.75), lotPulse = portalMarker(group, 8.3, 5.3), frontPulse = portalMarker(group, -2.2, 5.3);
 
   return {
     group,
@@ -1339,9 +1320,9 @@ function buildPrecinct() {
     blocked,
     groundY() { return 0; },
     start: { x: 7.6, z: 5.2, heading: Math.PI },
-    spawns: { office: { x: doorX, z: OZ - 0.15, heading: 0, out: [doorX, OZ + 1.45] }, lot: { x: 7.2, z: 4.4, heading: Math.PI }, front: { x: -2.2, z: 4.3, heading: Math.PI } },
+    spawns: { office: { x: doorX, z: OZ + 0.65, heading: 0 }, lot: { x: 7.2, z: 4.4, heading: Math.PI }, front: { x: -2.2, z: 4.3, heading: Math.PI } },
     props: [{ id: 'vera', talk: 'vera', mesh: veraHead, label: 'Talk to Vera', reach: 1.9 }],
-    portals: [{ x: doorX, z: OZ + 0.65, to: 'office', spawn: 'precinct', label: 'Your office', door: { pivot: officeDoor, open: 1.4, x: doorX, z: OZ + 0.07, nx: 0, nz: 1, depth: 0.5, glow: officeDoorGlow } }, { x: 8.3, z: 5.3, to: 'lot', spawn: 'precinct', label: 'Parking lot' }, { x: -2.2, z: 5.3, to: 'front', spawn: 'precinct', label: 'Front steps' }],
+    portals: [{ x: doorX, z: OZ + 0.75, to: 'office', spawn: 'precinct', label: 'Your office' }, { x: 8.3, z: 5.3, to: 'lot', spawn: 'precinct', label: 'Parking lot' }, { x: -2.2, z: 5.3, to: 'front', spawn: 'precinct', label: 'Front steps' }],
     patrol: [
       { p: [7.6, 0.8] },
       { p: [WCX + 0.1, WCZ + 1.35], wait: 2.6, face: Math.PI },        // join the cooler talk
@@ -1795,8 +1776,7 @@ function buildLot() {
   const wall = add(new THREE.Mesh(new THREE.BoxGeometry(X1 - X0 + 2, 9, 0.6), bm)); wall.position.set(0, 4.5, Z0 - 0.3);
   // back door: steel, lit from above
   const doorX = -3;
-  const steel = add(new THREE.Mesh(new THREE.BoxGeometry(1.3, 2.4, 0.08), mat({ color: 0x2c2e30, roughness: .5, metalness: .4 }))); steel.position.set(doorX, 1.2, Z0 + 0.04);
-  const steelBar = add(new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.05, 0.05), mat({ color: 0x8a8a8a, roughness: .3, metalness: .8 }))); steelBar.position.set(doorX + 0.1, 1.05, Z0 + 0.1);
+  add(new THREE.Mesh(new THREE.BoxGeometry(1.3, 2.4, 0.08), mat({ color: 0x2c2e30, roughness: .5, metalness: .4 }))).position.set(doorX, 1.2, Z0 + 0.04);
   add(new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.12, 0.5), mat({ color: 0x1a1a1a }))).position.set(doorX, 2.75, Z0 + 0.25);
   add(new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.14, 1.2), mat({ color: 0x77736c }))).position.set(doorX, 0.07, Z0 + 0.6);
   // --- the precinct's rear entrance: three sign treatments to compare (☰ → Door sign)
@@ -1873,7 +1853,7 @@ function buildLot() {
     { const g = new THREE.Group(); group.add(g); doorSigns['C · Painted brick'] = g;
       decal(g, stencil('POLICE DEPARTMENT\nNO PARKING · OFFICIAL VEHICLES', 1536, 256, 66, 'rgba(232,226,210,.85)'), 4.6, 0.77, doorX + 0.2, 3.55, ZF + 0.01);
       decal(g, stencil('9', 256, 256, 230, 'rgba(232,226,210,.85)'), 0.9, 0.9, doorX + 1.35, 1.5, ZF + 0.01);
-      doorSigns._keep = decal(g, stencil('KEEP\nCLEAR', 512, 256, 80, 'rgba(225,220,205,.9)'), 0.8, 0.4, doorX, 1.55, doorFront);
+      decal(g, stencil('KEEP\nCLEAR', 512, 256, 80, 'rgba(225,220,205,.9)'), 0.8, 0.4, doorX, 1.55, doorFront);
       plaque(g, enamel([['POLICE', 80, 44], ['OFFICERS ONLY', 150, 28]], 360, 210), 0.48, 0.28, doorX - 1.1, 1.55);
     }
   }
@@ -1881,9 +1861,6 @@ function buildLot() {
   let doorSign = 'C · Painted brick';
   const showSign = (k) => { if (!doorSigns[k]) k = 'C · Painted brick'; doorSign = k; for (const n in doorSigns) doorSigns[n].visible = n === k; };
   showSign(doorSign);
-  // the door itself swings in (taking its stencil with it), and the corridor behind glows
-  const backDoor = swingDoor(group, [steel, steelBar, doorSigns._keep], new THREE.Vector3(doorX - 0.65, 0, Z0 + 0.04));
-  const backGlow = doorGlow(group, doorX, Z0 + 0.04, 0, 1, { color: 0xffcf8a, w: 1.3, h: 2.4, behind: 0.035, room: 0.9, fan: 0.6 });
   const doorLamp = new THREE.SpotLight(0xffe2b0, 90, 12, 0.75, 0.5, 1.6); doorLamp.position.set(doorX, 2.7, Z0 + 0.5); doorLamp.target.position.set(doorX, 0, Z0 + 3);
   doorLamp.castShadow = true; doorLamp.shadow.mapSize.set(1024, 1024); doorLamp.shadow.bias = -0.0005; group.add(doorLamp, doorLamp.target);
   add(new THREE.Mesh(new THREE.SphereGeometry(0.1, 12, 8), new THREE.MeshBasicMaterial({ color: 0xffe8c0 })), false).position.set(doorX, 2.66, Z0 + 0.5);
@@ -1934,7 +1911,7 @@ function buildLot() {
   for (let i = 0; i < RN; i++) { const x = X0 + Math.random() * (X1 - X0), y = Math.random() * 10, z = Z0 + Math.random() * (Z1 - Z0); ra.set([x, y, z, x + 0.02, y - 0.35, z + 0.03], i * 6); }
   rg.setAttribute('position', new THREE.BufferAttribute(ra, 3));
   const rain = new THREE.LineSegments(rg, new THREE.LineBasicMaterial({ color: 0x9aa0a8, transparent: true, opacity: .32 })); group.add(rain);
-  const pDoor = () => {}, pCar = portalMarker(group, carMarkX, carMarkZ), pAlley = portalMarker(group, X0 + 1.7, Z1 - 1.0);
+  const pDoor = portalMarker(group, doorX, Z0 + 1.0), pCar = portalMarker(group, carMarkX, carMarkZ), pAlley = portalMarker(group, X0 + 1.7, Z1 - 1.0);
   return {
     group,
     name: 'The Parking Lot',
@@ -1954,9 +1931,9 @@ function buildLot() {
     },
     groundY() { return 0; },
     start: { x: X0 + 1.7, z: Z1 - 2.6, heading: Math.PI },
-    spawns: { alley: { x: X0 + 1.7, z: Z1 - 2.6, heading: Math.PI }, precinct: { x: doorX, z: Z0 + 0.15, heading: 0, out: [doorX, Z0 + 1.9] }, car: { x: 3.4, z: -1.6, heading: -Math.PI / 2 } },
+    spawns: { alley: { x: X0 + 1.7, z: Z1 - 2.6, heading: Math.PI }, precinct: { x: doorX, z: Z0 + 2.0, heading: 0 }, car: { x: 3.4, z: -1.6, heading: -Math.PI / 2 } },
     portals: [
-      { x: doorX, z: Z0 + 0.7, to: 'precinct', spawn: 'lot', label: 'Precinct', door: { pivot: backDoor, open: -1.45, x: doorX, z: Z0 + 0.04, nx: 0, nz: 1, depth: 0.1, glow: backGlow } },
+      { x: doorX, z: Z0 + 1.0, to: 'precinct', spawn: 'lot', label: 'Precinct' },
       { x: carMarkX, z: carMarkZ, to: 'drive', spawn: 'lot', label: 'Your car' },
       { x: X0 + 1.7, z: Z1 - 1.0, to: 'alley', spawn: 'lot', label: 'Alley' },
     ],
@@ -2873,7 +2850,7 @@ function buildDrive() {
   };
   let M = moods.overcast;
   function applyMood(m) {
-    M = m; skyMat.map = m.sky; skyMat.needsUpdate = true; hillMat.color.set(m.hill); hills.visible = false; if (self && self._sky) { sky.visible = false; Skyline.setSky(self, m === moods.dusk ? 'dusk' : 'overcast'); }
+    M = m; skyMat.map = m.sky; skyMat.needsUpdate = true; hillMat.color.set(m.hill);
     fog.color.set(m.fog[0]); fog.density = m.fog[1];
     hemi.color.set(m.hemi[0]); hemi.groundColor.set(m.hemi[1]); hemi.intensity = m.hemi[2];
     sun.color.set(m.sun[0]); sun.intensity = m.sun[1];
@@ -2897,7 +2874,6 @@ function buildDrive() {
     group,
     name: 'The Drive',
     drive: true,
-    skyline: { sky: 'overcast', face: Math.PI, noGround: true, radius: 80, repeat: 2 },   // out past the end of the street   // the same Coquina City, sliding past as you drive
     get exposure() { return M.exposure; },
     fog,
     bounds: { minX: -1, maxX: 1, minZ: -1, maxZ: 1 },
@@ -2994,7 +2970,6 @@ function buildDrive() {
       }
       // world follows
       sky.position.set(st.x, -6, st.z); hills.position.set(0, 7, st.z - 86);
-      if (self._sky) { self._skyRot = (self._skyRot || 0) + st.v * dt * 0.004; self._sky.grp.position.set(st.x, 0, st.z); self._sky.grp.rotation.y = self._sky.base + self._skyRot; }
       sun.position.set(st.x, 0, st.z).add(M.sunOff); sun.target.position.set(st.x, 0, st.z - 8);
     },
   };
@@ -3125,7 +3100,7 @@ function updateWalker(dt, now) {
     if (d < 0.06) {
       route.shift();
       if (!route.length) {
-        if (route.portal) { const pt = route.portal; route.portal = null; if (pt.door) enterDoor(pt); else loadScene(pt.to, { spawn: pt.spawn }); return; }
+        if (route.portal) { const pt = route.portal; route.portal = null; loadScene(pt.to, { spawn: pt.spawn }); return; }
         const m = route.meta; pause = m ? (m.wait || 0.4) : 0.8; faceTarget = m && m.face !== undefined ? m.face : null;
       }
     } else {
@@ -3199,8 +3174,6 @@ const Skyline = (() => {
     golden:  { top: [38, 34, 46], mid: [120, 78, 54], hor: [232, 160, 92], far: [46, 36, 38], mid2: [30, 24, 26], near: [12, 10, 10], water: [70, 52, 48], fog: [210, 150, 100], fogA: .18, win: .18, sun: 1, stars: 0, rain: 0, neon: .55, lamp: .35 },
     evening: { top: [10, 13, 26], mid: [40, 42, 70], hor: [110, 92, 108], far: [24, 26, 40], mid2: [16, 17, 28], near: [7, 7, 11], water: [22, 26, 44], fog: [120, 110, 140], fogA: .16, win: .55, sun: 0, stars: 1, rain: 0, neon: 1, lamp: 1 },
     rain:    { top: [16, 18, 20], mid: [36, 39, 42], hor: [74, 78, 82], far: [30, 32, 35], mid2: [20, 22, 24], near: [9, 9, 10], water: [28, 30, 33], fog: [110, 115, 120], fogA: .34, win: .45, sun: 0, stars: 0, rain: 1, neon: .9, lamp: 1 },
-    overcast: { top: [104, 104, 106], mid: [170, 170, 172], hor: [222, 222, 222], far: [128, 128, 132], mid2: [100, 100, 104], near: [60, 60, 62], water: [150, 152, 156], fog: [210, 210, 212], fogA: .32, win: 0, sun: 0, stars: 0, rain: 0, neon: .45, lamp: .15 },
-    dusk:    { top: [30, 32, 64], mid: [90, 74, 106], hor: [240, 192, 144], far: [52, 42, 58], mid2: [36, 30, 42], near: [14, 12, 16], water: [80, 62, 74], fog: [200, 140, 120], fogA: .2, win: .3, sun: 1, stars: 0, rain: 0, neon: .8, lamp: .6 },
   };
   const ON = { lighthouse: 1, causeway: 1, domes: 1, hotel: 1, wheel: 1, cranes: 1 };
   const lerp = (a, b, t) => a + (b - a) * t, rgb = (c, a = 1) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
@@ -3321,22 +3294,21 @@ function wheel(x, c, t) {
     const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping; return t;
   }
   // ---- the 3D side: a ring around the scene + a dark plane of ground/water out to it
-  const RING = 46;
+  const R = 46;
   const thetaOf = (X) => 2 * Math.PI * (1 - X / WW);   // canvas x → angle round the ring (after the flip)
   function make(S) {
-    const conf = S.skyline, c = SKIES[conf.sky || 'evening'], R = conf.radius || RING;
+    const conf = S.skyline, c = SKIES[conf.sky || 'evening'];
     const cv = document.createElement('canvas'); cv.width = 4096; cv.height = 512; draw(cv, c, 0);
-    const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = THREE.RepeatWrapping; tex.repeat.x = -(conf.repeat || 1); tex.anisotropy = 4;   // seen from inside, so flip it back
-    const H = 2 * Math.PI * R / (8 * (conf.repeat || 1)), bottom = 2.2 + (conf.lift || 0) - H * 0.38;   // lift: raise the city for enclosed scenes, so it shows over the rooftops   // the painted horizon (62% down the canvas) lands a little above the ground
+    const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = THREE.RepeatWrapping; tex.repeat.x = -1; tex.anisotropy = 4;   // seen from inside, so flip it back
+    const H = 2 * Math.PI * R / 8, bottom = 2.2 + (conf.lift || 0) - H * 0.38;   // lift: raise the city for enclosed scenes, so it shows over the rooftops   // the painted horizon (62% down the canvas) lands a little above the ground
     const ring = new THREE.Mesh(new THREE.CylinderGeometry(R, R, H, 96, 1, true), new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide, fog: false, toneMapped: false, depthWrite: false }));
     ring.position.y = bottom + H / 2; ring.renderOrder = -10;
     const gr = new THREE.Mesh(new THREE.CircleGeometry(R, 64), new THREE.MeshBasicMaterial({ color: new THREE.Color(...c.water.map(v => v * 0.35 / 255)), fog: false, depthWrite: false })); gr.rotation.x = -Math.PI / 2; gr.position.y = -0.06; gr.renderOrder = -11;
     const dome = new THREE.Mesh(new THREE.SphereGeometry(R - 0.5, 48, 16, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshBasicMaterial({ map: drawDome(c), side: THREE.BackSide, fog: false, toneMapped: false, depthWrite: false }));
     dome.position.y = bottom + H - 0.3; dome.renderOrder = -12;
-    gr.visible = !conf.noGround;
     const grp = new THREE.Group(); grp.add(ring, gr, dome); const face = conf.face || 0; grp.rotation.y = face - thetaOf(1150);   // turn the city so the heart of the skyline sits in this scene's 'view' direction
     const b = S.bounds; grp.position.set((b.minX + b.maxX) / 2, 0, (b.minZ + b.maxZ) / 2);
-    return { grp, cv, tex, c, t: 0, acc: 0, face, base: grp.rotation.y, dome, lift: conf.lift || 0, top: new THREE.Color(...c.top.map(v => v / 255)) };
+    return { grp, cv, tex, c, t: 0, acc: 0, face, lift: conf.lift || 0, top: new THREE.Color(...c.top.map(v => v / 255)) };
   }
   let enabled = true; try { enabled = localStorage.getItem('caineSkyline') !== 'off'; } catch (e) {}
   function apply(S) {
@@ -3345,11 +3317,10 @@ function wheel(x, c, t) {
   }
   function update(S, dt) {
     const k = S && S._sky; if (!k || !enabled) return;
-    k.t += dt; k.acc += dt; if (k.acc < (Vista.k > 0.01 || S.drive ? 1 / 10 : 1)) return; k.acc = 0;   // repaint the lights 10×/s while you're looking out, once a second otherwise
+    k.t += dt; k.acc += dt; if (k.acc < (Vista.k > 0.01 ? 1 / 10 : 1)) return; k.acc = 0;   // repaint the lights 10×/s while you're looking out, once a second otherwise
     draw(k.cv, k.c, k.t); k.tex.needsUpdate = true;
   }
-  function setSky(S, name) { const k = S && S._sky; if (!k || !SKIES[name] || k.c === SKIES[name]) return; k.c = SKIES[name]; draw(k.cv, k.c, k.t); k.tex.needsUpdate = true; k.dome.material.map = drawDome(k.c); k.dome.material.needsUpdate = true; }
-  return { apply, update, setSky, face: (S) => S && S._sky && enabled ? S._sky.face : null, lift: (S) => (S && S._sky && S._sky.lift) || 0, top: (S) => S && S._sky ? S._sky.top : null, get enabled() { return enabled; }, set enabled(v) { enabled = v; try { localStorage.setItem('caineSkyline', v ? 'on' : 'off'); } catch (e) {} if (S) apply(S); } };
+  return { apply, update, face: (S) => S && S._sky && enabled ? S._sky.face : null, lift: (S) => (S && S._sky && S._sky.lift) || 0, top: (S) => S && S._sky ? S._sky.top : null, get enabled() { return enabled; }, set enabled(v) { enabled = v; try { localStorage.setItem('caineSkyline', v ? 'on' : 'off'); } catch (e) {} if (S) apply(S); } };
 })();
 
 /* ---------------------------------------------------------
@@ -3400,9 +3371,7 @@ function loadScene(key, { instant = false, spawn = null } = {}) {
     const st = (spawn && S.spawns && S.spawns[spawn]) || S.start;
     pos.set(st.x, S.groundY(st.x, st.z), st.z); heading = st.heading;
     route = []; pause = 0.8; patrolIdx = 0; faceTarget = null; walkAmt = 0;
-    manualUntil = spawn ? performance.now() / 1000 + 4 : 0; portalCooldown = 0.5; portalArmed = false; doorEntering = false;
-    if (st.out) { route = [new THREE.Vector3(st.out[0], 0, st.out[1])]; route.meta = null; route.portal = null; pause = 0; }   // step out of the doorway
-    for (const p of S.portals || []) if (p.door) { p._k = Math.hypot(p.x - pos.x, p.z - pos.z) < 2 ? 1 : 0; const e = p._k; p.door.pivot.rotation.y = p.door.open * e; p.door.glow && p.door.glow.set(e); }
+    manualUntil = spawn ? performance.now() / 1000 + 4 : 0; portalCooldown = 0.5; portalArmed = false;
     loading = false;
     updateCamera(0, true);
     [...scenesBar.children].forEach(b => b.classList.toggle('on', b.dataset.key === key));
@@ -3557,7 +3526,7 @@ function driveChoice(dt) {
 
 // --- keyboard walking (overhead: camera-relative · over the shoulder: turn with left/right)
 const WALK_KEYS = { ArrowUp: 'u', KeyW: 'u', ArrowDown: 'd', KeyS: 'd', ArrowLeft: 'l', KeyA: 'l', ArrowRight: 'r', KeyD: 'r' };
-const held = new Set(); let portalCooldown = 0, portalArmed = false, doorEntering = false;   // a door only works once you've stepped clear of it
+const held = new Set(); let portalCooldown = 0, portalArmed = false;   // a door only works once you've stepped clear of it
 addEventListener('keydown', e => { const k = WALK_KEYS[e.code]; if (!k || !S || S.drive) return; e.preventDefault(); held.add(k); document.getElementById('hint').style.opacity = 0; });
 addEventListener('keyup', e => { const k = WALK_KEYS[e.code]; if (k) held.delete(k); });
 addEventListener('blur', () => held.clear());
@@ -3586,20 +3555,8 @@ const joyEnd = e => {
 };
 canvas.addEventListener('pointerup', joyEnd); canvas.addEventListener('pointercancel', joyEnd);
 if (matchMedia('(pointer: coarse)').matches) document.getElementById('hint').textContent = 'Walk';
-function enterDoor(p) {   // walk on through the open door while the screen fades
-  const d = p.door; held.clear(); doorEntering = true; portalCooldown = 2; faceTarget = null;
-  route = [new THREE.Vector3(d.x - d.nx * (d.depth ?? 0.5), 0, d.z - d.nz * (d.depth ?? 0.5))]; route.meta = null; route.portal = null;
-  loadScene(p.to, { spawn: p.spawn });
-}
-function updateDoors(dt) {
-  if (!S || !S.portals) return;
-  for (const p of S.portals) { const d = p.door; if (!d) continue;
-    const near = !loading && Math.hypot(p.x - pos.x, p.z - pos.z) < 2.3, k = (p._k || 0) + ((near || doorEntering ? 1 : 0) - (p._k || 0)) * Math.min(1, dt * 4);
-    p._k = k; const e = k * k * (3 - 2 * k); d.pivot.rotation.y = d.open * e; d.glow && d.glow.set(e); }
-}
 function keyWalk(dt) {
   portalCooldown = Math.max(0, portalCooldown - dt);
-  if (doorEntering) return;
   if (!portalArmed && S && !loading && !(S.portals || []).some(q => Math.hypot(q.x - pos.x, q.z - pos.z) < 1.4)) portalArmed = true;
   if (!S || S.drive || loading || paused || (!held.size && !joy.on) || (typeof PhoneUI !== 'undefined' && PhoneUI.isOpen)) return;
   let f = (held.has('u') ? 1 : 0) - (held.has('d') ? 1 : 0), s = (held.has('r') ? 1 : 0) - (held.has('l') ? 1 : 0);
@@ -3624,7 +3581,7 @@ function keyWalk(dt) {
   route.meta = null; route.portal = null; pause = 0; manualUntil = performance.now() / 1000 + 6;
   if (camMode === 'street' && f < 0) faceTarget = null;
   const portal = portalArmed && !portalCooldown && (S.portals || []).find(q => Math.hypot(q.x - pos.x, q.z - pos.z) < 0.55);
-  if (portal) { if (portal.door) { enterDoor(portal); return; } held.clear(); route = []; portalCooldown = 2; loadScene(portal.to, { spawn: portal.spawn }); }
+  if (portal) { held.clear(); route = []; portalCooldown = 2; loadScene(portal.to, { spawn: portal.spawn }); }
 }
 
 
@@ -4691,7 +4648,7 @@ const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.05), now = performance.now() / 1000;
   keyWalk(dt); driveChoice(dt);
-  if (!paused) { if (!S.drive) updateWalker(dt, now); S.update && S.update(dt, now); Pigeons.update(dt, now); Skyline.update(S, dt); updateDoors(dt); }
+  if (!paused) { if (!S.drive) updateWalker(dt, now); S.update && S.update(dt, now); Pigeons.update(dt, now); Skyline.update(S, dt); }
   PhoneUI.poseCaine();
   updateCamera(dt);
   Vista.cam(dt, now);
