@@ -22,6 +22,7 @@ Coquina City sits on both sides of Ánimas Bay. **Old Town** (St. Augustine) is 
 Doorway → Alley → Parking lot → Precinct (back door) or your car. The Skyway is the only road across: it always lands at the port (the Warehouse), and trips to the Cemetery carry on up El Malecón. Each side's skyline painting looks across the bay at the other.
 
 ## Concept mocks
+- [Drive feel](mocks/drive-feel/): a feel test for the Skyway drive, borrowing tricks from Bruno Simon's Folio 2025 (MIT): eased steering, body lean and nose dip, brake lights, a speed camera with kicks, engine sound and joint thumps, phone stick steering, and a pull-over "Selah" moment. Flip **Polish** off and on to compare.
 - [Handheld mocks](mocks/handheld/): Caine's phone, built in three.js. It runs messages, camera, notes, the city map and Snake. (The pocket notebook and folded map are saved in the code for later, as props to view in his office.) Also in the game as **Dev mode**: tap the logo three times quickly, then open ☰.
 
 ## Files
