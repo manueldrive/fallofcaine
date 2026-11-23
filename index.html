@@ -52,6 +52,7 @@
     background: rgba(0,0,0,.25); pointer-events: none; opacity: 0; transition: opacity .15s; }
   #joy.on { opacity: 1; }
   #joy i { position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%; background: rgba(240,236,226,.75); }
+  #joy.far { border-color: rgba(232,192,112,.8); } #joy.far i { background: rgba(232,192,112,.9); }
   canvas#scene { touch-action: none; }
   #panel { position: fixed; right: 16px; bottom: calc(72px + env(safe-area-inset-bottom, 0px)); z-index: 3; width: min(300px, calc(100vw - 32px)); max-height: calc(100vh - 100px); overflow: auto;
     background: rgba(8,8,8,.92); border: 1px solid #444; padding: 14px 14px 6px; box-sizing: border-box; transition: opacity .25s, transform .25s; }
@@ -1369,51 +1370,8 @@ function buildOffice() {
 /* =========================================================
    People rigs (cops, clerks) — same proportions as the detective
    ========================================================= */
-function makePerson({ coat = 0x2a3346, pants = 0x1b2130, skin = 0x8c7a68, hat = 'cap', badge = true } = {}) {
-  const cm = mat({ color: coat, roughness: .8 }), pm = mat({ color: pants, roughness: .75 }), sm = mat({ color: skin, roughness: .7 });
-  const shoe = mat({ color: 0x0a0a0a, roughness: .35 }), hm = mat({ color: hat === 'cap' ? 0x1a2132 : 0x121212, roughness: .55 });
-  const brassM = mat({ color: 0xc09a4a, roughness: .3, metalness: .8 });
-  const P = (geo, m, parent, x = 0, y = 0, z = 0) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.castShadow = o.receiveShadow = true; parent.add(o); return o; };
-  const J = (parent, x = 0, y = 0, z = 0) => { const g = new THREE.Group(); g.position.set(x, y, z); parent.add(g); return g; };
-  const root = new THREE.Group();
-  const hips = J(root, 0, 0.95, 0), chest = J(hips, 0, 0.05, 0);
-  P(new THREE.CylinderGeometry(0.22, 0.19, 0.6, 14), cm, chest, 0, 0.3, 0);
-  P(new THREE.SphereGeometry(0.225, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), cm, chest, 0, 0.58, 0).scale.set(1.05, .35, .75);
-  P(new THREE.CylinderGeometry(0.2, 0.2, 0.06, 14), mat({ color: 0x0c0c0c, roughness: .4 }), hips, 0, 0.04, 0);
-  P(new THREE.CylinderGeometry(0.19, 0.17, 0.16, 14), pm, hips, 0, -0.06, 0);
-  if (badge) P(new THREE.BoxGeometry(0.045, 0.055, 0.012), brassM, chest, -0.1, 0.46, 0.2);
-  const head = J(J(chest, 0, 0.7, 0), 0, 0.1, 0);
-  P(new THREE.CylinderGeometry(0.06, 0.07, 0.1, 10), sm, head, 0, -0.08, 0);
-  P(new THREE.SphereGeometry(0.103, 14, 10), sm, head, 0, 0.02, 0.01).scale.set(1, 1.12, 1);
-  if (hat === 'cap') {
-    P(new THREE.CylinderGeometry(0.14, 0.11, 0.1, 18), hm, head, 0, 0.14, -0.01);
-    P(new THREE.BoxGeometry(0.17, 0.012, 0.09), shoe, head, 0, 0.095, 0.1).rotation.x = 0.25;
-    P(new THREE.BoxGeometry(0.035, 0.035, 0.01), brassM, head, 0, 0.14, 0.12);
-  } else if (hat === 'fedora') {
-    P(new THREE.CylinderGeometry(0.22, 0.22, 0.016, 24), hm, head, 0, 0.09, 0);
-    P(new THREE.CylinderGeometry(0.105, 0.125, 0.14, 18), hm, head, 0, 0.16, 0);
-  } else {
-    P(new THREE.SphereGeometry(0.108, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), mat({ color: 0x2a1e14, roughness: .9 }), head, 0, 0.04, 0);
-  }
-  const arm = (side) => {
-    const sh = J(chest, side * 0.24, 0.56, 0);
-    P(new THREE.CapsuleGeometry(0.06, 0.24, 4, 8), cm, sh, 0, -0.16, 0);
-    const el = J(sh, 0, -0.32, 0);
-    P(new THREE.CapsuleGeometry(0.05, 0.22, 4, 8), cm, el, 0, -0.14, 0);
-    const hand = P(new THREE.SphereGeometry(0.043, 10, 8), sm, el, 0, -0.31, 0.01);
-    sh.rotation.z = side * 0.08;
-    return { sh, el, hand };
-  };
-  const leg = (side) => {
-    const hip = J(hips, side * 0.1, -0.02, 0);
-    P(new THREE.CapsuleGeometry(0.072, 0.32, 4, 8), pm, hip, 0, -0.22, 0);
-    const knee = J(hip, 0, -0.45, 0);
-    P(new THREE.CapsuleGeometry(0.058, 0.34, 4, 8), pm, knee, 0, -0.22, 0);
-    const ankle = J(knee, 0, -0.45, 0);
-    P(new THREE.BoxGeometry(0.1, 0.06, 0.24), shoe, ankle, 0, -0.02, 0.05);
-    return { hip, knee, ankle };
-  };
-  return { root, hips, chest, head, armL: arm(1), armR: arm(-1), legL: leg(1), legR: leg(-1) };
+function makePerson({ coat = 0x2a3346, pants = 0x1b2130, skin = 0x8c7a68, hat = 'cap', badge = true, tie, shirt } = {}) {
+  return Figure.build({ style: hat === 'cap' ? 'uniform' : 'suit', coat, pants, skin, hat, badge, capColor: 0x141a28, tie: tie ?? (hat === 'cap' ? 0x101318 : undefined), shirt });
 }
 function poseSeated(R) {
   R.hips.position.y = 0.56;
@@ -1760,15 +1718,15 @@ function buildPrecinct() {
     const shade = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.13, 0.12, 16, 1, true), mat({ color: 0x1f4a2a, roughness: .3, side: THREE.DoubleSide, emissive: 0x0c2a14, emissiveIntensity: .6 })); shade.position.set(-0.55, 1.1, -0.18); g.add(shade);
     const vl = new THREE.PointLight(0xffc27a, 2.2, 3.2, 1.8); vl.position.set(-0.5, 1.05, -0.1); vl.castShadow = false; g.add(vl);
     swivelChair(VX, VZ - 0.72, 0); circ(VX, VZ - 0.72, 0.28); rect(VX - 0.76, VX + 0.76, VZ - 0.37, VZ + 0.37);
-    const R = makePerson({ coat: 0x5a2630, pants: 0x26262c, skin: 0xb09078, hat: 'none', badge: false });
+    const R = makePerson({ coat: 0x5a2630, pants: 0x26262c, skin: 0xb09078, hat: 'none', badge: false, tie: false, shirt: 0xd8cfc0 });
     R.chest.scale.x = 0.86;
     const hair = mat({ color: 0x24170f, roughness: .55 }), gold = mat({ color: 0xc8a050, roughness: .3, metalness: .8 });
     const hp = (geo, m, x, y, z) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.castShadow = true; R.head.add(o); return o; };
     for (const sd of [-1, 1]) { const roll = hp(new THREE.TorusGeometry(0.048, 0.03, 8, 16), hair, sd * 0.062, 0.115, 0.015); roll.rotation.y = Math.PI / 2; }   // victory rolls
     hp(new THREE.SphereGeometry(0.075, 12, 10), hair, 0, 0.02, -0.08).scale.set(1.1, 0.9, 0.8);   // the back, pinned up
     for (const sd of [-1, 1]) hp(new THREE.SphereGeometry(0.012, 8, 6), gold, sd * 0.1, -0.03, 0.01);   // earrings
-    hp(new THREE.BoxGeometry(0.035, 0.009, 0.01), mat({ color: 0x8a1c22, roughness: .4 }), 0, -0.045, 0.108);   // lipstick
     R.root.position.set(VX, 0, VZ - 0.72); poseSeated(R); group.add(R.root); npcs.push({ R, pose: 'vera', t: 0 });
+    { const sk = SkinRig.attach(R, { url: 'det/vera.json', base: 'det/vera_base.jpg', bright: 1.3, headCenter: new THREE.Vector3(0, 1.545, -0.01) }); }
     veraHead = R.head;
   }
   // two cops chatting at the water cooler
@@ -4777,45 +4735,271 @@ function buildDrive() {
 /* =========================================================
    The man (shared across scenes)
    ========================================================= */
-const coatMat = mat({ color: 0x26231f, roughness: .85 });
-const darkMat = mat({ color: 0x0d0d0d, roughness: .7 });
-const skinMat = mat({ color: 0x6b6b6b, roughness: .7 });
-const bandMat = mat({ color: 0x050505, roughness: .4 });
-function part(geo, m, parent, x = 0, y = 0, z = 0) { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.castShadow = o.receiveShadow = true; parent.add(o); return o; }
-function joint(parent, x = 0, y = 0, z = 0) { const g = new THREE.Group(); g.position.set(x, y, z); parent.add(g); return g; }
+/* =========================================================
+   FIGURE — the people. One tailored body kit shared by Caine and everyone else, on the same rig
+   (root / hips / chest / head, arms sh-el-hand, legs hip-knee-ankle) so gait() and the poses keep working.
+   Shaped torso, a coat that flares and folds, lapels over shirt and tie, turned-up collar, belt, cuffs,
+   real hands and shoes, a face with a nose and ears, and a fedora with a pinched crown and a snap brim.
+   A faint cool rim light on the cloth keeps a dark coat from dissolving into a dark street.
+   ========================================================= */
+const Figure = (() => {
+  const G = {}, geo = (k, f) => G[k] || (G[k] = f());
+  const sstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+  // the rim: a little cool light grazing the edges of the cloth, whatever the scene's lights are doing
+  const rimify = (m, k = 0.09) => {
+    m.onBeforeCompile = (sh) => { sh.uniforms.uRim = { value: new THREE.Color(0.55, 0.6, 0.72).multiplyScalar(k) };
+      sh.fragmentShader = 'uniform vec3 uRim;\n' + sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n totalEmissiveRadiance += uRim * pow(1.0 - abs(dot(normalize(normal), normalize(vViewPosition))), 2.6);'); };
+    m.customProgramCacheKey = () => 'rim' + k; return m;
+  };
+  const M = (o, rim) => { const m = new THREE.MeshStandardMaterial({ roughness: .8, ...o }); return rim ? rimify(m, rim) : m; };
+  const lathe = (pts, seg = 22, ph = 0, pl = Math.PI * 2) => new THREE.LatheGeometry(pts.map(([r, y]) => new THREE.Vector2(r, y)), seg, ph, pl);
+  const flatten = (g, sz) => { g.scale(1, 1, sz); g.computeVertexNormals(); return g; };
 
-const man = new THREE.Group(); scene.add(man);
-const hips = joint(man, 0, 0.95, 0);
-const chest = joint(hips, 0, 0.05, 0);
-part(new THREE.CylinderGeometry(0.23, 0.2, 0.62, 16), coatMat, chest, 0, 0.3, 0);
-part(new THREE.SphereGeometry(0.235, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), coatMat, chest, 0, 0.58, 0).scale.set(1.05, .35, .75);
-part(new THREE.CylinderGeometry(0.11, 0.13, 0.12, 12), coatMat, chest, 0, 0.66, 0);
-const skirt = part(new THREE.CylinderGeometry(0.21, 0.3, 0.55, 16, 1, true), mat({ color: 0x1c1c1c, roughness: .85, side: THREE.DoubleSide }), hips, 0, -0.22, 0);
-const neck = joint(chest, 0, 0.7, 0);
-const head = joint(neck, 0, 0.1, 0);
-part(new THREE.SphereGeometry(0.105, 16, 12), skinMat, head, 0, 0.02, 0.01).scale.set(1, 1.15, 1);
-part(new THREE.CylinderGeometry(0.235, 0.235, 0.018, 28), darkMat, head, 0, 0.09, 0);
-part(new THREE.CylinderGeometry(0.11, 0.13, 0.15, 20), darkMat, head, 0, 0.17, 0);
-part(new THREE.CylinderGeometry(0.132, 0.132, 0.035, 20), bandMat, head, 0, 0.115, 0);
-function makeArm(side) {
-  const sh = joint(chest, side * 0.25, 0.56, 0);
-  part(new THREE.CapsuleGeometry(0.065, 0.24, 4, 10), coatMat, sh, 0, -0.16, 0);
-  const el = joint(sh, 0, -0.32, 0);
-  part(new THREE.CapsuleGeometry(0.055, 0.22, 4, 10), coatMat, el, 0, -0.14, 0);
-  part(new THREE.SphereGeometry(0.045, 10, 8), skinMat, el, 0, -0.31, 0.01);
-  sh.rotation.z = side * 0.08;
-  return { sh, el };
-}
-function makeLeg(side) {
-  const hip = joint(hips, side * 0.1, -0.02, 0);
-  part(new THREE.CapsuleGeometry(0.075, 0.32, 4, 10), darkMat, hip, 0, -0.22, 0);
-  const knee = joint(hip, 0, -0.45, 0);
-  part(new THREE.CapsuleGeometry(0.06, 0.34, 4, 10), darkMat, knee, 0, -0.22, 0);
-  const ankle = joint(knee, 0, -0.45, 0);
-  part(new THREE.BoxGeometry(0.1, 0.06, 0.24), bandMat, ankle, 0, -0.02, 0.05);
-  return { hip, knee, ankle };
-}
-const armL = makeArm(1), armR = makeArm(-1), legL = makeLeg(1), legR = makeLeg(-1);
+  // ---------- shared geometry
+  const torsoG = (fit) => geo('torso' + fit, () => flatten(lathe(fit === 'coat'
+    ? [[0, -0.01], [0.195, 0], [0.2, 0.1], [0.212, 0.26], [0.232, 0.42], [0.242, 0.52], [0.226, 0.585], [0.16, 0.64], [0.09, 0.67], [0, 0.68]]
+    : [[0, -0.01], [0.18, 0], [0.185, 0.1], [0.2, 0.28], [0.222, 0.44], [0.232, 0.53], [0.214, 0.59], [0.15, 0.64], [0.085, 0.67], [0, 0.68]], 24), 0.72));
+  // coat below the waist: flared, open at the front, folds deepening toward the hem, a vent at the back
+  const skirtG = (len, flare, gap) => geo(`skirt${len}${flare}${gap}`, () => {
+    const g = new THREE.CylinderGeometry(0.205, flare, len, 40, 8, true, gap, Math.PI * 2 - gap * 2), p = g.attributes.position;
+    for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i), t = (len / 2 - y) / len, th = Math.atan2(x, z);
+      const fold = 1 + (Math.sin(th * 7 + 0.6) * 0.045 + Math.sin(th * 13) * 0.018) * t * t, vent = Math.abs(Math.abs(th) - Math.PI) < 0.09 ? 1 + 0.03 * t : 1;
+      p.setXYZ(i, x * fold * vent, y, z * fold * vent * 0.8); }
+    g.computeVertexNormals(); return g; });
+  const lapelG = (side) => geo('lapel' + side, () => {   // a notched lapel, peaked at the collar, rolling down to the top button
+    const s = new THREE.Shape(); const P = [[0.025, 0.635], [0.105, 0.605], [0.165, 0.535], [0.145, 0.515], [0.162, 0.48], [0.07, 0.36], [0.03, 0.31], [0.012, 0.56]];
+    P.forEach(([x, y], i) => i ? s.lineTo(x * side, y) : s.moveTo(x * side, y)); s.closePath();
+    const g = new THREE.ExtrudeGeometry(s, { depth: 0.012, bevelEnabled: true, bevelThickness: 0.004, bevelSize: 0.004, bevelSegments: 1 }); return g; });
+  const collarG = () => geo('collar', () => { const g = new THREE.CylinderGeometry(0.15, 0.112, 0.095, 24, 2, true, 0.75, Math.PI * 2 - 1.5); g.scale(1, 1, 0.85); g.computeVertexNormals(); return g; });
+  const vG = () => geo('vee', () => { const s = new THREE.Shape(); s.moveTo(-0.032, 0.63); s.lineTo(0.032, 0.63); s.lineTo(0.0, 0.4); s.closePath(); return new THREE.ShapeGeometry(s); });
+  const tieG = () => geo('tie', () => { const s = new THREE.Shape(); s.moveTo(-0.012, 0.6); s.lineTo(0.012, 0.6); s.lineTo(0.02, 0.4); s.lineTo(0, 0.375); s.lineTo(-0.02, 0.4); s.closePath(); return new THREE.ShapeGeometry(s); });
+  const headG = () => geo('head', () => { const g = new THREE.SphereGeometry(0.104, 22, 16), p = g.attributes.position;
+    for (let i = 0; i < p.count; i++) { let x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+      if (y < 0) { const k = sstep(0, -0.1, y); x *= 1 - 0.25 * k; z = z * (1 - 0.1 * k) + 0.012 * k; }     // a jaw, narrower and a touch forward
+      if (z > 0.06 && y > 0.02 && y < 0.06) z -= 0.008 * sstep(0.06, 0.1, z) * (1 - Math.abs(x) * 8);      // brow line
+      if (z > 0.07 && Math.abs(y) < 0.035 && Math.abs(x) > 0.02 && Math.abs(x) < 0.06) z -= 0.012;           // eye sockets
+      p.setXYZ(i, x * 0.94, y * 1.14, z); }
+    g.computeVertexNormals(); return g; });
+  // the fedora: an oval crown with a teardrop crease and two pinches at the front, a grosgrain band, a brim snapped down in front and curled at the sides
+  const crownG = () => geo('crown', () => { const g = lathe([[0, 0.112], [0.05, 0.128], [0.098, 0.135], [0.118, 0.115], [0.126, 0.06], [0.128, 0]], 32), p = g.attributes.position;
+    for (let i = 0; i < p.count; i++) { let x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+      const r = Math.hypot(x, z) || 1e-5, front = z / r;
+      if (y > 0.04 && front > 0.1) { const k = sstep(0.1, 0.7, front) * sstep(0.04, 0.12, y); x *= 1 - 0.38 * k; y -= 0.008 * k; }              // pinches
+      if (Math.abs(x) < 0.03 && y > 0.1) y -= 0.02 * (1 - Math.abs(x) / 0.03) * sstep(-0.1, 0.06, z);                          // centre dent
+      p.setXYZ(i, x, y, z * 1.12); }
+    g.computeVertexNormals(); return g; });
+  const brimG = () => geo('brim', () => { const R0 = 0.124, R1 = 0.205, N = 48, pos = [], idx = [];
+    for (let i = 0; i <= N; i++) { const a = i / N * Math.PI * 2, sx = Math.sin(a), cz = Math.cos(a);
+      for (const [k, r] of [[0, R0], [1, (R0 + R1) / 2], [2, R1]]) { const t = k / 2, curl = sx * sx * 0.028 * t * t, snap = cz > 0 ? -cz * cz * 0.034 * t : 0.006 * t * -cz;
+        pos.push(sx * r, curl + snap, cz * r * 1.1); } }
+    for (let i = 0; i < N; i++) for (let k = 0; k < 2; k++) { const a = i * 3 + k, b = a + 3; idx.push(a, b, a + 1, b, b + 1, a + 1); }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals(); return g; });
+  const shoeG = () => geo('shoe', () => { const g = new THREE.SphereGeometry(0.06, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), p = g.attributes.position;
+    for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i); p.setXYZ(i, x * 0.92, y * 0.95, z * 2.25 + (z > 0 ? 0.02 : 0)); }
+    g.computeVertexNormals(); return g; });
+  const handG = () => geo('hand', () => { const g = new THREE.SphereGeometry(0.04, 12, 10), p = g.attributes.position;
+    for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i); p.setXYZ(i, x * 0.62, y * (y < 0 ? 1.55 : 1.05), z * 1.0 + (y < -0.01 ? 0.008 : 0)); }
+    g.computeVertexNormals(); return g; });
+
+  function build(o = {}) {
+    const st = o.style || 'trench';           // trench | suit | uniform
+    const coatC = o.coat ?? 0x26231f, pantsC = o.pants ?? 0x161616, skinC = o.skin ?? 0x6b6b6b;
+    const cm = M({ color: coatC, roughness: .86 }, 0.09), cm2 = M({ color: new THREE.Color(coatC).multiplyScalar(0.82), roughness: .8 }, 0.07);
+    cm.side = THREE.FrontSide; const lining = M({ color: new THREE.Color(coatC).multiplyScalar(0.45), roughness: .9, side: THREE.BackSide });
+    const pm = M({ color: pantsC, roughness: .78 }, 0.06), sm = M({ color: skinC, roughness: .62 });
+    const shoeM = M({ color: 0x090909, roughness: .28, metalness: .1 }), soleM = M({ color: 0x040404, roughness: .7 });
+    const hatM = M({ color: o.hatColor ?? 0x101010, roughness: .62, side: THREE.DoubleSide }, 0.08), bandM = M({ color: 0x030303, roughness: .35 });
+    const shirtM = M({ color: o.shirt ?? 0x8e8a80, roughness: .7, side: THREE.DoubleSide }), tieM = M({ color: o.tie || 0x3a1416, roughness: .45, side: THREE.DoubleSide });
+    const hairM = M({ color: o.hair ?? 0x161210, roughness: .6 }), brassM = M({ color: 0xc09a4a, roughness: .3, metalness: .8 }), btnM = M({ color: 0x0a0806, roughness: .35 });
+    const P = (g, m, parent, x = 0, y = 0, z = 0, cast = true) => { const ms = new THREE.Mesh(g, m); ms.position.set(x, y, z); ms.castShadow = cast; ms.receiveShadow = true; ms.userData.fig = true; parent.add(ms); return ms; };
+    const J = (parent, x = 0, y = 0, z = 0) => { const g = new THREE.Group(); g.position.set(x, y, z); parent.add(g); return g; };
+
+    const root = new THREE.Group(), hips = J(root, 0, 0.95, 0), chest = J(hips, 0, 0.05, 0);
+    // torso, shoulders
+    P(torsoG(st === 'trench' ? 'coat' : 'suit'), cm, chest, 0, 0, 0);
+    for (const sd of [-1, 1]) P(geo('shcap', () => new THREE.SphereGeometry(0.07, 14, 10)), cm, chest, sd * 0.205, 0.55, 0).scale.set(1.0, 0.62, 0.9);
+    // shirt and tie in the V, lapels over them, the collar
+    const zf = 0.152;
+    P(vG(), shirtM, chest, 0, 0, zf + 0.004, false);
+    if (o.tie !== false) P(tieG(), tieM, chest, 0, 0, zf + 0.008, false);
+    for (const sd of [-1, 1]) { const l = P(lapelG(sd), cm2, chest, 0, 0, zf - 0.002); l.rotation.y = -sd * 0.22; l.rotation.x = -0.06; }
+    if (st === 'trench') { const c = P(collarG(), cm, chest, 0, 0.688, -0.012); const ci = P(collarG(), lining, chest, 0, 0.688, -0.012, false); ci.scale.setScalar(0.985); }   // turned up against the rain
+    else P(geo('scollar', () => { const g = new THREE.CylinderGeometry(0.098, 0.105, 0.05, 18, 1, true, 0.6, Math.PI * 2 - 1.2); g.scale(1, 1, 0.85); return g; }), cm, chest, 0, 0.665, -0.005);
+    P(geo('neck', () => new THREE.CylinderGeometry(0.052, 0.058, 0.11, 12)), sm, chest, 0, 0.7, 0.005, false);
+    // buttons (double-breasted on the trench), pocket flaps, the belt
+    const bx = st === 'trench' ? [-0.07, 0.07] : [0.0];
+    for (const x of bx) for (const y of st === 'trench' ? [0.14, 0.24, 0.34] : [0.14, 0.26]) P(geo('btn', () => new THREE.SphereGeometry(0.012, 8, 6)), btnM, chest, x, y, zf + 0.012 - Math.abs(x) * 0.12).scale.z = 0.5;
+    if (st === 'trench') {   // epaulettes and the back storm flap
+      for (const sd of [-1, 1]) { const e = P(geo('epa', () => new THREE.BoxGeometry(0.11, 0.008, 0.045)), cm2, chest, sd * 0.165, 0.596, 0); e.rotation.z = sd * -0.4; }
+      const yoke = P(geo('yoke', () => { const g = new THREE.CylinderGeometry(0.245, 0.252, 0.17, 20, 1, true, Math.PI / 2 + 0.25, Math.PI - 0.5); g.scale(1, 1, 0.75); return g; }), cm2, chest, 0, 0.49, 0); yoke.material = cm2;
+    }
+    if (st !== 'suit-noBelt') {
+      const belt = P(geo('belt' + st, () => { const g = new THREE.CylinderGeometry(st === 'uniform' ? 0.198 : 0.204, st === 'uniform' ? 0.198 : 0.204, st === 'uniform' ? 0.06 : 0.045, 26, 1, true); g.scale(1, 1, 0.76); return g; }), st === 'uniform' ? M({ color: 0x0c0c0c, roughness: .35 }) : cm2, chest, 0, 0.03, 0);
+      if (st !== 'suit') P(geo('buckle', () => new THREE.BoxGeometry(0.05, 0.04, 0.012)), st === 'uniform' ? brassM : M({ color: 0x8a7a5a, roughness: .35, metalness: .7 }), chest, 0, 0.03, 0.158);
+      if (st === 'trench') { const tail = P(geo('btail', () => new THREE.BoxGeometry(0.035, 0.2, 0.008)), cm2, chest, 0.045, -0.07, 0.162); tail.rotation.z = 0.12; }
+      if (st === 'uniform') { const hol = P(geo('holster', () => new THREE.BoxGeometry(0.05, 0.14, 0.08)), M({ color: 0x0e0e0e, roughness: .4 }), hips, 0.19, -0.02, 0.02); hol.rotation.z = -0.1; }
+    }
+    if (o.badge) P(geo('badge', () => new THREE.CylinderGeometry(0.024, 0.024, 0.008, 6)), brassM, chest, -0.1, 0.45, zf + 0.02).rotation.x = Math.PI / 2;
+    // the coat below the belt: long and open for the trench, a short jacket hem for the rest
+    const len = st === 'trench' ? 0.68 : st === 'suit' ? 0.24 : 0.2, flare = st === 'trench' ? 0.31 : 0.215;
+    const skirtGrp = J(hips, 0, 0.055, 0);
+    P(skirtG(len, flare, st === 'trench' ? 0.16 : 0.1), cm, skirtGrp, 0, -len / 2, 0); P(skirtG(len, flare, st === 'trench' ? 0.16 : 0.1), lining, skirtGrp, 0, -len / 2, 0, false);
+    if (st !== 'uniform') for (const sd of [-1, 1]) { const f = P(geo('flap', () => new THREE.BoxGeometry(0.11, 0.035, 0.012)), cm2, skirtGrp, sd * 0.13, st === 'trench' ? -0.14 : -0.1, 0.17); f.rotation.y = sd * 0.5; }
+    // head: face, ears, brows, hair, and the hat
+    const neck = J(chest, 0, 0.7, 0), head = J(neck, 0, 0.1, 0);
+    P(headG(), sm, head, 0, 0.02, 0.008);
+    const nose = P(geo('nose', () => { const g = new THREE.ConeGeometry(0.019, 0.05, 6); g.rotateX(Math.PI / 2 + 0.45); g.scale(0.8, 1, 1); return g; }), sm, head, 0, 0.008, 0.108);
+    for (const sd of [-1, 1]) { P(geo('ear', () => new THREE.SphereGeometry(0.024, 8, 6)), sm, head, sd * 0.097, 0.015, -0.002).scale.set(0.42, 1, 0.72);
+      const br = P(geo('brow', () => new THREE.BoxGeometry(0.036, 0.008, 0.01)), hairM, head, sd * 0.036, 0.058, 0.1, false); br.rotation.z = sd * -0.12; }
+    P(geo('chin', () => new THREE.SphereGeometry(0.03, 10, 8)), sm, head, 0, -0.07, 0.07, false).scale.set(1.1, 0.8, 0.7);
+    for (const sd of [-1, 1]) P(geo('eye', () => new THREE.SphereGeometry(0.011, 8, 6)), M({ color: 0x050505, roughness: .2 }), head, sd * 0.036, 0.034, 0.093, false).scale.set(1.3, 0.7, 0.6);
+    const hat = o.hat ?? 'fedora';
+    if (hat !== 'cap') { const hr = P(geo('hairback', () => new THREE.SphereGeometry(0.107, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.55)), hairM, head, 0, 0.03, -0.012); hr.scale.set(1, hat === 'none' ? 1.05 : 0.8, 1.0); hr.rotation.x = hat === 'none' ? -0.25 : -1.15; if (hat !== 'none') hr.position.y = 0.0; }
+    if (hat === 'fedora') { const H = J(head, 0, 0.083, -0.005); H.rotation.x = -0.06;
+      P(brimG(), hatM, H, 0, 0, 0); P(crownG(), hatM, H, 0, 0, 0);
+      P(geo('band', () => { const g = new THREE.CylinderGeometry(0.1285, 0.1285, 0.032, 32, 1, true); g.scale(1, 1, 1.12); return g; }), bandM, H, 0, 0.018, 0);
+      P(geo('bow', () => new THREE.BoxGeometry(0.008, 0.022, 0.04)), bandM, H, 0.128, 0.02, -0.03);
+      root.userData.hat = H;
+    } else if (hat === 'cap') { const H = J(head, 0, 0.075, 0);
+      const capM = M({ color: o.capColor ?? 0x141a28, roughness: .55 }, 0.08);
+      P(geo('capcrown', () => { const g = new THREE.CylinderGeometry(0.135, 0.112, 0.085, 22); g.scale(1, 1, 1.08); return g; }), capM, H, 0, 0.055, -0.01);
+      P(geo('capband', () => new THREE.CylinderGeometry(0.114, 0.114, 0.035, 22)), bandM, H, 0, 0.02, -0.004);
+      const peak = P(geo('peak', () => { const g = new THREE.CylinderGeometry(0.11, 0.11, 0.008, 20, 1, false, -0.9, 1.8); return g; }), bandM, H, 0, 0.006, 0.03); peak.rotation.x = 0.22;
+      P(geo('capbadge', () => new THREE.BoxGeometry(0.03, 0.034, 0.008)), brassM, H, 0, 0.06, 0.13);
+    }
+    // arms: shoulder, tapered sleeves, a cuff strap on the trench, hands with a thumb
+    const arm = (side) => {
+      const sh = J(chest, side * 0.25, 0.56, 0);
+      P(geo('delt', () => new THREE.SphereGeometry(0.07, 14, 10)), cm, sh, 0, -0.025, 0).scale.set(1, 1.1, 1); P(geo('upper', () => new THREE.CylinderGeometry(0.068, 0.06, 0.3, 14)), cm, sh, 0, -0.18, 0);
+      const el = J(sh, 0, -0.32, 0);
+      P(geo('elbow', () => new THREE.SphereGeometry(0.06, 12, 8)), cm, el, 0, 0, 0);
+      P(geo('fore', () => new THREE.CylinderGeometry(0.06, 0.056, 0.29, 14)), cm, el, 0, -0.14, 0);
+      P(geo('cuff', () => new THREE.CylinderGeometry(0.06, 0.062, 0.035, 14, 1, true)), st === 'trench' ? cm2 : cm, el, 0, -0.27, 0);
+      if (st === 'trench') P(geo('strap', () => new THREE.BoxGeometry(0.02, 0.016, 0.03)), cm2, el, side * 0.058, -0.27, 0.02);
+      P(geo('shirtcuff', () => new THREE.CylinderGeometry(0.044, 0.044, 0.02, 10)), shirtM, el, 0, -0.29, 0, false);
+      const hand = J(el, 0, -0.335, 0.008);
+      P(handG(), sm, hand, 0, 0, 0);
+      const th = P(geo('thumb', () => new THREE.CapsuleGeometry(0.011, 0.028, 3, 6)), sm, hand, side * -0.012, 0.004, 0.026); th.rotation.set(0.5, 0, side * 0.35);
+      sh.rotation.z = side * 0.08;
+      return { sh, el, hand };
+    };
+    // legs: trouser legs with a break over the shoe, cuffed; wingtips with a sole and a heel
+    const leg = (side) => {
+      const hip = J(hips, side * 0.1, -0.02, 0);
+      P(geo('thigh', () => new THREE.CylinderGeometry(0.08, 0.066, 0.46, 12)), pm, hip, 0, -0.22, 0);
+      const knee = J(hip, 0, -0.45, 0);
+      P(geo('knee', () => new THREE.SphereGeometry(0.064, 10, 8)), pm, knee, 0, 0, 0);
+      P(geo('shin', () => new THREE.CylinderGeometry(0.062, 0.064, 0.43, 12)), pm, knee, 0, -0.215, 0);
+      P(geo('turnup', () => new THREE.CylinderGeometry(0.067, 0.067, 0.03, 12)), pm, knee, 0, -0.42, 0);
+      const ankle = J(knee, 0, -0.45, 0);
+      P(shoeG(), shoeM, ankle, 0, -0.04, 0.045);
+      P(geo('sole', () => new THREE.BoxGeometry(0.1, 0.018, 0.28)), soleM, ankle, 0, -0.045, 0.045);
+      P(geo('heel', () => new THREE.BoxGeometry(0.085, 0.03, 0.06)), soleM, ankle, 0, -0.035, -0.06);
+      return { hip, knee, ankle };
+    };
+    const R = { root, hips, chest, neck, head, skirt: skirtGrp, armL: arm(1), armR: arm(-1), legL: leg(1), legR: leg(-1) };
+    return R;
+  }
+  return { build, rimify };
+})();
+
+const CAINE = Figure.build({ style: 'trench', coat: 0x2a2620, pants: 0x141414, skin: 0x6b6b6b, hat: 'fedora' });
+const man = CAINE.root; scene.add(man);
+const hips = CAINE.hips, chest = CAINE.chest, neck = CAINE.neck, head = CAINE.head, skirt = CAINE.skirt;
+const armL = CAINE.armL, armR = CAINE.armR, legL = CAINE.legL, legR = CAINE.legR;
+/* =========================================================
+   CAINE, THE MODEL — the rigged detective (Detective_Rig.blend → det/detective.glb), driven by the same
+   procedural rig as before. The old figure stays as an invisible puppet: walking, sitting, the phone pose
+   all move its joints, and every frame the model's bones are aimed to match them (limbs by direction,
+   so his A-pose arms come down to his sides; spine and head by rotation). The fedora goes on his head.
+   ========================================================= */
+/* SkinRig: puts a rigged model (from the detective rig) on any Figure puppet and drives its bones from the puppet's joints.
+   The puppet's own meshes hide once the model is in; anything else hung on the puppet's head (hair, earrings) moves onto the model's head. */
+const SkinRig = (() => {
+  const all = [], loaderP = import('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js').then(m => new m.GLTFLoader());
+  const tl = new THREE.TextureLoader(), texCache = {};
+  const tex = (u, srgb) => { if (!texCache[u]) { const t = tl.load(u); t.flipY = false; if (srgb) t.colorSpace = THREE.SRGBColorSpace; texCache[u] = t; } return texCache[u]; };
+  function attach(R, o) {
+    const root = R.root, S = { root, model: null, B: {}, restQ: {}, restDir: {}, off: {}, ok: false };
+    const mInv = new THREE.Quaternion(), tq = new THREE.Quaternion(), pq = new THREE.Quaternion(), v1 = new THREE.Vector3(), v2 = new THREE.Vector3(), d = new THREE.Vector3();
+    const relQ = (ob, out) => ob.getWorldQuaternion(out).premultiply(mInv), relP = (ob, out) => root.worldToLocal(ob.getWorldPosition(out));
+    const LIMBS = [['DEF-DEF_thighL', R.legL.hip, R.legL.knee], ['DEF-DEF_shinL', R.legL.knee, R.legL.ankle], ['DEF-DEF_thighR', R.legR.hip, R.legR.knee], ['DEF-DEF_shinR', R.legR.knee, R.legR.ankle],
+      ['DEF-DEF_upper_armL', R.armL.sh, R.armL.el], ['DEF-DEF_forearmL', R.armL.el, R.armL.hand], ['DEF-DEF_upper_armR', R.armR.sh, R.armR.el], ['DEF-DEF_forearmR', R.armR.el, R.armR.hand]];
+    const SPINE = [['DEF-DEF_spine', R.hips], ['DEF-DEF_spine002', R.chest], ['DEF-DEF_spine003', R.chest], ['DEF-DEF_spine004', R.neck], ['DEF-DEF_spine005', R.head], ['DEF-DEF_footL', R.legL.ankle], ['DEF-DEF_footR', R.legR.ankle]];
+    const inModel = (ob) => { for (let p = ob; p; p = p.parent) if (p === S.model) return true; return false; };
+    loaderP.then(L => L.load(o.url, (g) => {
+      const model = S.model = g.scene, B = S.B;
+      const m = Figure.rimify(new THREE.MeshStandardMaterial({ map: tex(o.base, true), color: new THREE.Color(o.bright ?? 1.45, o.bright ?? 1.45, o.bright ?? 1.45), normalMap: tex('det/caine_normal.jpg'), normalScale: new THREE.Vector2(0.9, 0.9), roughnessMap: tex('det/caine_rough.jpg'), roughness: 1 }), 0.2);
+      model.traverse(c => { if (c.isMesh) { c.material = m; c.castShadow = true; c.receiveShadow = true; c.frustumCulled = false; } if (c.isBone) B[c.name] = c; });
+      // measure with the puppet in its rest pose (identity in its own frame)
+      const saved = []; root.traverse(j => { if (j.isGroup) { saved.push([j, j.quaternion.clone(), j.position.clone()]); } });
+      for (const j of [R.hips, R.chest, R.neck, R.head, R.skirt, R.armL.sh, R.armL.el, R.armR.sh, R.armR.el, R.legL.hip, R.legL.knee, R.legL.ankle, R.legR.hip, R.legR.knee, R.legR.ankle]) j && j.quaternion.identity();
+      root.add(model); root.updateMatrixWorld(true); mInv.copy(root.getWorldQuaternion(new THREE.Quaternion())).invert();
+      for (const n in B) { S.restQ[n] = relQ(B[n], new THREE.Quaternion()); const c = B[n].children.find(k => k.isBone); if (c) S.restDir[n] = c.position.clone().normalize(); S.off[n] = S.restQ[n].clone(); }
+      // anything hung on the puppet's head that isn't the puppet itself moves onto the model's head
+      const HB = B['DEF-DEF_spine005'];
+      if (HB && o.headCenter) { const hc = root.worldToLocal(R.head.localToWorld(new THREE.Vector3(0, 0.02, 0.008))), dl = o.headCenter.clone().sub(hc);
+        for (const c of [...R.head.children]) if (!c.userData.fig && !c.isGroup) { root.attach(c); c.position.add(dl); root.updateMatrixWorld(true); HB.attach(c); } }
+      o.onLoad && o.onLoad(S, model, B);
+      for (const [j, q, p] of saved) { j.quaternion.copy(q); j.position.copy(p); }
+      root.traverse(c => { if (c.isMesh && c.userData.fig && !inModel(c)) c.visible = false; });
+      S.ok = true;
+    }, undefined, (e) => console.warn('model failed to load; keeping the figure', e)));
+    const aim = (n, from, to) => { const b = S.B[n]; if (!b || !S.restDir[n]) return; relP(from, v1); relP(to, v2); d.subVectors(v2, v1).normalize();
+      tq.setFromUnitVectors(S.restDir[n].clone().applyQuaternion(S.restQ[n]), d).multiply(S.restQ[n]); relQ(b.parent, pq); b.quaternion.copy(pq.invert().multiply(tq)); b.updateMatrixWorld(true); };
+    S.update = () => {
+      if (!S.ok) return; const B = S.B;
+      root.updateMatrixWorld(true); mInv.copy(root.getWorldQuaternion(new THREE.Quaternion())).invert();
+      S.model.position.y = R.hips.position.y - 0.95;
+      for (const [n, j] of SPINE) { const b = B[n]; if (!b) continue; relQ(j, tq).multiply(S.off[n]); relQ(b.parent, pq); b.quaternion.copy(pq.invert().multiply(tq)); b.updateMatrixWorld(true); }
+      for (const [n, a, c] of LIMBS) aim(n, a, c);
+      for (const n in B) if (/_f_|thumb02|thumb03/.test(n)) { const k = /thumb/.test(n) ? 0.2 : /01/.test(n) ? 0.35 : 0.45; B[n].quaternion.copy(B[n].userData.q0 || (B[n].userData.q0 = B[n].quaternion.clone())); B[n].rotateX(k); }
+      if (S.afterFirst) { root.updateMatrixWorld(true); const f = S.afterFirst; S.afterFirst = null; f(); }
+    };
+    all.push(S); return S;
+  }
+  const live = (S) => { let p = S.root; while (p.parent) p = p.parent; return p === scene; };
+  const update = () => { for (const S of all) if (live(S)) S.update(); };
+  return { attach, update, all };
+})();
+const CaineModel = SkinRig.attach(CAINE, { url: 'det/detective.json', base: 'det/caine_base.jpg', onLoad(S, model, B) {
+  // the fedora, fitted to his head: band just above the ears, set back over the hair, brim tipped down in front
+  const hat = CAINE.root.userData.hat;
+  if (hat && B['DEF-DEF_spine005']) { model.add(hat); hat.position.set(0, 1.738, -0.028); hat.rotation.set(-0.1, 0, 0); hat.updateMatrixWorld(true);
+    /* "hat hair": the skull under the crown is tucked in so nothing pokes through the felt, and the hat keeps its shape */
+    S.afterFirst = () => {
+    let skin = null; model.traverse(c => { if (c.isSkinnedMesh) skin = c; });
+    const hb = skin && skin.skeleton.bones.indexOf(B['DEF-DEF_spine005']);
+    if (skin && hb >= 0) {
+      const geo = skin.geometry = skin.geometry.clone(), pa = geo.attributes.position, si = geo.attributes.skinIndex, sw = geo.attributes.skinWeight, v = new THREE.Vector3();
+      model.updateMatrixWorld(true);
+      skin.skeleton.update(); hat.updateMatrixWorld(true);
+      const hatInv = new THREE.Matrix4().copy(hat.matrixWorld).invert(), bones = skin.skeleton.bones, bi = skin.skeleton.boneInverses, A = new THREE.Matrix4(), T = new THREE.Matrix4(), Ai = new THREE.Matrix4(), w0 = new THREE.Vector3();
+      // inside of the crown, by height (the lathe profile, a touch smaller for the pinches and the dent)
+      const prof = [[0, 0.126], [0.06, 0.124], [0.1, 0.112], [0.115, 0.09], [0.125, 0.05], [0.13, 0]];
+      const rAt = (y) => { if (y <= 0) return 0.126; for (let k = 1; k < prof.length; k++) if (y <= prof[k][0]) { const [y0, r0] = prof[k - 1], [y1, r1] = prof[k]; return r0 + (r1 - r0) * (y - y0) / (y1 - y0); } return 0; };
+      const bare = pa.array.slice();
+      let moved = 0;
+      for (let i = 0; i < pa.count; i++) {
+        // where this vertex really renders, in the hat's frame (through its own bone weights)
+        A.set(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        for (let k = 0; k < 4; k++) { const wk = sw.getComponent(i, k); if (!wk) continue; T.multiplyMatrices(bones[si.getComponent(i, k)].matrixWorld, bi[si.getComponent(i, k)]); for (let e = 0; e < 16; e++) A.elements[e] += T.elements[e] * wk; }
+        A.premultiply(skin.bindMatrixInverse).premultiply(skin.matrixWorld).premultiply(hatInv).multiply(skin.bindMatrix);   // bind position → hat frame
+        v.fromBufferAttribute(pa, i).applyMatrix4(A);
+        if (v.y < -0.01 || Math.hypot(v.x, v.z) > 0.2) continue;   /* only what's above the brim line */
+        const front = v.z > 0 ? 0.82 : 1.0, zs = 1.12, ROOM = 0.014;
+        const y = Math.min(v.y, 0.088 - ROOM), R = Math.max(0.01, rAt(y) - ROOM), r = Math.hypot(v.x * front, v.z / zs);
+        if (r > R || y !== v.y) { const k = r > R ? R / r : 1; v.set(v.x * k, y, v.z * k); v.applyMatrix4(Ai.copy(A).invert()); pa.setXYZ(i, v.x, v.y, v.z); moved++; } }
+      pa.needsUpdate = true; geo.computeVertexNormals(); window.__tuck = moved;
+      const tucked = pa.array.slice();
+      /* hat on: tucked skull; hat off (his room, the hat's on the bed): his own head back */
+      S.setHat = (on) => { hat.visible = on; pa.array.set(on ? tucked : bare); pa.needsUpdate = true; geo.computeVertexNormals(); };
+      S.setHat(S.wantHat !== false);
+    }
+    };
+    B['DEF-DEF_spine005'].attach(hat); }
+} });
+
 
 /* =========================================================
    Navigation grid + A*
@@ -4879,8 +5063,8 @@ function findPath(from, to) {
 /* =========================================================
    Walking
    ========================================================= */
-const STRIDE = 1.5, SPEED = 1.25;
-let phase = 0, walkAmt = 0, heading = 0, faceTarget = null;
+const STRIDE = 1.5, SPEED = 1.25, BRISK = 1.65;
+let phase = 0, walkAmt = 0, heading = 0, faceTarget = null, vel = 0, moveYaw = 0, lastKeyed = false;
 const pos = new THREE.Vector3();
 let patrolIdx = 0, route = [], pause = 0, manualUntil = 0;
 
@@ -4892,27 +5076,43 @@ function updateWalker(dt, now) {
     }
     if (pause > 0) pause -= dt;   // no auto-walk: he waits for the player
   }
-  let moving = false;
+  /* locomotion: a real speed that builds and bleeds off (no instant starts and stops), turns that ease him round
+     (and slow him while he does), arrival that settles onto the spot, and legs paced to the ground he actually covers */
+  let want = 0;
   if (route.length) {
-    const tgt = route[0], dx = tgt.x - pos.x, dz = tgt.z - pos.z, d = Math.hypot(dx, dz);
+    let tgt = route[0], dx = tgt.x - pos.x, dz = tgt.z - pos.z, d = Math.hypot(dx, dz);
+    while (d < Math.max(0.06, vel * dt * 1.5) && route.length > 1) { route.shift(); tgt = route[0]; dx = tgt.x - pos.x; dz = tgt.z - pos.z; d = Math.hypot(dx, dz); }
     if (d < 0.06) {
       route.shift();
-      if (!route.length) {
-        if (route.portal) { const pt = route.portal; route.portal = null; loadScene(pt.to, { spawn: pt.spawn }); return; }
-        const m = route.meta; pause = m ? (m.wait || 0.4) : 0.8; faceTarget = m && m.face !== undefined ? m.face : null;
-      }
+      if (route.portal) { const pt = route.portal; route.portal = null; loadScene(pt.to, { spawn: pt.spawn }); return; }
+      const m = route.meta; pause = m ? (m.wait || 0.4) : 0.8; faceTarget = m && m.face !== undefined ? m.face : null;
+      if (!route.key) vel = Math.min(vel, 0.25);
     } else {
-      const want = Math.atan2(dx, dz);
-      let diff = ((want - heading + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
-      heading += diff * Math.min(1, dt * 7);
-      const step = Math.min(d, SPEED * dt * Math.max(walkAmt, 0.15) * (Math.abs(diff) > 1.0 ? 0.3 : 1));
-      pos.x += Math.sin(heading) * step; pos.z += Math.cos(heading) * step;
-      moving = true;
+      const head = Math.atan2(dx, dz);
+      const diff = ((head - heading + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
+      const rate = (route.key ? 11 : vel < 0.3 ? 5.5 : 3.8) * dt;                  // stick/keys: snappy; click-to-walk: a planted pivot, then a gentler arc
+      heading += Math.sign(diff) * Math.min(Math.abs(diff), rate);
+      moveYaw = route.key ? head : heading;
+      want = SPEED * (route.brisk ? BRISK : 1) * (route.mag ?? 1);
+      if (!route.key) want *= THREE.MathUtils.clamp(1.25 - Math.abs(diff) / 1.1, 0.12, 1);          // ease off through a turn (click-to-walk only)
+      else if (Math.abs(diff) > 2.4) want *= 0.35;                                  // a hard reversal: a beat to turn round
+      if (!route.key && route.length === 1) want *= THREE.MathUtils.clamp(d / 0.85, 0.22, 1);   // settle onto the spot
     }
   }
-  walkAmt += ((moving ? 1 : 0) - walkAmt) * Math.min(1, dt * 5);
-  if (walkAmt > 0.02) phase += dt * (Math.PI * 2 * SPEED / STRIDE) * Math.max(walkAmt, 0.3);
-
+  const keyed = route.key || (!route.length && lastKeyed); lastKeyed = keyed;
+  vel += THREE.MathUtils.clamp(want - vel, -(keyed ? 7 : 3.2) * dt, (keyed ? 5 : 2.1) * dt);   // build up / bleed off (quicker under your thumb)
+  if (!route.length) moveYaw = heading;
+  let moving = false;
+  if (vel > 0.005) {
+    const step = vel * dt, nx = pos.x + Math.sin(moveYaw) * step, nz = pos.z + Math.cos(moveYaw) * step;
+    if (!S.blocked(nx, nz)) { pos.x = nx; pos.z = nz; }
+    else if (!S.blocked(nx, pos.z)) pos.x = nx;                                      // slide along walls
+    else if (!S.blocked(pos.x, nz)) pos.z = nz;
+    else vel = 0;
+    moving = true;
+  }
+  walkAmt += (Math.min(1.25, vel / SPEED) - walkAmt) * Math.min(1, dt * 8);
+  phase += dt * (Math.PI * 2 * vel / STRIDE) + (walkAmt > 0.02 && vel < 0.05 ? 0 : 0);
   pos.y += (S.groundY(pos.x, pos.z) - pos.y) * Math.min(1, dt * 10);
   man.position.copy(pos); man.rotation.y = heading;
 
@@ -4929,16 +5129,23 @@ function updateWalker(dt, now) {
   chest.rotation.y = -Math.sin(p) * 0.14 * a; chest.rotation.x = 0.06 * a;
   head.rotation.y = Math.sin(p) * 0.06 * a; head.rotation.x = 0.05 * a - 0.03;
   skirt.rotation.x = -0.08 * a + Math.sin(2 * p) * 0.03 * a;
+  // the detective's eye: his head turns to anything worth a look as he passes it (props, the people you can talk to)
+  let gy = 0;
+  if (S.props && !S.drive) { let best = 2.8; for (const pr of S.props) { pr.mesh.getWorldPosition(_gw); const dx = _gw.x - pos.x, dz = _gw.z - pos.z, d = Math.hypot(dx, dz);
+      if (d < best && d > 0.35) { const rel = ((Math.atan2(dx, dz) - heading + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI; if (Math.abs(rel) < 1.9) { best = d; gy = THREE.MathUtils.clamp(rel, -1.05, 1.05) * (1 - d / 2.8 * 0.4); } } } }
+  glance += (gy - glance) * Math.min(1, dt * 2.2);
+  neck.rotation.y = glance * 0.45; head.rotation.y += glance * 0.55;
 }
+const _gw = new THREE.Vector3(); let glance = 0;
 
 /* =========================================================
    Cameras
    ========================================================= */
-let camMode = 'over';
+let camMode = 'over'; const camLead = { x: 0, z: 0 }, _lp = new THREE.Vector3();
 const camPos = new THREE.Vector3(), camLook = new THREE.Vector3(), wantPos = new THREE.Vector3(), wantLook = new THREE.Vector3();
 function cameraTargets() {
   if (S.camTargets) { S.camTargets(camMode, wantPos, wantLook); return; }
-  if (camMode === 'over') S.overhead(pos, wantPos, wantLook);
+  if (camMode === 'over') { const k = Math.min(1, vel / SPEED) * 0.9; camLead.x += (Math.sin(heading) * k - camLead.x) * 0.03; camLead.z += (Math.cos(heading) * k - camLead.z) * 0.03; _lp.set(pos.x + camLead.x, pos.y, pos.z + camLead.z); S.overhead(_lp, wantPos, wantLook); }
   else {
     const fx = Math.sin(heading), fz = Math.cos(heading);
     // swing the camera around him until it isn't behind a wall
@@ -6150,6 +6357,7 @@ function loadScene(key, { instant = false, spawn = null } = {}) {
     currentKey = key;
     scene.add(S.group); scene.fog = S.fog; renderer.toneMappingExposure = S.exposure; Skyline.apply(S);
     if (!S.drive) Life.auto(S, key);
+    CaineModel.wantHat = key !== 'room212'; CaineModel.setHat && CaineModel.setHat(CaineModel.wantHat);   /* in 212 his hat is on the bed */
     S.onEnter && S.onEnter(); if (!S.drive) trip = null;
     nav = S._nav || (S._nav = buildNav(S));
     const st = (spawn && S.spawns && S.spawns[spawn]) || S.start;
@@ -6195,11 +6403,23 @@ function walkTo(e) {
   for (let it = 0; it < 2; it++) { const gy = S.groundY(hitPt.x, hitPt.z); if (Math.abs(gy) < 0.01) break; groundPlane.constant = -gy; ray.ray.intersectPlane(groundPlane, hitPt); groundPlane.constant = 0; }
   const portal = (S.portals || []).find(q => Math.hypot(q.x - hitPt.x, q.z - hitPt.z) < 0.9);
   const p = findPath(pos, portal ? new THREE.Vector3(portal.x, 0, portal.z) : hitPt); if (!p.length && !portal) return;
-  route = p; route.meta = null; route.portal = portal || null;
+  route = p; route.meta = null; route.portal = portal || null; route.brisk = !!(e.brisk || e.shiftKey || held.has('run')); if (!e.silent) Ripple.at(portal ? new THREE.Vector3(portal.x, 0, portal.z) : p[p.length - 1] || hitPt);
   if (portal && !p.length) { loadScene(portal.to, { spawn: portal.spawn }); return; } pause = 0; faceTarget = null; manualUntil = performance.now() / 1000 + 6;
   document.getElementById('hint').style.opacity = 0;
 }
-canvas.addEventListener('pointerdown', e => { if (e.pointerType !== 'touch') walkTo(e); });
+let lastClick = 0; const mouseHold = { on: false, x: 0, y: 0, t0: 0, last: 0 };
+canvas.addEventListener('pointerdown', e => { if (e.pointerType === 'touch' || e.button !== 0) return; const now = performance.now(), dbl = now - lastClick < 320; lastClick = now;
+  walkTo({ clientX: e.clientX, clientY: e.clientY, brisk: dbl, shiftKey: e.shiftKey }); Object.assign(mouseHold, { on: true, x: e.clientX, y: e.clientY, t0: now, last: now, brisk: dbl }); });
+addEventListener('pointermove', e => { if (mouseHold.on) { mouseHold.x = e.clientX; mouseHold.y = e.clientY; } });
+addEventListener('pointerup', () => { mouseHold.on = false; });
+/* hold the button down and he keeps walking toward the cursor: steer him by moving the mouse */
+function mouseSteer() { if (!mouseHold.on || !S || S.drive || S.onClick || loading || paused) return; const now = performance.now(); if (now - mouseHold.t0 < 260 || now - mouseHold.last < 140) return;
+  mouseHold.last = now; walkTo({ clientX: mouseHold.x, clientY: mouseHold.y, brisk: mouseHold.brisk, silent: true }); }
+/* a soft gold ring where you send him, fading as it spreads */
+const Ripple = (() => { const rings = [];
+  const mk = () => { const m = new THREE.Mesh(new THREE.RingGeometry(0.16, 0.2, 40), new THREE.MeshBasicMaterial({ color: 0xe8c070, transparent: true, opacity: 0, depthWrite: false, toneMapped: false })); m.rotation.x = -Math.PI / 2; m.renderOrder = 3; return m; };
+  return { at(p) { if (!p) return; const r = rings.find(q => q.t >= 1) || (rings.push({ m: mk(), t: 1 }), rings[rings.length - 1]); scene.add(r.m); r.m.position.set(p.x, S.groundY(p.x, p.z) + 0.02, p.z); r.t = 0; },
+    update(dt) { for (const r of rings) { if (r.t >= 1) { r.m.visible = false; continue; } r.t = Math.min(1, r.t + dt / 0.9); r.m.visible = true; r.m.scale.setScalar(0.7 + r.t * 1.6); r.m.material.opacity = (1 - r.t) * 0.75; } } }; })();
 const btnO = document.getElementById('camOver'), btnS = document.getElementById('camStreet'), btnP = document.getElementById('pauseBtn');
 btnO.onclick = () => { camMode = 'over'; setFov(); btnO.classList.add('on'); btnS.classList.remove('on'); syncCamToggle(); };
 btnS.onclick = () => { camMode = 'street'; setFov(); btnS.classList.add('on'); btnO.classList.remove('on'); syncCamToggle(); };
@@ -6265,8 +6485,10 @@ addEventListener('message', (e) => { const d = e.data; if (!d || !d.caineMap) re
       const go = () => { if (BUILDERS[d.enter] && d.enter !== currentKey) loadScene(d.enter, { instant: true }); cityMap.style.transition = 'none'; closeCityMap(true); requestAnimationFrame(() => cityMap.style.transition = ''); };
       if (d.fromHere) {   // the reel photographs where you're standing now, then runs you to the new place
         cityMap.style.transition = 'none'; closeCityMap(true); requestAnimationFrame(() => cityMap.style.transition = '');
-        Grade.render(scene, camera); const snap = renderer.domElement.toDataURL('image/jpeg', 0.86);
-        Reel.start(snap, () => { if (BUILDERS[d.enter] && d.enter !== currentKey) loadScene(d.enter, { instant: true }); });
+        const shoot = () => { Grade.render(scene, camera); const snap = renderer.domElement.toDataURL('image/jpeg', 0.86);
+          Reel.start(snap, () => { S.camTargets = was; if (BUILDERS[d.enter] && d.enter !== currentKey) loadScene(d.enter, { instant: true }); }); };
+        const was = S.camTargets;
+        if (S.drive) shoot(); else { const t0 = performance.now(); const wait = () => { const t = performance.now() - t0; if ((t > 500 && PhoneUI.shown < 0.02 && camPos.distanceTo(wantPos) < 0.2 && camLook.distanceTo(wantLook) < 0.2) || t > 3500) setTimeout(shoot, 250); else requestAnimationFrame(wait); }; requestAnimationFrame(wait); }   /* the phone goes back in his pocket and the camera settles back to its usual view of him: that's the frame the reel takes */
       } else if (d.snap) Reel.start(d.snap, go); else { Ink.start(); go(); }
     } });
 scenesBar.addEventListener('click', e => { if (e.target.tagName === 'BUTTON') { panel.classList.add('closed'); menuBtn.classList.remove('on'); } });
@@ -6385,6 +6607,8 @@ function driveChoice(dt) {
 // --- keyboard walking (overhead: camera-relative · over the shoulder: turn with left/right)
 const WALK_KEYS = { ArrowUp: 'u', KeyW: 'u', ArrowDown: 'd', KeyS: 'd', ArrowLeft: 'l', KeyA: 'l', ArrowRight: 'r', KeyD: 'r' };
 const held = new Set(); let portalCooldown = 0, portalArmed = false;   // a door only works once you've stepped clear of it
+addEventListener('keydown', e => { if (e.key === 'Shift') held.add('run'); });
+addEventListener('keyup', e => { if (e.key === 'Shift') held.delete('run'); });
 addEventListener('keydown', e => { const k = WALK_KEYS[e.code]; if (!k || !S || S.drive) return; e.preventDefault(); held.add(k); document.getElementById('hint').style.opacity = 0; });
 addEventListener('keyup', e => { const k = WALK_KEYS[e.code]; if (k) held.delete(k); });
 addEventListener('blur', () => held.clear());
@@ -6401,7 +6625,7 @@ canvas.addEventListener('pointermove', e => {
   const dx = e.clientX - joy.x0, dy = e.clientY - joy.y0, d = Math.hypot(dx, dy);
   if (!joy.on && d > 12 && !(S && S.drive)) { joy.on = true; joyEl.style.left = joy.x0 + 'px'; joyEl.style.top = joy.y0 + 'px'; joyEl.classList.add('on'); document.getElementById('hint').style.opacity = 0; }
   if (!joy.on) return;
-  const k = Math.min(1, d / 50), a = Math.atan2(dy, dx);
+  const k = Math.min(1, d / 50), a = Math.atan2(dy, dx); joy.far = d > 85; joyEl.classList.toggle('far', joy.far);
   joy.x = Math.cos(a) * k; joy.y = Math.sin(a) * k;
   knob.style.transform = `translate(${joy.x * 38}px, ${joy.y * 38}px)`;
 });
@@ -6413,19 +6637,25 @@ const joyEnd = e => {
 };
 canvas.addEventListener('pointerup', joyEnd); canvas.addEventListener('pointercancel', joyEnd);
 if (matchMedia('(pointer: coarse)').matches) document.getElementById('hint').textContent = 'Walk';
+const ctrl = { yaw: null, t: 0 };
 function keyWalk(dt) {
   portalCooldown = Math.max(0, portalCooldown - dt);
   if (!portalArmed && S && !loading && !(S.portals || []).some(q => Math.hypot(q.x - pos.x, q.z - pos.z) < 1.4)) portalArmed = true;
   if (!S || S.drive || loading || paused || (!held.size && !joy.on) || (typeof PhoneUI !== 'undefined' && PhoneUI.isOpen)) return;
   let f = (held.has('u') ? 1 : 0) - (held.has('d') ? 1 : 0), s = (held.has('r') ? 1 : 0) - (held.has('l') ? 1 : 0);
-  if (joy.on) { if (Math.hypot(joy.x, joy.y) < 0.2) { route = []; return; } f = -joy.y; s = joy.x; }
+  if (joy.on) { if (Math.hypot(joy.x, joy.y) < 0.15) { route = []; return; } f = -joy.y; s = joy.x; }
   let dx, dz;
   if (camMode === 'street') {
     heading -= s * 2.4 * dt; faceTarget = null;
     if (!f) { route = []; return; }
     dx = Math.sin(heading) * f; dz = Math.cos(heading) * f;
   } else {
-    const fw = new THREE.Vector3(); camera.getWorldDirection(fw); fw.y = 0; fw.normalize();
+    const fw = new THREE.Vector3(); camera.getWorldDirection(fw); const camYaw = Math.atan2(fw.x, fw.z);
+    /* the stick's "up" is fixed to where the camera faced when you started pushing, so a camera drifting round him can't bend your line;
+       it only catches up slowly while you keep walking */
+    const nowT = performance.now(); if (ctrl.yaw === null || nowT - ctrl.t > 250) ctrl.yaw = camYaw; ctrl.t = nowT;
+    ctrl.yaw += Math.atan2(Math.sin(camYaw - ctrl.yaw), Math.cos(camYaw - ctrl.yaw)) * Math.min(1, dt * 0.35);
+    fw.set(Math.sin(ctrl.yaw), 0, Math.cos(ctrl.yaw));
     const rt = new THREE.Vector3(-fw.z, 0, fw.x);
     dx = fw.x * f + rt.x * s; dz = fw.z * f + rt.z * s;
     const n = Math.hypot(dx, dz); if (!n) return; dx /= n; dz /= n;
@@ -6436,7 +6666,7 @@ function keyWalk(dt) {
     else if (!S.blocked(pos.x, tz)) route = [new THREE.Vector3(pos.x, 0, tz)];
     else { route = []; return; }
   } else route = [new THREE.Vector3(tx, 0, tz)];
-  route.meta = null; route.portal = null; pause = 0; manualUntil = performance.now() / 1000 + 6;
+  route.meta = null; route.portal = null; route.key = true; route.brisk = held.has('run'); route.mag = joy.on ? THREE.MathUtils.clamp((Math.hypot(joy.x, joy.y) - 0.15) / 0.55, 0.35, 1) * (joy.far ? BRISK : 1) : 1; pause = 0; manualUntil = performance.now() / 1000 + 6;
   if (camMode === 'street' && f < 0) faceTarget = null;
   const portal = portalArmed && !portalCooldown && (S.portals || []).find(q => Math.hypot(q.x - pos.x, q.z - pos.z) < 0.55);
   if (portal) { held.clear(); route = []; portalCooldown = 2; loadScene(portal.to, { spawn: portal.spawn }); }
@@ -7252,6 +7482,7 @@ function drawHudTo(g, W, t) {
     photos, saveRoll, poseCaine, povCamera, close: () => setOpen(false), toggle: () => setOpen(!open), mapHome: () => { if (ph.app === 'map') ph.app = 'home'; },
     openMap: () => { setOpen(true); ph.app = 'map'; ph.sel = APPS.indexOf('Map'); setTimeout(() => { if (ph.app === 'map' && open) openCityMap({ inPhone: true }); }, 450); },
     get mapOpen() { return open && ph.app === 'map'; },
+    get shown() { return Math.max(k, kp); },
     render(dt) {
       pt += dt; k += ((open ? 1 : 0) - k) * Math.min(1, dt * 8);
       updateProps(dt);
@@ -7804,9 +8035,10 @@ const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.05), now = performance.now() / 1000;
   Calm.update(dt, now); Ambience.update(dt);
-  keyWalk(dt); driveChoice(dt);
+  keyWalk(dt); mouseSteer(); Ripple.update(dt); driveChoice(dt);
   if (!paused) { if (!S.drive) updateWalker(dt, now); S.update && S.update(dt, now); Life.update(S.group, dt, now); Pigeons.update(dt, now); Skyline.update(S, dt); }
   PhoneUI.poseCaine();
+  SkinRig.update();
   updateCamera(dt);
   Vista.cam(dt, now);
   Dialogue.cam(dt);
