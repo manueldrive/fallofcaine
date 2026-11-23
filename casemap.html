@@ -267,6 +267,7 @@ const STOPS = [
   { id: 'alley', scene: 'alley', where: 'OLD TOWN', name: 'The Alley', t: at(395, 470), yaw: -1.2, pitch: 0.7, dist: 130, cap: ['TUESDAY. 11:40 P.M.', 'A KID IN A PURPLE HOODIE RAN. TWO WHITE MASKS RAN AFTER HIM.'], art: 'alley' },
   { id: 'malecon', scene: 'malecon', where: 'ISLA LUZ', name: 'El Malecón', t: at(790, 400), yaw: 1.25, pitch: 0.55, dist: 210, cap: ['THE BARRIO STACKS UP THE HILL LIKE A HAND OF CARDS.', 'EVERYBODY UP THERE SAW SOMETHING. NOBODY SAYS SO.'], art: 'malecon' },
   { id: 'warehouse', scene: 'warehouse', where: 'ISLA LUZ', name: 'The Warehouse', t: at(826, 655), yaw: 0.5, pitch: 0.65, dist: 160, cap: ['BERNARD WORKS THESE DOCKS.', 'OR HE DID, TILL TUESDAY.'], art: 'warehouse' },
+  { id: 'fort', scene: 'fort', where: 'ISLA LUZ', name: 'El Morro', t: at(784, 152, 8), yaw: 2.2, pitch: 0.5, dist: 190, cap: ['FOUR HUNDRED YEARS OF WATCHING FOR SHIPS.', 'TONIGHT IT WATCHES THE SUN GO DOWN ON A CROOKED TOWN.'], art: 'fort' },
   { id: 'cemetery', scene: 'cemetery', where: 'ISLA LUZ', name: 'The Cemetery', t: at(830, 130), yaw: 2.6, pitch: 0.55, dist: 170, cap: ['THE DEAD GET THE BEST VIEW IN COQUINA CITY.', 'OLD TOWN ACROSS THE WATER, PRETENDING IT DIDN\'T SEE A THING.'], art: 'cemetery' },
 ];
 const OVER = { t: new THREE.Vector3(10, 0, 0), yaw: 0.15, pitch: 0.95, dist: 640 };
@@ -280,14 +281,16 @@ const here = location.hash.slice(1), hereStop = STOPS.findIndex(s => s.scene ===
 const labelsEl = $('labels');
 const DISTRICTS = [{ name: 'Old Town', p: new THREE.Vector3(-190, 2, 130) }, { name: 'Isla Luz', p: new THREE.Vector3(175, 4, 178) }, { name: 'Ánimas Bay', p: new THREE.Vector3(14, 0.3, -125) }];
 DISTRICTS.forEach(d => { d.el = document.createElement('div'); d.el.className = 'district'; d.el.textContent = d.name; labelsEl.appendChild(d.el); });
+const TRANS = 'here';   // the reel shoots where you're standing; the map never dives
 let hover = -1, mode = 'map', diveI = -1, diveT = 0, sent = false, d0 = null, wantSnap = null;
 STOPS.forEach((s, i) => {
   const el = document.createElement('button'); el.className = 'place' + (s.scene ? '' : ' soon') + (i === hereStop ? ' here' : '');
   el.innerHTML = `<b>${s.name}</b>` + (i === hereStop ? '<small>you are here</small>' : !s.scene ? '<small>not built yet</small>' : '');
   el.onclick = () => dive(i); el.onpointerenter = () => hover = i; el.onpointerleave = () => hover = -1; labelsEl.appendChild(el); s.el = el;
-  s.anchor = s.t.clone().add(new THREE.Vector3(0, s.id === 'skyway' ? 4 : 5, 0)); s.ground = (s.id === 'cemetery' ? at(818, 134) : s.t.clone()).setY(s.t.y - 1.5);
+  s.anchor = s.t.clone().add(new THREE.Vector3(0, s.id === 'skyway' ? 4 : s.id === 'fort' ? 75 : 5, 0)); s.ground = (s.id === 'cemetery' ? at(818, 134) : s.t.clone()).setY(s.t.y - 1.5);
 });
-if (EMB) { $('closeBtn').hidden = false; $('closeBtn').onclick = () => toGame({ close: true }); addEventListener('keydown', (e) => { if (e.key === 'Escape') toGame({ close: true }); }); }
+addEventListener('message', (e) => { if (e.data && e.data.caineMapFromPhone) $('closeBtn').textContent = '✕ BACK TO THE PHONE'; });
+if (EMB) {  $('closeBtn').hidden = false; if (innerWidth < 700) $('closeBtn').textContent = '✕'; $('closeBtn').onclick = () => toGame({ close: true }); addEventListener('keydown', (e) => { if (e.key === 'Escape') toGame({ close: true }); }); }
 
 /* ---------------- camera: always the whole city; a tap dives straight down into the place ---------------- */
 const cam = { t: OVER.t.clone(), yaw: OVER.yaw, pitch: OVER.pitch, dist: 900 };
@@ -296,6 +299,7 @@ const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
 function dive(i) {
   const s = STOPS[i]; if (mode !== 'map') return;
   if (!s.scene) { s.el.classList.remove('nope'); void s.el.offsetWidth; s.el.classList.add('nope'); return; }
+  if (EMB && TRANS === 'here') { if (dive.busy) return; dive.busy = true; toGame({ enter: s.scene, fromHere: true }); setTimeout(() => { dive.busy = false; }, 1200); return; }   // the reel shoots the scene you're in, no dive
   mode = 'dive'; diveI = i; diveT = 0; sent = false; d0 = { t: cam.t.clone(), yaw: cam.yaw + look.yaw, pitch: cam.pitch + look.pitch, dist: cam.dist };
   look.yaw = look.pitch = lookT.yaw = lookT.pitch = 0; document.body.classList.add('diving');
 }
@@ -359,6 +363,13 @@ function drawPanel(s) {
     g.fillStyle = P; g.beginPath(); g.moveTo(760, 470); g.lineTo(1200, 300); g.lineTo(1200, 720); g.lineTo(1050, 720); g.closePath(); g.globalAlpha = 0.85; g.fill(); g.globalAlpha = 1; dots(800, 300, 400, 420, () => 0.15, (gr ? '#8e9194' : '#9a8e76'), 8);
     for (const [x, y, w, h] of [[880, 560, 160, 120], [1050, 590, 120, 90], [960, 470, 110, 90]]) { g.fillStyle = K; g.fillRect(x, y, w, h); g.strokeStyle = (gr ? '#3c3f42' : '#3a3229'); g.lineWidth = 4; g.strokeRect(x + 8, y + 8, w - 16, h - 16); }
     g.fillStyle = K; g.fillRect(0, 660, Wd, 60); caine(700, 690, 1.1);
+  } else if (A === 'fort') {
+    g.fillStyle = P; g.beginPath(); g.arc(640, 400, 90, Math.PI, 0); g.fill(); for (let i = 0; i < 9; i++) { g.fillRect(560 - i * 20, 410 + i * 14, 160 + i * 40, 4); }
+    g.fillStyle = (gr ? '#2a2c2e' : '#2a241d'); g.fillRect(0, 400, Wd, 8); g.fillRect(140, 250, 26, 150); g.fillRect(128, 236, 50, 14); g.fillRect(1020, 340, 300, 60);
+    g.fillStyle = K; g.beginPath(); g.moveTo(0, 720); g.lineTo(0, 520); g.lineTo(780, 520); g.lineTo(1000, 600); g.lineTo(1000, 720); g.fill();
+    for (let x = 20; x < 760; x += 120) g.fillRect(x, 486, 70, 40);
+    g.fillRect(900, 520, 70, 90); g.beginPath(); g.moveTo(880, 520); g.lineTo(990, 520); g.lineTo(935, 470); g.fill(); g.beginPath(); g.arc(935, 462, 10, 0, 7); g.fill();
+    caine(420, 640, 1.0);
   } else if (A === 'cemetery') {
     g.fillStyle = P; g.beginPath(); g.arc(600, 330, 70, 0, 7); g.fill();
     g.fillStyle = (gr ? '#2a2c2e' : '#2a241d'); g.beginPath(); g.moveTo(0, 300); g.lineTo(420, 290); g.lineTo(440, 250); g.lineTo(520, 250); g.lineTo(540, 300); g.lineTo(0, 330); g.fill(); g.beginPath(); g.ellipse(470, 238, 18, 22, 0, Math.PI, 0); g.fill(); g.fillRect(452, 238, 36, 20);
