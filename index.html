@@ -59,6 +59,9 @@
   #panel.closed { opacity: 0; transform: translateY(6px); pointer-events: none; }
   #panel .ideaLink { flex: 1 1 auto; display: block; text-align: center; color: #e2b23a; border: 1px solid #555; padding: 8px 10px; text-decoration: none; font: 15px 'Bebas Neue', Impact, sans-serif; letter-spacing: .2em; }
   #panel .ideaLink:hover { border-color: #e2b23a; }
+  #panel button.ideaLink { background: none; cursor: pointer; }
+  #freeTag { position: fixed; left: 50%; bottom: 70px; transform: translateX(-50%); z-index: 6; background: rgba(0,0,0,.72); color: #e2b23a; border: 1px solid #e2b23a; padding: 6px 12px; font: 12px 'Bebas Neue', Impact, sans-serif; letter-spacing: .22em; white-space: nowrap; pointer-events: none; }
+  #freeX { position: fixed; right: 14px; top: 12px; z-index: 6; background: rgba(0,0,0,.72); color: #e2b23a; border: 1px solid #e2b23a; font: 14px 'Bebas Neue', Impact, sans-serif; letter-spacing: .2em; padding: 6px 12px; }
   #phoneBtn { width: 40px; height: 40px; padding: 0; display: grid; place-items: center; background: rgba(0,0,0,.55); border: 1px solid #666; color: #ddd; cursor: pointer; }
   #phoneBtn:hover, #phoneBtn.on { border-color: #e2b23a; color: #f4d27a; }
   #phoneBtn svg { width: 22px; height: 22px; }
@@ -180,7 +183,9 @@
     <button id="pauseBtn">Pause</button>
   </div>
   <div id="devSec" hidden><h4>Dev</h4>
-  <div class="bar"><a class="ideaLink" href="mocks/handheld/" target="_blank" rel="noopener">Dev mode ↗</a></div></div>
+  <div class="bar"><a class="ideaLink" href="mocks/handheld/" target="_blank" rel="noopener">Dev mode ↗</a></div>
+  <div class="bar"><button id="devLook" class="ideaLink">Characters: model</button><button id="devFree" class="ideaLink">Free camera</button></div></div>
+  <div id="freeTag" hidden>FREE CAMERA · drag to look · WASD move · Q/E down/up · Shift fast · Esc exits</div>
   <h4 id="moodsH">Mood</h4>
   <div class="bar"><span id="moods" style="display:contents"></span></div>
   <h4 id="optsH" hidden></h4>
@@ -3721,9 +3726,9 @@ function buildFort() {
       const inT = pos.x > TW0 - 0.5 && pos.x < TW1 + 0.5 && pos.z > -13.4 && pos.z < TZ1 + 1.2;
       if (inT && pos.z < TZ0 - 1.0) { outPos.set(TC + 0.3, LOW + 1.5, TZ0 + 2.6); outLook.set(TC + 0.05, LOW + 1.4, TZ0 - 8); return; }   // well out on the ledge: from inside, him framed in the gate arch
       if (inT) { outPos.set(TC + 0.25, LOW + 1.65, Math.min(pos.z + 3.4, TZ1 + 2.2)); outLook.set(TC, LOW + 1.2, pos.z - 3); return; }        // in the tunnel: low and close behind him
-      if (pos.y < -1 && pos.z > 8.6) { outPos.set(pos.x + 2.2, pos.y + 3.4, pos.z - 5.2); outLook.set(pos.x, pos.y + 1.1, pos.z + 2.5); return; }   // on the grass: over his shoulder, the cemetery beyond him
+      if (pos.y < -1 && pos.z > 8.6) { outPos.set(pos.x + 3.0, pos.y + 6.5, pos.z + 6.5); outLook.set(pos.x, pos.y + 0.5, pos.z - 1.5); return; }   // on the grass: high from the cemetery side, the fort's walls rising behind him
       if (pos.x < -12) { outPos.set(-12.9, pos.y + 2.9, Math.min(pos.z + 5, 7.2)); outLook.set(-13.9, pos.y + 0.6, pos.z - 3); return; }   // down in the ramp's trench
-      outPos.set(pos.x * 0.4 + 1.5, 5.2, pos.z + 10); outLook.set(pos.x * 0.6, 1.2, pos.z - 10);
+      outPos.set(pos.x * 0.55 + 2.5, 8.6, pos.z + 9.5); outLook.set(pos.x * 0.75, 0.2, pos.z - 9);   /* high and back, like the other sets: the deck laid out below him, the sea and the sunset across the top of the frame */
     },
     camOK(v) { if (v.x > TW0 - 0.2 && v.x < TW1 + 0.2 && v.z > TZ0 - 0.8 && v.z < TZ1) return v.x > TX0 + 0.2 && v.x < TX1 - 0.2 && v.y < LOW + 2.6; return true; },
     camClamp(v) { if (pos.x > TW0 - 0.5 && pos.x < TW1 + 0.5 && pos.z < TZ0 - 1.0 && pos.z > -13.4) { v.set(TC + 0.15, LOW + 1.5, TZ0 + 2.6); return; }
@@ -4048,6 +4053,9 @@ function buildHotel({ beam = true } = {}) {
     for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2, b = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), sconceM); b.position.set(Math.cos(a), 0.08, Math.sin(a)); chand.add(b); }
     const chain = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, TOP - F3 - 1.6, 4), ironM); chain.position.y = (TOP - F3 - 1.6) / 2; chand.add(chain); group.add(chand); }
   const hotelCam = { a: null, D: 3.8 };
+  const dinoBits = [];   /* the skeleton as a string of spheres, for the camera's line-of-sight test */
+  { dino.updateMatrixWorld(true); const bb = new THREE.Box3(), c = new THREE.Vector3();
+    dino.traverse(o => { if (o.isMesh) { o.geometry.computeBoundingSphere(); const sp = o.geometry.boundingSphere; c.copy(sp.center).applyMatrix4(o.matrixWorld); const r = sp.radius * o.matrixWorld.getMaxScaleOnAxis(); if (r > 0.12 && c.y > 1.2) dinoBits.push({ x: c.x, y: c.y, z: c.z, r: Math.min(r, 1.2) + 0.2 }); } }); }
   const cpulse = portalMarker(group, 0, WZ - 0.8), spulse = portalMarker(group, (STX0 + STX1) / 2, STZ1 + 0.65);
 
   return {
@@ -4077,18 +4085,25 @@ function buildHotel({ beam = true } = {}) {
       { p: [4.8, -3.8], wait: 2.5, face: -Math.PI * 0.6 },      // the tail
       { p: [5.0, 4.4], wait: 2, face: Math.PI },
     ],
-    overhead(pos, outPos, outLook) {   // a step behind him at chest height, looking in toward the skeleton; closes in and rises before it swings round a wall
-      const base = Math.atan2(pos.x, pos.z), lim = WX - 0.7;
-      const ok = (a, D) => { const x = pos.x + Math.sin(a) * D, z = pos.z + Math.cos(a) * D; if (!(Math.abs(x) < lim && Math.abs(z) < lim && !(x > STX0 - 0.3 && z > STZ0 - 0.5 && z < STZ1 + 0.3) && !onPlinth(x, z, 0.3))) return false;
-        for (const f of [0.35, 0.65, 1]) { const px = pos.x + Math.sin(a) * D * f, pz = pos.z + Math.cos(a) * D * f; for (const [cx, cz] of colAt) if (Math.hypot(px - cx, pz - cz) < 0.95) return false; } return true; };
-      let a = hotelCam.a, D = hotelCam.D;
-      if (a === null || !ok(a, D)) { a = null;
-        for (let k = 0; k <= 9 && a === null; k++) for (const sg of k ? [1, -1] : [1]) { for (const d of [3.8, 3.2, 2.6]) if (ok(base + sg * k * 0.35, d)) { a = base + sg * k * 0.35; D = d; break; } if (a !== null) break; }
-        if (a === null) { a = base + Math.PI; D = 2.6; } }
-      else { const d = Math.atan2(Math.sin(base - a), Math.cos(base - a)); if (Math.abs(d) > 0.05 && ok(a + Math.sign(d) * 0.02, D)) a += Math.sign(d) * Math.min(Math.abs(d), 0.02); if (D < 3.8 && ok(a, D + 0.02)) D += 0.02; }
-      hotelCam.a = a; hotelCam.D = D; const lift = (3.8 - D) * 0.7;
-      outPos.set(pos.x + Math.sin(a) * D, 1.75 + lift, pos.z + Math.cos(a) * D);
-      outLook.set(pos.x - Math.sin(a) * 4, 1.05 - lift * 0.5, pos.z - Math.cos(a) * 4);
+    overhead(pos, outPos, outLook) {   /* high in the atrium, round the well from him: the whole lobby, the skeleton and the galleries laid out below,
+                                          him walking through it. It picks a spot with a clear line to him (no gallery floor, no skeleton, no pillar in the way) and holds it while it can */
+      const lim = WELL - 0.35, Y = F3 + 1.4, base = Math.atan2(pos.x, pos.z);
+      const camAt = (a, v) => v.set(THREE.MathUtils.clamp(Math.sin(a) * 7.5, -lim, lim), Y, THREE.MathUtils.clamp(Math.cos(a) * 7.5, -lim, lim));
+      const clear = (c) => { for (let k = 1; k < 24; k++) { const t = k / 24, x = c.x + (pos.x - c.x) * t, y = c.y + (pos.y + 1.2 - c.y) * t, z = c.z + (pos.z - c.z) * t;
+          if ((Math.abs(x) > WELL - 0.1 || Math.abs(z) > WELL - 0.1) && y > F2 - 0.4) return false;            // under a gallery floor
+          if (y < 6.5 && onPlinth(x, z, 0.5)) return false;                                                    // through the skeleton
+          if (x > STX0 - 0.2 && z > STZ0 - 0.2 && z < STZ1 + 0.2 && y < F2 + 0.6) return false;                 // the grand stair
+          if (dinoBits.some(b => Math.hypot(x - b.x, y - b.y, z - b.z) < b.r)) return false;                    // its skull, its neck
+          for (const [cx, cz] of colAt) if (Math.hypot(x - cx, z - cz) < 0.45) return false; }                 // a pillar
+        return true; };
+      const v = hotelCam.v || (hotelCam.v = new THREE.Vector3());
+      if (hotelCam.off === undefined || !clear(camAt((hotelCam.a ?? base) + hotelCam.off, v))) {
+        let found = null; for (const o of [1.45, -1.45, 2.1, -2.1, 0.9, -0.9, 2.7, -2.7, Math.PI]) if (clear(camAt(base + o, v))) { found = o; break; }
+        hotelCam.off = found ?? 1.45; hotelCam.a = base;
+      }
+      hotelCam.a = (hotelCam.a ?? base); hotelCam.a += Math.atan2(Math.sin(base - hotelCam.a), Math.cos(base - hotelCam.a)) * 0.02;
+      camAt(hotelCam.a + hotelCam.off, outPos);
+      outLook.set(pos.x * 0.92, 0.7, pos.z * 0.92);
     },
     camOK(v) { return Math.abs(v.x) < WX - 0.4 && Math.abs(v.z) < WZ - 0.4 && v.y < TOP; },
     camClamp(v) { v.x = THREE.MathUtils.clamp(v.x, -WX + 0.5, WX - 0.5); v.z = THREE.MathUtils.clamp(v.z, -WZ + 0.5, WZ - 0.5); v.y = Math.min(v.y, F2 - 0.8); },
@@ -4920,7 +4935,7 @@ const SkinRig = (() => {
   const tl = new THREE.TextureLoader(), texCache = {};
   const tex = (u, srgb) => { if (!texCache[u]) { const t = tl.load(u); t.flipY = false; if (srgb) t.colorSpace = THREE.SRGBColorSpace; texCache[u] = t; } return texCache[u]; };
   function attach(R, o) {
-    const root = R.root, S = { root, model: null, B: {}, restQ: {}, restDir: {}, off: {}, ok: false };
+    const root = R.root, S = { root, moved: [], model: null, B: {}, restQ: {}, restDir: {}, off: {}, ok: false };
     const mInv = new THREE.Quaternion(), tq = new THREE.Quaternion(), pq = new THREE.Quaternion(), v1 = new THREE.Vector3(), v2 = new THREE.Vector3(), d = new THREE.Vector3();
     const relQ = (ob, out) => ob.getWorldQuaternion(out).premultiply(mInv), relP = (ob, out) => root.worldToLocal(ob.getWorldPosition(out));
     const LIMBS = [['DEF-DEF_thighL', R.legL.hip, R.legL.knee], ['DEF-DEF_shinL', R.legL.knee, R.legL.ankle], ['DEF-DEF_thighR', R.legR.hip, R.legR.knee], ['DEF-DEF_shinR', R.legR.knee, R.legR.ankle],
@@ -4939,11 +4954,11 @@ const SkinRig = (() => {
       // anything hung on the puppet's head that isn't the puppet itself moves onto the model's head
       const HB = B['DEF-DEF_spine005'];
       if (HB && o.headCenter) { const hc = root.worldToLocal(R.head.localToWorld(new THREE.Vector3(0, 0.02, 0.008))), dl = o.headCenter.clone().sub(hc);
-        for (const c of [...R.head.children]) if (!c.userData.fig && !c.isGroup) { root.attach(c); c.position.add(dl); root.updateMatrixWorld(true); HB.attach(c); } }
+        for (const c of [...R.head.children]) if (!c.userData.fig && !c.isGroup) { const from = { p: R.head, pos: c.position.clone(), q: c.quaternion.clone() }; root.attach(c); c.position.add(dl); root.updateMatrixWorld(true); HB.attach(c); S.moved.push({ o: c, from, to: { p: HB, pos: c.position.clone(), q: c.quaternion.clone() } }); } }
       o.onLoad && o.onLoad(S, model, B);
       for (const [j, q, p] of saved) { j.quaternion.copy(q); j.position.copy(p); }
       root.traverse(c => { if (c.isMesh && c.userData.fig && !inModel(c)) c.visible = false; });
-      S.ok = true;
+      S.ok = true; if (SkinRig.classic) SkinRig.applyLook(S);
     }, undefined, (e) => console.warn('model failed to load; keeping the figure', e)));
     const aim = (n, from, to) => { const b = S.B[n]; if (!b || !S.restDir[n]) return; relP(from, v1); relP(to, v2); d.subVectors(v2, v1).normalize();
       tq.setFromUnitVectors(S.restDir[n].clone().applyQuaternion(S.restQ[n]), d).multiply(S.restQ[n]); relQ(b.parent, pq); b.quaternion.copy(pq.invert().multiply(tq)); b.updateMatrixWorld(true); };
@@ -4960,12 +4975,19 @@ const SkinRig = (() => {
   }
   const live = (S) => { let p = S.root; while (p.parent) p = p.parent; return p === scene; };
   const update = () => { for (const S of all) if (live(S)) S.update(); };
-  return { attach, update, all };
+  /* dev: show the old built-from-shapes figures instead of the models */
+  let classic = false;
+  const applyLook = (S) => { if (!S.ok) return; S.model.visible = !classic;
+    const inM = (ob) => { for (let p = ob; p; p = p.parent) if (p === S.model) return true; return false; };
+    S.root.traverse(c => { if (c.isMesh && c.userData.fig && !inM(c)) c.visible = classic; });
+    for (const m of S.moved) { const t = classic ? m.from : m.to; if (!t) continue; t.p.add(m.o); m.o.position.copy(t.pos); m.o.quaternion.copy(t.q); } };
+  const setClassic = (on) => { classic = on; for (const S of all) applyLook(S); };
+  return { attach, update, all, setClassic, applyLook, get classic() { return classic; } };
 })();
 const CaineModel = SkinRig.attach(CAINE, { url: 'det/detective.json', base: 'det/caine_base.jpg', onLoad(S, model, B) {
   // the fedora, fitted to his head: band just above the ears, set back over the hair, brim tipped down in front
   const hat = CAINE.root.userData.hat;
-  if (hat && B['DEF-DEF_spine005']) { model.add(hat); hat.position.set(0, 1.738, -0.028); hat.rotation.set(-0.1, 0, 0); hat.updateMatrixWorld(true);
+  if (hat && B['DEF-DEF_spine005']) { const from = { p: hat.parent, pos: hat.position.clone(), q: hat.quaternion.clone() }; S.moved.push({ o: hat, from, to: null }); model.add(hat); hat.position.set(0, 1.738, -0.028); hat.rotation.set(-0.1, 0, 0); hat.updateMatrixWorld(true);
     /* "hat hair": the skull under the crown is tucked in so nothing pokes through the felt, and the hat keeps its shape */
     S.afterFirst = () => {
     let skin = null; model.traverse(c => { if (c.isSkinnedMesh) skin = c; });
@@ -4997,7 +5019,7 @@ const CaineModel = SkinRig.attach(CAINE, { url: 'det/detective.json', base: 'det
       S.setHat(S.wantHat !== false);
     }
     };
-    B['DEF-DEF_spine005'].attach(hat); }
+    B['DEF-DEF_spine005'].attach(hat); S.moved[S.moved.length - 1].to = { p: B['DEF-DEF_spine005'], pos: hat.position.clone(), q: hat.quaternion.clone() }; }
 } });
 
 
@@ -5159,6 +5181,7 @@ function cameraTargets() {
   }
 }
 function updateCamera(dt, snap = false) {
+  if (typeof FreeCam !== 'undefined' && FreeCam.on) { FreeCam.update(dt); return; }
   cameraTargets();
   // calm camera (after Luma): a slow critically-damped follow, the look trailing a touch behind, and a faint breathing drift
   const kp = snap || S.camTargets ? 1 : 1 - Math.exp(-dt * 1.6), kl = snap || S.camTargets ? 1 : 1 - Math.exp(-dt * 2.0);
@@ -6396,6 +6419,7 @@ for (const [key, label] of [['doorway', 'The Doorway'], ['alley', 'The Alley'], 
    ========================================================= */
 const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), hitPt = new THREE.Vector3();
 function walkTo(e) {
+  if (typeof FreeCam !== 'undefined' && FreeCam.on) return;
   if (S.onClick) { S.onClick(e); return; }
   ndc.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
   ray.setFromCamera(ndc, camera);
@@ -6604,6 +6628,44 @@ function driveChoice(dt) {
   });
 }
 
+// --- dev: free camera (wander a set without Caine) and the old/new character look
+const FreeCam = (() => {
+  const st = { on: false, yaw: 0, pitch: -0.3, p: new THREE.Vector3(), keys: new Set(), drag: null, touches: new Map() };
+  const tag = document.getElementById('freeTag'), btn = document.getElementById('devFree'); document.body.appendChild(tag); if (matchMedia('(pointer: coarse)').matches) tag.textContent = 'FREE CAMERA · left thumb moves · right thumb looks';
+  const x = document.createElement('button'); x.id = 'freeX'; x.textContent = 'Exit free camera'; x.hidden = true; document.body.appendChild(x); x.onclick = () => set(false);
+  function set(on) {
+    st.on = on; tag.hidden = !on; x.hidden = !on; btn.textContent = on ? 'Free camera: on' : 'Free camera';
+    man.visible = !on; route = []; held.clear();
+    if (on) { st.p.copy(camera.position); const d = new THREE.Vector3(); camera.getWorldDirection(d); st.yaw = Math.atan2(d.x, d.z); st.pitch = Math.asin(THREE.MathUtils.clamp(d.y, -1, 1));
+      panel.classList.add('closed'); menuBtn.classList.remove('on'); camera.far = Math.max(camera.far, 400); camera.updateProjectionMatrix(); }
+    else { camPos.copy(camera.position); }
+  }
+  const K = { KeyW: 'f', ArrowUp: 'f', KeyS: 'b', ArrowDown: 'b', KeyA: 'l', ArrowLeft: 'l', KeyD: 'r', ArrowRight: 'r', KeyE: 'u', Space: 'u', KeyQ: 'd', KeyC: 'd' };
+  addEventListener('keydown', e => { if (!st.on) return; if (e.code === 'Escape') { set(false); return; } const k = K[e.code]; if (k) { st.keys.add(k); e.preventDefault(); e.stopImmediatePropagation(); } if (e.key === 'Shift') st.keys.add('fast'); }, true);
+  addEventListener('keyup', e => { const k = K[e.code]; if (k) st.keys.delete(k); if (e.key === 'Shift') st.keys.delete('fast'); }, true);
+  // mouse: drag to look, wheel to glide forward/back. touch: left half of the screen moves, right half looks
+  canvas.addEventListener('pointerdown', e => { if (!st.on) return; e.stopImmediatePropagation(); try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+    st.touches.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, move: e.pointerType === 'touch' && e.clientX < innerWidth / 2 }); }, true);
+  canvas.addEventListener('pointermove', e => { const t = st.touches.get(e.pointerId); if (!st.on || !t) return; e.stopImmediatePropagation();
+    if (!t.move) { st.yaw -= (e.clientX - t.x) * 0.004; st.pitch = THREE.MathUtils.clamp(st.pitch - (e.clientY - t.y) * 0.004, -1.5, 1.5); }
+    t.x = e.clientX; t.y = e.clientY; }, true);
+  const up = e => { if (st.touches.delete(e.pointerId) && st.on) e.stopImmediatePropagation(); };
+  canvas.addEventListener('pointerup', up, true); canvas.addEventListener('pointercancel', up, true);
+  canvas.addEventListener('wheel', e => { if (!st.on) return; e.preventDefault(); const f = new THREE.Vector3(Math.sin(st.yaw) * Math.cos(st.pitch), Math.sin(st.pitch), Math.cos(st.yaw) * Math.cos(st.pitch)); st.p.addScaledVector(f, -e.deltaY * 0.01); }, { passive: false });
+  function update(dt) {
+    const f = new THREE.Vector3(Math.sin(st.yaw) * Math.cos(st.pitch), Math.sin(st.pitch), Math.cos(st.yaw) * Math.cos(st.pitch)), r = new THREE.Vector3(-Math.cos(st.yaw), 0, Math.sin(st.yaw));
+    const v = (st.keys.has('fast') ? 9 : 3) * dt, k = st.keys;
+    if (k.has('f')) st.p.addScaledVector(f, v); if (k.has('b')) st.p.addScaledVector(f, -v);
+    if (k.has('r')) st.p.addScaledVector(r, -v); if (k.has('l')) st.p.addScaledVector(r, v);
+    if (k.has('u')) st.p.y += v; if (k.has('d')) st.p.y -= v;
+    for (const t of st.touches.values()) if (t.move) { const dx = (t.x - t.x0) / 60, dy = (t.y - t.y0) / 60; st.p.addScaledVector(f, -THREE.MathUtils.clamp(dy, -1.5, 1.5) * 3 * dt); st.p.addScaledVector(r, -THREE.MathUtils.clamp(dx, -1.5, 1.5) * 3 * dt); }
+    camera.position.copy(st.p); camera.lookAt(st.p.x + f.x, st.p.y + f.y, st.p.z + f.z);
+  }
+  btn.onclick = () => set(!st.on);
+  return { get on() { return st.on; }, set, update };
+})();
+{ const b = document.getElementById('devLook'); b.onclick = () => { SkinRig.setClassic(!SkinRig.classic); b.textContent = SkinRig.classic ? 'Characters: classic' : 'Characters: model'; }; }
+
 // --- keyboard walking (overhead: camera-relative · over the shoulder: turn with left/right)
 const WALK_KEYS = { ArrowUp: 'u', KeyW: 'u', ArrowDown: 'd', KeyS: 'd', ArrowLeft: 'l', KeyA: 'l', ArrowRight: 'r', KeyD: 'r' };
 const held = new Set(); let portalCooldown = 0, portalArmed = false;   // a door only works once you've stepped clear of it
@@ -6639,6 +6701,7 @@ canvas.addEventListener('pointerup', joyEnd); canvas.addEventListener('pointerca
 if (matchMedia('(pointer: coarse)').matches) document.getElementById('hint').textContent = 'Walk';
 const ctrl = { yaw: null, t: 0 };
 function keyWalk(dt) {
+  if (typeof FreeCam !== 'undefined' && FreeCam.on) return;
   portalCooldown = Math.max(0, portalCooldown - dt);
   if (!portalArmed && S && !loading && !(S.portals || []).some(q => Math.hypot(q.x - pos.x, q.z - pos.z) < 1.4)) portalArmed = true;
   if (!S || S.drive || loading || paused || (!held.size && !joy.on) || (typeof PhoneUI !== 'undefined' && PhoneUI.isOpen)) return;
