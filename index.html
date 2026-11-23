@@ -3280,7 +3280,7 @@ function buildCemetery() {
       for (let x = x0 + 0.8; x < x1 - 0.5; x += 2.2) { const m = add(new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.45, 0.8), cq)); m.position.set(x, 2.6, wz); } }
     for (const sx of [-1, 1]) { const p = Dress.pier({ w: 0.7, h: 2.8, tone: 'gray', wash: false }); p.position.set(GX + sx * (GW - 0.1), 0, wz); group.add(p); }
     { const iron2 = mat({ color: 0x151515, roughness: .5, metalness: .6 }); const ar = new THREE.Mesh(new THREE.TorusGeometry(GW - 0.1, 0.035, 6, 20, Math.PI), iron2); ar.position.set(GX, 3.2, wz); group.add(ar);
-      const sign = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.4), new THREE.MeshStandardMaterial({ map: canvasTex(256, (q, s2) => { q.fillStyle = '#1a1a1a'; q.fillRect(0, 0, s2, s2); q.fillStyle = '#e8dcc0'; q.font = 'bold 50px Georgia, serif'; q.textAlign = 'center'; q.textBaseline = 'middle'; q.fillText('EL MORRO', s2 / 2, s2 / 2); }), roughness: .6 }));
+      const sign = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.4), new THREE.MeshStandardMaterial({ map: canvasTex(256, (q, s2) => { q.fillStyle = '#1a1a1a'; q.fillRect(0, 0, s2, s2); q.fillStyle = '#e8dcc0'; q.font = 'bold 26px Georgia, serif'; q.textAlign = 'center'; q.textBaseline = 'middle'; q.fillText('CASTILLO COQUINA', s2 / 2, s2 / 2); }), roughness: .6 }));
       sign.material.map.repeat.set(1, 0.25); sign.material.map.offset.set(0, 0.375); sign.position.set(GX, 3.75, wz + 0.05); group.add(sign);
       const gv = add(new THREE.Mesh(new THREE.PlaneGeometry(1.6, Math.abs(Z0 + 1 - wz) + 1.2), mat({ map: gravel, roughness: .95 })), false); gv.rotation.x = -Math.PI / 2; gv.position.set(GX, 0.012, (wz + Z0 + 1.5) / 2); }
     // beyond the gate: the grass climbing toward the fort, and the fort itself standing against the sky
@@ -3337,7 +3337,7 @@ function buildCemetery() {
     groundY() { return 0; },
     start: { x: -0.3, z: 6.1, heading: Math.PI },
     spawns: { fort: { x: -5.5, z: Z0 + 1.7, heading: 0 } },
-    portals: [{ x: -0.3, z: 7.45, to: 'drive', spawn: 'cemetery', label: 'Your car' }, { x: -5.5, z: Z0 + 0.6, to: 'fort', spawn: 'cemetery', label: 'El Morro' }],
+    portals: [{ x: -0.3, z: 7.45, to: 'drive', spawn: 'cemetery', label: 'Your car' }, { x: -5.5, z: Z0 + 0.6, to: 'fort', spawn: 'cemetery', label: 'Castillo Coquina' }],
     patrol: [
       { p: [-0.3, 3.0] },
       { p: [-0.4, -9.0], wait: 1.5, face: Math.PI },
@@ -3502,20 +3502,21 @@ function buildFort() {
   // the lighthouse on the western headland, El Morro's: a crenellated square base with little garitas at its corners, a set-back tower,
   // the watch room and gallery, a glass lantern with a black dome. It stands on the fort walls that run along a ragged cliff.
   const beam = new THREE.Group();
+  const LHG = new THREE.Group(); group.add(LHG);   // the whole headland, turned round and set east of the fort (Punta Luz on the map)
   { const HX = -125, HZ = -215;
     const ridge = (x) => { const t = (x + 120) / 190; if (t <= 0 || t >= 1) return -3; const hump = Math.sin(Math.PI * Math.pow(t, 0.8)); return -3 + 20 * Math.pow(hump, 0.55) + (Math.sin(x * 0.21) * 1.4 + Math.sin(x * 0.53 + 1) * 0.8 + Math.sin(x * 1.7) * 0.35) * hump; };
     const sh = new THREE.Shape(); sh.moveTo(-122, -3); for (let x = -120; x <= 70; x += 3) sh.lineTo(x, ridge(x)); sh.lineTo(72, -3); sh.lineTo(-122, -3);
     const cliffM = mat({ color: 0x241f1e, roughness: 1 });
     const cliff = new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: 70, bevelEnabled: false, steps: 1 }), cliffM);
     { const p = cliff.geometry.attributes.position; for (let k = 0; k < p.count; k++) { const y = p.getY(k); if (y > 0) p.setY(k, y + (Math.random() - .5) * 0.8); } cliff.geometry.computeVertexNormals(); }
-    cliff.position.set(HX, SEA, HZ - 60); group.add(cliff);
+    cliff.position.set(HX, SEA, HZ - 60); LHG.add(cliff);
     // fort walls along the cliff edge, merlons and two garitas, a dark rim against the glow
     const wallM2 = mat({ color: 0x3a3330, roughness: 1 });
-    for (let x = -84; x < 40; x += 6) { const y = Math.min(ridge(x), ridge(x + 6)); const w = new THREE.Mesh(new THREE.BoxGeometry(6.2, 4 + (ridge(x) - y), 3), wallM2); w.position.set(HX + x + 3, SEA + y + 2, HZ + 12); group.add(w); for (let m = 0; m < 3; m++) { const mm = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1, 3), wallM2); mm.position.set(HX + x + 1 + m * 2, SEA + y + 4.5, HZ + 12); group.add(mm); } }
-    for (const x of [-64, 30]) { const gg = Kit.garita(2.4, wallM2); gg.position.set(HX + x, SEA + ridge(x) + 4, HZ + 13.6); group.add(gg); }
+    for (let x = -84; x < 40; x += 6) { const y = Math.min(ridge(x), ridge(x + 6)); const w = new THREE.Mesh(new THREE.BoxGeometry(6.2, 4 + (ridge(x) - y), 3), wallM2); w.position.set(HX + x + 3, SEA + y + 2, HZ + 12); LHG.add(w); for (let m = 0; m < 3; m++) { const mm = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1, 3), wallM2); mm.position.set(HX + x + 1 + m * 2, SEA + y + 4.5, HZ + 12); LHG.add(mm); } }
+    for (const x of [-64, 30]) { const gg = Kit.garita(2.4, wallM2); gg.position.set(HX + x, SEA + ridge(x) + 4, HZ + 13.6); LHG.add(gg); }
     // the lighthouse
     const stone = mat({ color: 0x7a7068, roughness: .95 }), white = mat({ color: 0xcfc8bc, roughness: .9 }), black = mat({ color: 0x121212, roughness: .5, metalness: .4 });
-    const L = new THREE.Group(); L.position.set(HX, SEA + ridge(0), HZ); group.add(L);
+    const L = new THREE.Group(); L.position.set(HX, SEA + ridge(0), HZ); LHG.add(L);
     const B = (w, h, d, m, x, y, z) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); L.add(b); return b; };
     const crenel = (half, y, m) => { for (const sd of [-1, 1]) for (let k = -half + 0.5; k <= half - 0.5; k += 1.4) { B(0.8, 0.8, 0.5, m, k, y, sd * half); B(0.5, 0.8, 0.8, m, sd * half, y, k); } };
     B(11, 8, 11, stone, 0, 4, 0);                                // the base block
@@ -3542,7 +3543,9 @@ function buildFort() {
   const RN = 2600, rp = new Float32Array(RN * 6), rainBox = 26;
   for (let q = 0; q < RN; q++) { const x = (Math.random() - .5) * rainBox * 2, y = -3.6 + Math.random() * 16, z = (Math.random() - .5) * rainBox * 2; rp.set([x, y, z, x + 0.03, y + 0.42, z + 0.05], q * 6); }
   const rgeo = new THREE.BufferGeometry(); rgeo.setAttribute('position', new THREE.BufferAttribute(rp, 3));
-  const rain = new THREE.LineSegments(rgeo, new THREE.LineBasicMaterial({ color: 0xb4b8bc, transparent: true, opacity: .3, depthWrite: false })); group.add(rain);
+  const rain = new THREE.LineSegments(rgeo, new THREE.LineBasicMaterial({ color: 0xb4b8bc, transparent: true, opacity: .3, depthWrite: false })); LHG.add(rain);
+  LHG.rotation.y = Math.PI; LHG.position.set(-95, 0, 95);   // lighthouse lands at about (30, 310): east, past the cemetery, a little north
+
   // --- pelicans gliding in a loose line along the swell
   const birds = [];
   { const bg = new THREE.BufferGeometry(); bg.setAttribute('position', new THREE.Float32BufferAttribute([-0.9, 0.12, 0, 0, 0, 0.15, 0, 0, -0.2, 0, 0, 0.15, 0.9, 0.12, 0, 0, 0, -0.2], 3));
@@ -3704,7 +3707,7 @@ function buildFort() {
   const startX = 0, startZ = 4.5;
   return {
     group, grade: NOIR,
-    name: 'El Morro',
+    name: 'Castillo Coquina',
     skyline: { paint: 'old', sky: 'mono', face: Math.PI * 1.25, radius: 300, scale: 0.4, lift: 1.0, noGround: true, noDome: true, opacity: 0.8 },   // Old Town far across the bay, south-west
     exposure: 1.2, grade: NOIR,
     fog: new THREE.Fog(HORIZON.getHex(), 40, 520),
@@ -3774,6 +3777,354 @@ function buildFort() {
   };
 }
 
+
+/* =========================================================
+   FOSSIL: the Osario tyrant, built bone by bone after the classic museum mounts (AMNH 1915 / Field Museum "Sue"):
+   a 1912 mount, so it stands the old way: upright, tail on the plinth, head high.
+   Skull with real openings (antorbital and lateral temporal fenestrae, orbit, nostril), dropped jaw and teeth;
+   separate vertebrae with tall neural spines, ribs, a belly basket of gastralia, chevrons under the tail;
+   the pelvis with its long ilium and booted pubis; striding legs with fused metatarsals and clawed toes; the tiny two-fingered arms;
+   all on a black iron armature. Local frame: head toward +x, up +y, origin on the plinth top under the hips.
+   ========================================================= */
+const Fossil = (() => {
+  const V = (x, y, z = 0) => new THREE.Vector3(x, y, z);
+  const boneTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d');
+    g.fillStyle = '#94704a'; g.fillRect(0, 0, 256, 256);
+    for (let i = 0; i < 900; i++) { const d = Math.random(); g.fillStyle = d < .5 ? `rgba(40,26,14,${Math.random() * .35})` : `rgba(214,184,140,${Math.random() * .3})`; g.fillRect(Math.random() * 256, Math.random() * 256, 1 + Math.random() * 6, 1 + Math.random() * 2); }
+    for (let i = 0; i < 40; i++) { g.strokeStyle = `rgba(30,20,10,${.2 + Math.random() * .3})`; g.lineWidth = 1; g.beginPath(); const x = Math.random() * 256, y = Math.random() * 256; g.moveTo(x, y); g.lineTo(x + (Math.random() - .5) * 40, y + (Math.random() - .5) * 8); g.stroke(); }   // hairline cracks
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; return t; })();
+  const boneM = () => new THREE.MeshStandardMaterial({ map: boneTex, color: 0xf0e2cc, roughness: .55, metalness: .02 });
+  const ironM = () => new THREE.MeshStandardMaterial({ color: 0x141312, roughness: .45, metalness: .7 });
+
+  function trex() {
+    const G = new THREE.Group(), BM = boneM(), IM = ironM();
+    const put = (geo, m = BM) => { const o = new THREE.Mesh(geo, m); o.castShadow = true; o.receiveShadow = true; G.add(o); return o; };
+    const seg = (a, b, r0, r1, m = BM, sides = 8) => { const len = a.distanceTo(b); const o = put(new THREE.CylinderGeometry(r1, r0, len, sides), m); o.position.copy(a).add(b).multiplyScalar(0.5); o.quaternion.setFromUnitVectors(V(0, 1, 0), b.clone().sub(a).normalize()); return o; };
+    const knob = (p, r) => { const o = put(new THREE.SphereGeometry(r, 10, 8)); o.position.copy(p); return o; };
+    const tube = (pts, r, m = BM) => put(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), Math.max(8, pts.length * 4), r, 5), m);
+
+    // ---- the line of the back: tail tip on the plinth, up over the hips, the trunk raked up to the shoulders, an S of neck
+    const spine = new THREE.CatmullRomCurve3([V(-6.6, 0.12), V(-5.2, 0.32), V(-3.8, 0.95), V(-2.4, 1.9), V(-1.1, 2.95), V(0, 3.7), V(0.75, 4.55), V(1.35, 5.45), V(1.65, 6.05), V(1.72, 6.55), V(1.95, 6.95), V(2.3, 7.15)]);
+    const L = spine.getLength(), N = 82;
+    const tHip = 0.535, tSh = 0.82;   // where along the line the hips and shoulders are
+    const prof = (t) => {             // centrum radius, neural spine height, by place on the body
+      if (t < tHip) { const k = t / tHip; return { rc: 0.025 + 0.13 * Math.pow(k, 1.3), hs: 0.03 + 0.3 * Math.pow(k, 1.6), ch: k > 0.1 ? 0.06 + 0.4 * Math.sin(Math.PI * Math.min(1, k * 1.1)) * (1 - k * 0.3) : 0 }; }
+      if (t < tSh) return { rc: 0.15, hs: 0.36 - 0.12 * (t - tHip) / (tSh - tHip), ch: 0 };
+      const k = (t - tSh) / (1 - tSh); return { rc: 0.14 - 0.03 * k, hs: 0.22 - 0.14 * k, ch: 0 };
+    };
+    const frame = (t) => { const T = spine.getTangentAt(t), Nn = V(-T.y, T.x, 0).normalize(); return { p: spine.getPointAt(t), T, Nn }; };   // Nn: the dorsal side
+    const verts = [];
+    for (let i = 0; i <= N; i++) {
+      const t = i / N; if (t > 0.985) break;
+      const { p, T, Nn } = frame(t), { rc, hs, ch } = prof(t), step = L / N;
+      const c = seg(p.clone().addScaledVector(T, -step * 0.36), p.clone().addScaledVector(T, step * 0.36), rc, rc * 0.96, BM, 9);   // the centrum, a gap to the next
+      const base = p.clone().addScaledVector(Nn, rc * 0.8), tip = base.clone().addScaledVector(Nn, hs).addScaledVector(T, -hs * 0.28);
+      seg(base, tip, Math.min(0.06, rc * 0.45), Math.min(0.045, rc * 0.32), BM, 4);                                             // neural spine, raked back
+      if (t > 0.18 && t < tSh + 0.04) for (const sd of [-1, 1]) seg(p.clone().addScaledVector(Nn, rc * 0.5), p.clone().addScaledVector(Nn, rc * 0.5).add(V(0, 0, sd * rc * 1.8)), rc * 0.22, rc * 0.12, BM, 4);   // transverse processes
+      if (ch > 0) seg(p.clone().addScaledVector(Nn, -rc * 0.9), p.clone().addScaledVector(Nn, -rc * 0.9 - ch).addScaledVector(T, -ch * 0.35), 0.03, 0.015, BM, 4);   // chevrons under the tail
+      verts.push({ t, p, T, Nn, rc });
+    }
+
+    // ---- ribs: deep curving bows on the trunk, short splints on the neck; the gastralia basket under the belly
+    const ribEnds = [];
+    for (const v of verts) {
+      const inTrunk = v.t > tHip + 0.015 && v.t < tSh, inNeck = v.t >= tSh && v.t < 0.95; if (!inTrunk && !inNeck) continue;
+      const k = inTrunk ? (v.t - tHip) / (tSh - tHip) : 0, R = inTrunk ? 0.38 + 0.62 * Math.sin(Math.PI * Math.min(1, 0.15 + k * 0.95)) : 0.22;
+      for (const sd of [-1, 1]) {
+        const S = V(0, 0, sd), P = (s, n, b) => v.p.clone().addScaledVector(S, s).addScaledVector(v.Nn, n).addScaledVector(v.T, b);
+        const pts = inTrunk ? [P(0.12, 0.05, 0), P(R * 0.62, -R * 0.22, -0.04), P(R * 0.8, -R * 0.82, -0.16), P(R * 0.6, -R * 1.42, -0.3), P(R * 0.3, -R * 1.72, -0.36)] : [P(0.1, -0.05, 0), P(0.22, -0.18, -0.12), P(0.26, -0.25, -0.32)];
+        tube(pts, inTrunk ? 0.024 + 0.012 * Math.sin(Math.PI * k) : 0.016);
+        if (inTrunk && sd > 0) ribEnds.push(P(0, -R * 1.72, -0.36));
+      }
+    }
+
+    // ---- pelvis: the long ilium blades over the hip socket, the pubis reaching down and forward to its great boot, the ischium back
+    const hip = frame(tHip);
+    const ilium = new THREE.Shape(); ilium.moveTo(-0.85, 0); ilium.quadraticCurveTo(-0.9, 0.42, -0.4, 0.5); ilium.lineTo(0.5, 0.52); ilium.quadraticCurveTo(0.95, 0.45, 0.9, 0.05); ilium.quadraticCurveTo(0.2, -0.22, -0.85, 0);
+    for (const sd of [-1, 1]) {
+      const m = put(new THREE.ExtrudeGeometry(ilium, { depth: 0.07, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.02, bevelSegments: 2 }));
+      m.position.copy(hip.p).addScaledVector(hip.Nn, -0.35).add(V(0, 0, sd * 0.24 - 0.035)); m.rotation.z = Math.atan2(hip.T.y, hip.T.x);
+    }
+    const socket = (sd) => hip.p.clone().addScaledVector(hip.Nn, -0.48).add(V(0, 0, sd * 0.42));
+    const boot = hip.p.clone().add(V(0.95, -1.65, 0));
+    for (const sd of [-1, 1]) seg(socket(sd).add(V(0.1, -0.05, -sd * 0.18)), boot.clone().add(V(0, 0.05, sd * 0.06)), 0.07, 0.06);
+    { const b = put(new THREE.SphereGeometry(0.3, 14, 10)); b.position.copy(boot); b.scale.set(1.7, 0.42, 0.75); }   // the pubic boot
+    const isch = hip.p.clone().add(V(-0.75, -1.2, 0));
+    for (const sd of [-1, 1]) seg(socket(sd).add(V(-0.1, 0, -sd * 0.2)), isch.clone().add(V(0, 0, sd * 0.05)), 0.06, 0.035);
+    // gastralia: thin V-rods strung from the boot forward under the ribs
+    const front = ribEnds.length ? ribEnds[ribEnds.length - 3] || ribEnds[ribEnds.length - 1] : boot;
+    for (let i = 1; i < 11; i++) { const c = boot.clone().lerp(front, i / 11).add(V(0, -0.04 * Math.sin(i / 11 * Math.PI), 0)), w = 0.28 + 0.32 * Math.sin(i / 11 * Math.PI);
+      for (const sd of [-1, 1]) seg(c, c.clone().add(V(-0.12, 0.1, sd * w)), 0.013, 0.01, BM, 4); }
+
+    // ---- legs: femur, tibia and fibula, the three long metatarsals, three forward toes with claws and the little dewclaw
+    for (const [sd, stride] of [[1, 0.28], [-1, -0.22]]) {
+      const H = socket(sd), z = H.z, K = V(H.x + 0.42 + stride, H.y - 1.25, z), A = V(K.x - 0.6, K.y - 1.0, z * 0.95), B = V(A.x + 0.32 + stride * 0.3, 0.13, z * 0.92);
+      knob(H, 0.15); seg(H, K, 0.15, 0.12); knob(K, 0.14);                                   // femur
+      seg(K, A, 0.11, 0.085); seg(K.clone().add(V(-0.04, -0.05, sd * 0.1)), A.clone().add(V(0, 0, sd * 0.09)), 0.035, 0.025);   // tibia + fibula
+      knob(A, 0.1);
+      for (const dz of [-0.07, 0, 0.07]) seg(A.clone().add(V(0, 0, dz)), B.clone().add(V(0, 0, dz * 1.5)), 0.045, 0.04);   // metatarsals
+      for (const [a, len] of [[-0.42, 0.42], [0, 0.55], [0.42, 0.4]]) {                     // toes: three phalanges and a claw each
+        let p = B.clone().add(V(0, 0, a * 0.1 * sd)); const dir = V(Math.cos(a), -0.06, Math.sin(a) * sd).normalize();
+        for (let j = 0; j < 3; j++) { const q = p.clone().addScaledVector(dir, len / 3); seg(p, q, 0.045 - j * 0.008, 0.038 - j * 0.008); knob(q, 0.04 - j * 0.006); p = q; }
+        const cl = put(new THREE.ConeGeometry(0.035, 0.16, 6)); cl.position.copy(p).addScaledVector(dir, 0.07); cl.quaternion.setFromUnitVectors(V(0, 1, 0), dir.clone().add(V(0, -0.5, 0)).normalize());
+      }
+      seg(A.clone().add(V(0.05, -0.55, 0)), A.clone().add(V(-0.12, -0.75, sd * 0.05)), 0.025, 0.015);   // dewclaw
+    }
+
+    // ---- arms: scapula blade along the ribs, tiny humerus and forearm, two clawed fingers
+    const sh = frame(tSh - 0.02);
+    for (const sd of [-1, 1]) {
+      const s0 = sh.p.clone().addScaledVector(sh.Nn, -0.15).add(V(0, 0, sd * 0.55)), s1 = s0.clone().addScaledVector(sh.T, -0.95).addScaledVector(sh.Nn, -0.25);
+      const sc = seg(s0, s1, 0.08, 0.05); sc.scale.set(1.6, 1, 0.35);                    // scapula
+      const J = s0.clone().addScaledVector(sh.Nn, -0.35).add(V(0.05, 0, sd * 0.05)), E = J.clone().add(V(0.18, -0.3, sd * 0.06)), W = E.clone().add(V(0.2, -0.04, 0));
+      knob(J, 0.06); seg(J, E, 0.045, 0.035); seg(E, W, 0.03, 0.025);
+      for (const dz of [-0.03, 0.03]) { const f = W.clone().add(V(0.12, -0.04, dz)); seg(W, f, 0.016, 0.012, BM, 5); const c = put(new THREE.ConeGeometry(0.018, 0.08, 5)); c.position.copy(f).add(V(0.03, -0.03, 0)); c.rotation.z = -2.2; }
+    }
+
+    // ---- the skull: two side walls cut with the fenestrae, angled together toward the snout; roof, palate, a dropped jaw, a mouthful of teeth
+    const head = frame(0.985), sk = new THREE.Group(); sk.position.copy(head.p); sk.rotation.z = -0.32; G.add(sk);
+    const S = 1.0;   // skull ~1.5 m long
+    const side = new THREE.Shape(); [[0, 0.05], [0, 0.72], [0.32, 0.82], [0.78, 0.7], [1.18, 0.5], [1.48, 0.36], [1.53, 0.12], [1.46, -0.02], [0.4, -0.05], [0.12, 0]].forEach(([x, y], i) => i ? side.lineTo(x * S, y * S) : side.moveTo(x * S, y * S)); side.closePath();
+    const hole = (cx, cy, rx, ry, rot = 0) => { const h = new THREE.Path(); h.absellipse(cx * S, cy * S, rx * S, ry * S, 0, Math.PI * 2, false, rot); side.holes.push(h); };
+    hole(0.19, 0.42, 0.085, 0.17, 0.2); hole(0.43, 0.53, 0.085, 0.11); hole(0.8, 0.33, 0.21, 0.13, -0.1); hole(1.06, 0.29, 0.05, 0.04); hole(1.41, 0.28, 0.05, 0.03);
+    const sideGeo = new THREE.ExtrudeGeometry(side, { depth: 0.09, bevelEnabled: true, bevelThickness: 0.03, bevelSize: 0.022, bevelSegments: 3, curveSegments: 18 });
+    for (const sd of [-1, 1]) { const w = new THREE.Mesh(sideGeo, BM); w.castShadow = true; w.position.set(-0.05, -0.3, sd * 0.42 - 0.025); w.rotation.y = sd * 0.24; sk.add(w); }   // wide at the back, narrow at the snout
+    const plate = (geo, x, y, z, rx = 0, ry = 0, rz = 0) => { const m = new THREE.Mesh(geo, BM); m.position.set(x, y, z); m.rotation.set(rx, ry, rz); m.castShadow = true; sk.add(m); return m; };
+    plate(new THREE.BoxGeometry(1.05, 0.06, 0.5), 0.6, 0.35, 0, 0, 0, -0.32);   // nasal roof
+    plate(new THREE.BoxGeometry(0.42, 0.08, 0.78), 0.18, 0.46, 0);              // skull table
+    plate(new THREE.BoxGeometry(1.3, 0.05, 0.4), 0.72, -0.3, 0);                // palate
+    const toothG = new THREE.ConeGeometry(0.028, 1, 6);
+    const upperTeeth = []; for (let i = 0; i < 13; i++) { const x = 0.45 + i * 0.075, len = 0.06 + 0.1 * Math.sin(Math.PI * Math.min(1, (i + 2) / 11)); upperTeeth.push([x, len]); }
+    for (const [x, len] of upperTeeth) for (const sd of [-1, 1]) { const zz = sd * (0.36 - (x - 0.45) * 0.21); const t = plate(toothG, x - 0.05, -0.33 - len / 2, zz, 0, 0, Math.PI); t.scale.set(1, len, 1); }
+    // the lower jaw, hinged at the back and dropped open
+    const jaw = new THREE.Group(); jaw.position.set(0.02, -0.3, 0); jaw.rotation.z = -0.38; sk.add(jaw);
+    const mand = new THREE.Shape(); [[0, 0], [1.4, -0.02], [1.42, -0.16], [0.95, -0.27], [0.35, -0.36], [0.02, -0.26]].forEach(([x, y], i) => i ? mand.lineTo(x, y) : mand.moveTo(x, y)); mand.closePath();
+    { const h = new THREE.Path(); h.absellipse(0.32, -0.2, 0.11, 0.05, 0, Math.PI * 2); mand.holes.push(h); }
+    const mGeo = new THREE.ExtrudeGeometry(mand, { depth: 0.08, bevelEnabled: true, bevelThickness: 0.025, bevelSize: 0.02, bevelSegments: 3 });
+    for (const sd of [-1, 1]) { const m = new THREE.Mesh(mGeo, BM); m.castShadow = true; m.position.set(0, 0, sd * 0.38 - 0.022); m.rotation.y = sd * 0.25; jaw.add(m); }
+    for (let i = 0; i < 12; i++) { const x = 0.5 + i * 0.075, len = 0.05 + 0.08 * Math.sin(Math.PI * Math.min(1, (i + 2) / 11)); for (const sd of [-1, 1]) { const t = new THREE.Mesh(toothG, BM); t.scale.set(0.9, len, 0.9); t.position.set(x, len / 2 + 0.01, sd * (0.33 - (x - 0.5) * 0.22)); jaw.add(t); } }
+    sk.scale.setScalar(1.05);
+
+    // ---- the iron armature: uprights from the plinth to the spine, a curved bar up the neck, a strap under the skull
+    for (const t of [0.3, tHip + 0.01, 0.7, 0.9]) { const p = spine.getPointAt(t); seg(V(p.x, 0, 0), p.clone().add(V(0, -prof(t).rc, 0)), 0.035, 0.035, IM, 6); }
+    { const a = spine.getPointAt(0.9).add(V(0, -0.2, 0)), b = head.p.clone().add(V(0.35, -0.45, 0)); seg(a, b, 0.025, 0.025, IM, 6); }
+    return G;
+  }
+  return { trex };
+})();
+
+/* =========================================================
+   SCENE — Hotel Osario: a coquina castle on Bayshore built round a skylit atrium (after Ripley's in St. Augustine).
+   Three storeys of galleries with wrought-iron railings; the old exhibit rooms are guest rooms now.
+   In the well stands the thing the hotel is named for: a tyrant-lizard skeleton the quarrymen cut out of Isla Luz coquina in 1911.
+   ========================================================= */
+function buildHotel({ beam = true } = {}) {
+  const group = new THREE.Group(), add = makeAdder(group);
+  const WX = 9, WZ = 9, WELL = 5.6, F2 = 4.2, F3 = 8.0, TOP = 11.6;   // walls at ±9; open well ±5.6; gallery floors; skylight base
+  const r = 0.27;
+
+  // ---------- materials
+  const planks = canvasTex(1024, (g, s) => { const rows = 14, h = s / rows; for (let rr = 0; rr < rows; rr++) { let x = -Math.random() * 300; while (x < s) { const w = 200 + Math.random() * 280, v = 62 + Math.random() * 30; g.fillStyle = `rgb(${v + 30},${v * .66 + 6},${v * .38})`; g.fillRect(x, rr * h, w, h); g.strokeStyle = 'rgba(0,0,0,.1)'; for (let k = 0; k < 5; k++) { const yy = rr * h + Math.random() * h; g.beginPath(); g.moveTo(x, yy); g.bezierCurveTo(x + w / 3, yy + 3, x + w * 2 / 3, yy - 3, x + w, yy); g.stroke(); } g.fillStyle = 'rgba(0,0,0,.55)'; g.fillRect(x, rr * h, 3, h); x += w; } g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(0, rr * h, s, 2); } noise(g, s, 16); stains(g, s, 40, .1); }, [6, 6]);
+  const floorM = mat({ map: planks, roughness: .45, metalness: .05 });
+  const ochre = canvasTex(512, (g, s) => { g.fillStyle = '#c98a2c'; g.fillRect(0, 0, s, s); for (let i = 0; i < 60; i++) { const x = Math.random() * s, y = Math.random() * s, rr = 30 + Math.random() * 90, gr = g.createRadialGradient(x, y, 0, x, y, rr); gr.addColorStop(0, `rgba(${Math.random() < .5 ? '120,70,20' : '230,170,80'},.18)`); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(x - rr, y - rr, 2 * rr, 2 * rr); } noise(g, s, 14); }, [4, 2]);
+  const wallM = mat({ map: ochre, roughness: .92 });
+  const woodM = mat({ color: 0x4a2a16, roughness: .5, metalness: .05 }), woodD = mat({ color: 0x2e1a0e, roughness: .5 });
+  const ironM = mat({ color: 0x141312, roughness: .4, metalness: .7 }), brassM = mat({ color: 0xb08a3a, roughness: .3, metalness: .9 });
+  const boneM = mat({ color: 0xd8c7a2, roughness: .75, map: canvasTex(256, (g, s) => { g.fillStyle = '#d8c8a4'; g.fillRect(0, 0, s, s); for (let i = 0; i < 400; i++) { g.fillStyle = `rgba(${Math.random() < .5 ? '90,70,40' : '250,240,220'},${Math.random() * .25})`; g.fillRect(Math.random() * s, Math.random() * s, 2 + Math.random() * 10, 1 + Math.random() * 3); } noise(g, s, 18); }, [2, 2]) });
+  const box = (w, h, d, m, x, y, z, cast = true) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); b.castShadow = cast; b.receiveShadow = true; group.add(b); return b; };
+
+  // wrought-iron railing panel: scrolls and hearts on a transparent ground
+  const railTex = canvasTex(512, (g, s) => { g.clearRect(0, 0, s, s); g.strokeStyle = '#fff'; g.lineCap = 'round';
+    g.lineWidth = 10; g.strokeRect(5, 5, s - 10, s - 10);
+    g.lineWidth = 6; for (let x = 0; x <= s; x += s / 4) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, s); g.stroke(); }
+    const scroll = (cx, cy, rr, dir) => { g.beginPath(); for (let a = 0; a < Math.PI * 3.2; a += 0.12) { const k = rr * (1 - a / (Math.PI * 3.6)); const x = cx + Math.cos(a * dir) * k, y = cy + Math.sin(a * dir) * k; a ? g.lineTo(x, y) : g.moveTo(x, y); } g.stroke(); };
+    g.lineWidth = 5; for (let i = 0; i < 4; i++) { const cx = s / 8 + i * s / 4; scroll(cx, s * 0.3, s * 0.09, 1); scroll(cx, s * 0.7, s * 0.09, -1);
+      g.beginPath(); g.moveTo(cx - s / 8, s / 2); g.bezierCurveTo(cx - s / 16, s * 0.35, cx + s / 16, s * 0.65, cx + s / 8, s / 2); g.stroke(); }
+  }, [1, 1]);
+  railTex.wrapS = THREE.RepeatWrapping;
+  const railM = new THREE.MeshStandardMaterial({ map: railTex, color: 0x151413, alphaTest: 0.5, side: THREE.DoubleSide, roughness: .4, metalness: .6 });
+  const railing = (x0, z0, x1, z1, y, h = 1.0) => { const L = Math.hypot(x1 - x0, z1 - z0); const t = railTex.clone(); t.needsUpdate = true; t.repeat.set(L / 1.6, 1); const m = new THREE.Mesh(new THREE.PlaneGeometry(L, h), railM.clone()); m.material.map = t; m.position.set((x0 + x1) / 2, y + h / 2, (z0 + z1) / 2); m.rotation.y = -Math.atan2(z1 - z0, x1 - x0); m.castShadow = true; group.add(m);
+    const cap = new THREE.Mesh(new THREE.BoxGeometry(L + 0.1, 0.07, 0.1), woodM); cap.position.set(m.position.x, y + h + 0.03, m.position.z); cap.rotation.y = m.rotation.y; group.add(cap); };
+
+  // ---------- the shell: floor, walls, ceiling bands
+  box(WX * 2, 0.1, WZ * 2, floorM, 0, -0.05, 0, false);
+  for (const [w, d, x, z] of [[WX * 2, 0.3, 0, -WZ - 0.15], [WX * 2, 0.3, 0, WZ + 0.15], [0.3, WZ * 2, -WX - 0.15, 0], [0.3, WZ * 2, WX + 0.15, 0]]) box(w, TOP + 0.4, d, wallM, x, (TOP + 0.4) / 2, z, false);
+  // dark wainscot on the ground floor and a picture rail on each storey
+  for (const y of [0, F2, F3]) for (const [w, d, x, z] of [[WX * 2, 0.06, 0, -WZ + 0.03], [WX * 2, 0.06, 0, WZ - 0.03], [0.06, WZ * 2, -WX + 0.03, 0], [0.06, WZ * 2, WX - 0.03, 0]]) { box(w, y ? 0.25 : 1.1, d, woodD, x, y + (y ? 0.12 : 0.55), z, false); box(w + 0.02, 0.1, d + 0.04, woodM, x, y + 3.2, z, false); }
+  // gallery floors: a ring between the well and the walls, with a deep carved fascia at the well edge
+  for (const y of [F2, F3]) {
+    for (const [w, d, x, z] of [[WX * 2, WZ - WELL, 0, -(WELL + WZ) / 2], [WX * 2, WZ - WELL, 0, (WELL + WZ) / 2], [WX - WELL, WELL * 2, -(WELL + WX) / 2, 0], [WX - WELL, WELL * 2, (WELL + WX) / 2, 0]]) box(w, 0.35, d, woodM, x, y - 0.17, z);
+    for (const [w, d, x, z] of [[WELL * 2 + 0.3, 0.2, 0, -WELL], [WELL * 2 + 0.3, 0.2, 0, WELL], [0.2, WELL * 2, -WELL, 0], [0.2, WELL * 2, WELL, 0]]) { box(w, 0.7, d, woodD, x, y - 0.35, z); box(w + 0.06, 0.08, d + 0.06, brassM, x, y - 0.55, z, false); }
+    railing(-WELL, -WELL, WELL, -WELL, y); railing(-WELL, WELL, WELL, WELL, y); railing(-WELL, -WELL, -WELL, WELL, y); railing(WELL, -WELL, WELL, WELL, y);
+  }
+  // columns: turned posts with capitals at the well corners and midpoints, every storey
+  const colAt = []; for (const x of [-WELL, WELL]) for (const z of [-WELL, WELL]) colAt.push([x, z]);   // corner posts only, so nothing stands between the door and the bones
+  for (const [x, z] of colAt) for (const [y0, y1] of [[0, F2 - 0.7], [F2, F3 - 0.7], [F3, TOP]]) {
+    const h = y1 - y0, c = new THREE.Mesh(new THREE.BoxGeometry(0.42, h, 0.42), woodM); c.position.set(x, y0 + h / 2, z); c.castShadow = true; group.add(c);
+    const base = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.4, 0.56), woodD); base.position.set(x, y0 + 0.2, z); group.add(base);
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.22, 0.45, 4), woodD); cap.rotation.y = Math.PI / 4; cap.position.set(x, y1 - 0.22, z); group.add(cap);
+  }
+
+  // ---------- the stained-glass skylight: a hipped lantern of amber and rose panes on dark ribs, the rain running over it
+  const glassTex = canvasTex(512, (g, s) => { g.fillStyle = '#2a1c10'; g.fillRect(0, 0, s, s);
+    const n = 4, c = s / n; for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) { const rose = (i + j) % 3 === 0; g.fillStyle = rose ? '#c8603a' : '#e8b84a'; g.fillRect(i * c + 3, j * c + 3, c - 6, c - 6);
+      g.strokeStyle = rose ? '#7a2a1a' : '#9a6a20'; g.lineWidth = 3; if (rose) { g.strokeRect(i * c + 12, j * c + 12, c - 24, c - 24); } else { g.beginPath(); g.ellipse(i * c + c / 2, j * c + c / 2, c * 0.32, c * 0.2, 0, 0, 7); g.stroke(); } }
+    for (let i = 0; i < 300; i++) { g.fillStyle = `rgba(255,255,255,${Math.random() * .08})`; g.fillRect(Math.random() * s, Math.random() * s, 2, 6); } }, [8, 3]);
+  const skyM = new THREE.MeshStandardMaterial({ map: glassTex, emissiveMap: glassTex, emissive: 0xffffff, emissiveIntensity: 0.42, side: THREE.DoubleSide, roughness: .2 });
+  { const hw = WELL + 0.6, peak = 3.2;
+    const pyr = new THREE.Mesh(new THREE.ConeGeometry(hw * Math.SQRT2, peak, 4, 1, true), skyM); pyr.rotation.y = Math.PI / 4; pyr.position.y = TOP + peak / 2; group.add(pyr);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) { const rib = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.16, Math.hypot(hw * Math.SQRT2, peak)), woodD); rib.position.set(sx * hw / 2, TOP + peak / 2, sz * hw / 2); rib.lookAt(0, TOP + peak, 0); group.add(rib); }
+    for (let k = -3; k <= 3; k++) for (const rot of [0, Math.PI / 2]) { const t = Math.abs(k) / 3.5, L = hw * 2 * (1 - 0); const rb = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.1), woodD); rb.visible = false; group.add(rb); }
+    // a frieze of small blue scroll windows under the lantern, like the clerestory in the photo
+    const clere = canvasTex(512, (g, s) => { g.fillStyle = '#1a1410'; g.fillRect(0, 0, s, s); for (let i = 0; i < 4; i++) { const x = i * s / 4 + 10, w = s / 4 - 20; g.fillStyle = '#3a8aa8'; g.beginPath(); g.moveTo(x, s * .85); g.lineTo(x, s * .3); g.quadraticCurveTo(x + w / 2, s * .02, x + w, s * .3); g.lineTo(x + w, s * .85); g.fill(); g.strokeStyle = '#0e1a20'; g.lineWidth = 4; for (let k = 0; k < 5; k++) { g.beginPath(); g.arc(x + w / 2, s * .55, 10 + k * 14, 0, 7); g.stroke(); } } }, [3, 1]);
+    const clM = new THREE.MeshStandardMaterial({ map: clere, emissiveMap: clere, emissive: 0xffffff, emissiveIntensity: 0.25, roughness: .4 });
+    for (const [w, x, z, ry] of [[hw * 2, 0, -hw, 0], [hw * 2, 0, hw, Math.PI], [hw * 2, -hw, 0, Math.PI / 2], [hw * 2, hw, 0, -Math.PI / 2]]) { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, 1.0), clM); m.position.set(x, TOP - 0.5, z); m.rotation.y = ry; group.add(m); }
+    // ceiling round the lantern, coffered dark wood
+    for (const [w, d, x, z] of [[WX * 2, WZ - hw, 0, -(hw + WZ) / 2], [WX * 2, WZ - hw, 0, (hw + WZ) / 2], [WX - hw, hw * 2, -(hw + WX) / 2, 0], [WX - hw, hw * 2, (hw + WX) / 2, 0]]) box(w, 0.4, d, woodD, x, TOP + 0.2, z, false);
+  }
+  // rain on the glass: streaks that run down the panes
+  const rainTex = canvasTex(256, (g, s) => { g.clearRect(0, 0, s, s); for (let i = 0; i < 120; i++) { const x = Math.random() * s, y = Math.random() * s, l = 8 + Math.random() * 30; const gr = g.createLinearGradient(0, y, 0, y + l); gr.addColorStop(0, 'rgba(220,230,240,0)'); gr.addColorStop(1, 'rgba(220,230,240,.5)'); g.fillStyle = gr; g.fillRect(x, y, 1.5, l); } }, [4, 4]);
+  { const hw = WELL + 0.6, peak = 3.2; const rp = new THREE.Mesh(new THREE.ConeGeometry(hw * Math.SQRT2 - 0.02, peak - 0.02, 4, 1, true), new THREE.MeshBasicMaterial({ map: rainTex, transparent: true, depthWrite: false, side: THREE.DoubleSide, opacity: .55 })); rp.rotation.y = Math.PI / 4; rp.position.y = TOP + peak / 2 - 0.02; group.add(rp); }
+
+  // ---------- the guest rooms (the old exhibit halls): doors with brass numbers round each gallery, a sconce between each pair
+  const doorTex = (num) => canvasTex(256, (g, s) => { g.fillStyle = '#3a2214'; g.fillRect(0, 0, s, s * 2); g.strokeStyle = 'rgba(0,0,0,.5)'; g.lineWidth = 6; for (const [x, y, w, h] of [[30, 26, 196, 150], [30, 196, 196, 280]]) g.strokeRect(x, y, w, h * 0.5); for (let i = 0; i < 200; i++) { g.fillStyle = `rgba(${Math.random() < .5 ? '0,0,0' : '120,80,50'},.08)`; g.fillRect(Math.random() * s, Math.random() * s, 1, 20); }
+    g.fillStyle = '#d4a84a'; g.font = 'bold 34px Georgia, serif'; g.textAlign = 'center'; g.fillText(num, s / 2, 22 + 24); g.beginPath(); g.arc(s * 0.82, s * 0.58, 9, 0, 7); g.fill(); });
+  const sconceM = new THREE.MeshStandardMaterial({ color: 0xffe2b0, emissive: 0xffc070, emissiveIntensity: 1.6 });
+  const lights = [];
+  [[F2, 2], [F3, 3]].forEach(([y, fl]) => {
+    let n = 1;
+    for (const [axis, sgn] of [['z', -1], ['x', 1], ['z', 1], ['x', -1]]) for (let k = -1; k <= 1; k++) {
+      const off = k * 5.4, num = fl + String(n++).padStart(2, '0');
+      const d = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 2.3), mat({ map: doorTex(num), roughness: .55 }));
+      const fr = new THREE.Mesh(new THREE.BoxGeometry(1.4, 2.6, 0.1), woodD);
+      const wallPos = axis === 'z' ? [off, sgn * (WZ - 0.02)] : [sgn * (WX - 0.02), off], ry = axis === 'z' ? (sgn < 0 ? 0 : Math.PI) : (sgn > 0 ? -Math.PI / 2 : Math.PI / 2);
+      for (const [m, inset] of [[fr, 0.05], [d, 0.11]]) { m.position.set(wallPos[0] - (axis === 'x' ? sgn * inset : 0), y + 1.25, wallPos[1] - (axis === 'z' ? sgn * inset : 0)); m.rotation.y = ry; group.add(m); }
+      if (k < 1) { const sx = axis === 'z' ? off + 2.7 : wallPos[0] - sgn * 0.15, sz = axis === 'z' ? wallPos[1] - sgn * 0.15 : off + 2.7;
+        const sc = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 8), sconceM); sc.position.set(sx, y + 2.1, sz); group.add(sc);
+        const arm = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.3, 0.05), brassM); arm.position.set(sx, y + 1.9, sz); group.add(arm);
+        if ((n + fl) % 2 === 0) { const pl = new THREE.PointLight(0xffb868, 5, 6, 1.7); pl.position.set(sx * 0.97, y + 2.05, sz * 0.97); group.add(pl); lights.push({ pl, base: 5, ph: Math.random() * 6 }); } }
+    }
+  });
+
+  // ---------- the lobby: front desk and key wall on the north side, the grand stair on the east, palms and club chairs
+  // front desk: dark panelled counter with a brass bell and a register
+  box(5.2, 1.1, 0.8, woodD, 0, 0.55, -WZ + 2.2); box(5.4, 0.08, 1.0, woodM, 0, 1.14, -WZ + 2.2);
+  { const bell = new THREE.Mesh(new THREE.SphereGeometry(0.08, 12, 8, 0, 7, 0, Math.PI / 2), brassM); bell.position.set(1.4, 1.18, -WZ + 2.15); group.add(bell);
+    const book = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.05, 0.36), mat({ color: 0x5a1a14, roughness: .6 })); book.position.set(-0.6, 1.2, -WZ + 2.1); book.rotation.y = 0.2; group.add(book);
+    const lampG = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.18, 0.18, 12), new THREE.MeshStandardMaterial({ color: 0x1f5a3a, emissive: 0x2a8a50, emissiveIntensity: 0.5, roughness: .3 })); lampG.position.set(-1.9, 1.5, -WZ + 2.2); group.add(lampG);
+    const lp = new THREE.PointLight(0xffd8a0, 4, 5, 1.6); lp.position.set(-1.9, 1.6, -WZ + 2.1); group.add(lp); }
+  // pigeonholes with brass keys behind the desk
+  { const kt = canvasTex(512, (g, s) => { g.fillStyle = '#2a170c'; g.fillRect(0, 0, s, s); const n = 8, m = 6; for (let i = 0; i < n; i++) for (let j = 0; j < m; j++) { const x = i * s / n + 6, y = j * s / m + 6, w = s / n - 12, h = s / m - 12; g.fillStyle = '#120a05'; g.fillRect(x, y, w, h); if (Math.random() < .7) { g.fillStyle = '#c9a048'; g.fillRect(x + w / 2 - 2, y + 6, 4, h * .5); g.beginPath(); g.arc(x + w / 2, y + h * .65, 6, 0, 7); g.fill(); } if (Math.random() < .25) { g.fillStyle = '#e8e0cc'; g.fillRect(x + 4, y + h - 16, w - 8, 10); } } });
+    const kw = new THREE.Mesh(new THREE.PlaneGeometry(4.4, 2.2), mat({ map: kt, roughness: .6 })); kw.position.set(0, 2.0, -WZ + 0.05); group.add(kw); }
+  // a sign over the desk
+  { const sg = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 0.6), new THREE.MeshStandardMaterial({ map: canvasTex(512, (g, s) => { g.fillStyle = '#1a0f08'; g.fillRect(0, 0, s, s); g.fillStyle = '#d4a84a'; g.font = 'bold 64px Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('HOTEL OSARIO', s / 2, s / 2 - 20); g.font = 'italic 30px Georgia, serif'; g.fillText('est. 1912 · rooms by the night or the week', s / 2, s / 2 + 34); }), roughness: .5 }));
+    sg.material.map.repeat.set(1, 0.3); sg.material.map.offset.set(0, 0.35); sg.position.set(0, 3.45, -WZ + 0.06); group.add(sg); }
+  // the grand stair up the east wall: dark treads with black nosings, an iron balustrade
+  const STX0 = WX - 2.2, STX1 = WX - 0.1, STZ0 = -1.5, STZ1 = 7.6;
+  { const n = 18, run = (STZ1 - STZ0) / n, rise = F2 / n;
+    for (let i = 0; i < n; i++) { const z = STZ1 - (i + 0.5) * run, y = (i + 1) * rise; box(STX1 - STX0, rise, run, woodM, (STX0 + STX1) / 2, y - rise / 2, z); box(STX1 - STX0, 0.02, 0.08, mat({ color: 0x111111 }), (STX0 + STX1) / 2, y + 0.01, z - run / 2 + 0.05, false); }
+    const side = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.2, Math.hypot(STZ1 - STZ0, F2)), woodD); side.position.set(STX0, F2 / 2 + 0.6, (STZ0 + STZ1) / 2); side.rotation.x = Math.atan2(F2, STZ1 - STZ0); group.add(side);
+    const t = railTex.clone(); t.needsUpdate = true; t.repeat.set(5, 1); const bal = new THREE.Mesh(new THREE.PlaneGeometry(Math.hypot(STZ1 - STZ0, F2), 1.0), railM.clone()); bal.material.map = t; bal.rotation.y = Math.PI / 2; bal.rotation.z = -Math.atan2(F2, STZ1 - STZ0); bal.rotation.order = 'YXZ'; bal.position.set(STX0, F2 / 2 + 0.5, (STZ0 + STZ1) / 2); group.add(bal);
+    // the gilt-framed mirrors and candle sconces climbing the stair wall
+    for (let i = 0; i < 3; i++) { const z = STZ1 - 1.6 - i * 2.8, y = 1.6 + (STZ1 - z) / (STZ1 - STZ0) * F2;
+      const mf = new THREE.Mesh(new THREE.BoxGeometry(0.06, 1.6, 1.1), mat({ color: 0x2f4a30, roughness: .5 })); mf.position.set(WX - 0.04, y, z); group.add(mf);
+      const mi = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 1.45), mat({ color: 0x8a8a84, roughness: .05, metalness: 1 })); mi.position.set(WX - 0.08, y, z); mi.rotation.y = -Math.PI / 2; group.add(mi);
+      const cd = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), sconceM); cd.position.set(WX - 0.25, y + 0.95, z - 0.75); group.add(cd); } }
+  // club chairs, side tables, potted palms, and a brass floor lamp
+  const leather = mat({ color: 0x4a1c14, roughness: .55 });
+  const chair = (x, z, ry) => { const c = new THREE.Group(); c.position.set(x, 0, z); c.rotation.y = ry; const seat = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.42, 0.85), leather); seat.position.y = 0.3; c.add(seat); const back = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.6, 0.22), leather); back.position.set(0, 0.7, -0.32); c.add(back); for (const sx of [-1, 1]) { const arm = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.55, 0.85), leather); arm.position.set(sx * 0.45, 0.45, 0); c.add(arm); } c.traverse(o => { if (o.isMesh) o.castShadow = o.receiveShadow = true; }); group.add(c); };
+  chair(-7.2, 3.0, Math.PI / 2 + 0.3); chair(-7.2, 5.0, Math.PI / 2 - 0.3); box(0.6, 0.55, 0.6, woodD, -7.6, 0.28, 4.0);
+  chair(-7.2, -4.4, Math.PI / 2); box(0.6, 0.55, 0.6, woodD, -7.6, 0.28, -3.2);
+  for (const [x, z, s] of [[-8.0, 7.9, 1.3], [7.9, -5.6, 1.2], [-8.0, -7.8, 1.2], [3.6, -7.9, 1.0], [-3.6, -7.9, 1.0]]) { const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.28, 0.6, 12), mat({ color: 0x6a4a30, roughness: .7 })); pot.position.set(x, 0.3, z); group.add(pot); const p = Dress.palmetto(s); p.position.set(x, 0.55, z); group.add(p); }
+  { const fl = new THREE.Group(); fl.position.set(-7.9, 0, 6.6); const st = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.12, 1.6, 8), brassM); st.position.y = 0.8; fl.add(st); const sh = new THREE.Mesh(new THREE.ConeGeometry(0.32, 0.36, 12, 1, true), new THREE.MeshStandardMaterial({ color: 0xe8c890, emissive: 0xffb860, emissiveIntensity: 0.9, side: THREE.DoubleSide })); sh.position.y = 1.75; fl.add(sh); const pl = new THREE.PointLight(0xffc070, 6, 6, 1.6); pl.position.y = 1.7; fl.add(pl); group.add(fl); lights.push({ pl, base: 6, ph: 1 }); }
+  // the entrance: arched double doors in the south wall, rain-dark glass, a mat
+  { const ad = new THREE.Shape(); const w = 1.4, h = 2.6; ad.moveTo(-w, 0); ad.lineTo(-w, h); ad.absarc(0, h, w, Math.PI, 0, true); ad.lineTo(w, 0); ad.lineTo(-w, 0);
+    const dm = new THREE.Mesh(new THREE.ShapeGeometry(ad, 20), mat({ color: 0x0a0c10, roughness: .1, metalness: .5 })); dm.position.set(0, 0, WZ - 0.02); dm.rotation.y = Math.PI; group.add(dm);
+    const frm = new THREE.Mesh(new THREE.TorusGeometry(w + 0.06, 0.09, 6, 24, Math.PI), woodD); frm.position.set(0, h, WZ - 0.05); group.add(frm);
+    for (const sx of [-1, 1]) box(0.16, h, 0.12, woodD, sx * (w + 0.06), h / 2, WZ - 0.05, false);
+    box(0.06, h + w - 0.1, 0.06, woodD, 0, (h + w) / 2, WZ - 0.06, false);
+    box(2.4, 0.02, 1.2, mat({ color: 0x3a1410, roughness: 1 }), 0, 0.01, WZ - 0.9, false); }
+
+  // ---------- the centrepiece: the Osario tyrant, 12 m nose to tail, rearing in the well on an iron armature
+  const dino = Fossil.trex(); dino.rotation.y = Math.PI + 0.5; dino.position.set(0.3 - 1.35 * 0.878, 0.4, 0.4 + 1.35 * 0.479); group.add(dino);   // head toward the door and the stair, tail down the plinth
+  // the plinth and its plaque
+  const plinth = new THREE.Mesh(new THREE.BoxGeometry(11.2, 0.4, 3.0), Kit.coquina(3, 0.2, { tone: 'ochre', stucco: 0.1, moss: false, mildew: 0.2, lichen: 0 })); plinth.position.set(0.3, 0.2, 0.4); plinth.rotation.y = 0.5; plinth.receiveShadow = true; group.add(plinth);
+  { const pq = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.5), new THREE.MeshStandardMaterial({ map: canvasTex(512, (g, s) => { g.fillStyle = '#8a6a2a'; g.fillRect(0, 0, s, s); g.fillStyle = '#2a1a08'; g.textAlign = 'center'; g.font = 'bold 40px Georgia, serif'; g.fillText('THE OSARIO TYRANT', s / 2, 150); g.font = 'italic 24px Georgia, serif'; g.fillText('cut from the coquina quarries of Isla Luz, 1911', s / 2, 200); g.fillText('the bones this house was built around', s / 2, 236); }), roughness: .3, metalness: .7 }));
+    pq.material.map.repeat.set(1, 0.4); pq.material.map.offset.set(0, 0.5); const dir = new THREE.Vector3(Math.sin(0.5), 0, Math.cos(0.5)); pq.position.set(0.3 + dir.x * 1.52, 0.22, 0.4 + dir.z * 1.52); pq.rotation.y = 0.5; pq.rotation.x = -0.35; group.add(pq); }
+  const PL = { cx: 0.3, cz: 0.4, ang: 0.5, hw: 5.6, hd: 1.5 };
+  const onPlinth = (x, z, pad) => { const dx = x - PL.cx, dz = z - PL.cz, c = Math.cos(PL.ang), s = Math.sin(PL.ang); const lx = dx * c - dz * s, lz = dx * s + dz * c; return Math.abs(lx) < PL.hw + pad && Math.abs(lz) < PL.hd + pad; };
+
+  // ---------- light: moonlight through the stained glass throws its colours down the well onto the bones; warm sconces round the galleries
+  group.add(new THREE.HemisphereLight(0xa8927a, 0x3a2414, 0.95));
+  { const gl = new THREE.SpotLight(0xc8d4ff, 520, 60, 0.5, 0.45, 1.2); gl.position.set(-2.45, 24.7, -7.15); /* moonlight, a little off vertical */ gl.target.position.set(0.3, 0, 0.4); gl.map = glassTex; gl.castShadow = true; gl.shadow.mapSize.set(2048, 2048); gl.shadow.bias = -0.0004; gl.shadow.camera.near = 4; gl.shadow.camera.far = 60; group.add(gl, gl.target); }
+  // the moonbeam: a faint coloured shaft down the well, and a little dust turning in it
+  const beamDust = [];
+  if (beam) {
+    const dir = new THREE.Vector3(-0.106, 0.951, -0.29).normalize(), top = new THREE.Vector3(0.3, TOP, 0.4), len = TOP / dir.y, q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+    const st = glassTex.clone(); st.needsUpdate = true; st.repeat.set(6, 1);
+    const sm = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false,
+      uniforms: { map: { value: st }, col: { value: new THREE.Color(0xc8d4ff) }, k: { value: 0.2 * 0.73 } },
+      vertexShader: 'varying vec2 vUv; varying vec3 vN, vV; void main(){ vUv = uv; vec4 w = modelViewMatrix * vec4(position,1.); vN = normalize(normalMatrix*normal); vV = normalize(-w.xyz); gl_Position = projectionMatrix * w; }',
+      fragmentShader: 'uniform sampler2D map; uniform vec3 col; uniform float k; varying vec2 vUv; varying vec3 vN, vV; void main(){ float edge = pow(1.0 - abs(dot(vN, vV)), 1.6); float fall = smoothstep(0.0, 0.35, vUv.y) * (0.35 + 0.65 * vUv.y); vec3 g = texture2D(map, vUv).rgb; gl_FragColor = vec4(col * mix(vec3(1.), g * 1.6, .55) * k * (0.25 + edge) * fall, 1.); }' });
+    const sg = new THREE.CylinderGeometry(4.6, 5.4, 1, 32, 1, true); sg.translate(0, -0.5, 0);
+    const shaft = new THREE.Mesh(sg, sm); shaft.position.copy(top); shaft.quaternion.copy(q); shaft.scale.set(1, len, 1); group.add(shaft);
+    const DN = 500, dp = new Float32Array(DN * 3); for (let i = 0; i < DN; i++) { dp[i * 3] = (Math.random() - .5) * 9; dp[i * 3 + 1] = -Math.random(); dp[i * 3 + 2] = (Math.random() - .5) * 9; }
+    const dg = new THREE.BufferGeometry(); dg.setAttribute('position', new THREE.BufferAttribute(dp, 3));
+    const dust = new THREE.Points(dg, new THREE.PointsMaterial({ size: 0.035, color: 0xe4eaff, transparent: true, opacity: 0.18, depthWrite: false, blending: THREE.AdditiveBlending }));
+    dust.position.copy(top); dust.quaternion.copy(q); dust.scale.set(1, len, 1); dust.frustumCulled = false; group.add(dust); beamDust.push(dg, DN);
+  }
+  // museum lighting: two warm spots from the gallery corners, one on the skull, one raking the ribs
+  for (const [p, t, i] of [[[-6.5, F3 - 0.4, 6.8], [-4.2, 6.8, 2.8], 260], [[6.5, F3 - 0.4, -5.5], [0.2, 4.2, 0.6], 300], [[5.5, F2 - 0.5, 7.5], [-1.2, 2.5, 1.2], 140]]) {
+    const sp = new THREE.SpotLight(0xffd4a0, i, 22, 0.32, 0.6, 1.3); sp.position.set(...p); sp.target.position.set(...t); sp.castShadow = true; sp.shadow.mapSize.set(1024, 1024); sp.shadow.bias = -0.0005; group.add(sp, sp.target);
+    const can = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.14, 0.3, 10), ironM); can.position.set(...p); can.lookAt(...t); can.rotateX(Math.PI / 2); group.add(can); }
+  { const ch = new THREE.PointLight(0xffc890, 14, 14, 1.4); ch.position.set(0, F3 - 1.0, 0); group.add(ch); lights.push({ pl: ch, base: 14, ph: 2 });
+    const chand = new THREE.Group(); chand.position.set(0, F3 + 1.6, 0);   // a brass ring chandelier hanging in the well above the skull
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(1.0, 0.04, 6, 24), brassM); ring.rotation.x = Math.PI / 2; chand.add(ring);
+    for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2, b = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), sconceM); b.position.set(Math.cos(a), 0.08, Math.sin(a)); chand.add(b); }
+    const chain = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, TOP - F3 - 1.6, 4), ironM); chain.position.y = (TOP - F3 - 1.6) / 2; chand.add(chain); group.add(chand); }
+  const cpulse = portalMarker(group, 0, WZ - 0.8);
+
+  return {
+    group,
+    name: 'Hotel Osario',
+    exposure: 1.3,
+    fog: new THREE.FogExp2(0x1a120a, 0.012),
+    bounds: { minX: -WX, maxX: WX, minZ: -WZ, maxZ: WZ },
+    blocked(x, z) {
+      if (Math.abs(x) > WX - r - 0.05 || Math.abs(z) > WZ - r - 0.05) return true;
+      if (onPlinth(x, z, r)) return true;
+      if (rectBlock(x, z, -2.7, 2.7, -WZ, -WZ + 2.65, r)) return true;            // front desk
+      if (rectBlock(x, z, STX0 - 0.1, WX, STZ0, STZ1, r)) return true;             // the stair
+      for (const [cx, cz] of colAt) if (circBlock(x, z, cx, cz, 0.32, r)) return true;
+      if (rectBlock(x, z, -WX, -6.6, 2.4, 5.6, r) || rectBlock(x, z, -WX, -6.6, -5.0, -2.8, r)) return true;   // chairs
+      for (const [px, pz] of [[-8.0, 7.9], [7.9, -5.6], [-8.0, -7.8], [3.6, -7.9], [-3.6, -7.9], [-7.9, 6.6]]) if (circBlock(x, z, px, pz, 0.38, r)) return true;
+      return false;
+    },
+    groundY() { return 0; },
+    start: { x: 0, z: WZ - 1.4, heading: Math.PI },
+    spawns: { front: { x: 0, z: WZ - 1.4, heading: Math.PI }, car: { x: 0, z: WZ - 1.4, heading: Math.PI } },
+    portals: [{ x: 0, z: WZ - 0.8, to: 'drive', spawn: 'hotel', label: 'Your car' }],
+    patrol: [
+      { p: [0, 5.8], wait: 3, face: Math.PI },                 // look up at it from the door
+      { p: [-4.6, 3.6], wait: 2.5, face: Math.PI * 0.75 },      // the skull
+      { p: [-1.0, -5.6], wait: 2, face: 0 },                    // at the desk
+      { p: [4.8, -3.8], wait: 2.5, face: -Math.PI * 0.6 },      // the tail
+      { p: [5.0, 4.4], wait: 2, face: Math.PI },
+    ],
+    overhead(pos, outPos, outLook) {   // low and back, looking up past him into the well so the skeleton and the skylight are in the frame
+      outPos.set(THREE.MathUtils.clamp(pos.x * 0.55 + 1.2, -WX + 0.6, WX - 0.6), 2.3, THREE.MathUtils.clamp(pos.z + 4.6, -WZ + 0.6, WZ - 0.6));
+      outLook.set(pos.x * 0.4, 4.2, pos.z * 0.5 - 4);
+    },
+    camOK(v) { return Math.abs(v.x) < WX - 0.4 && Math.abs(v.z) < WZ - 0.4 && v.y < TOP; },
+    camClamp(v) { v.x = THREE.MathUtils.clamp(v.x, -WX + 0.5, WX - 0.5); v.z = THREE.MathUtils.clamp(v.z, -WZ + 0.5, WZ - 0.5); v.y = Math.min(v.y, F2 - 0.8); },
+    update(dt, now) {
+      cpulse(now);
+      for (const l of lights) l.pl.intensity = l.base * (0.92 + 0.05 * Math.sin(now * 6 + l.ph) + 0.03 * Math.sin(now * 13 + l.ph * 2));
+      rainTex.offset.y = (now * 0.12) % 1;
+      if (beamDust.length) { const [dg, DN] = beamDust, a = dg.attributes.position.array; for (let i = 0; i < DN; i++) { a[i * 3 + 1] -= dt * 0.012; a[i * 3] += Math.sin(now * 0.3 + i) * dt * 0.02; if (a[i * 3 + 1] < -1) a[i * 3 + 1] += 1; } dg.attributes.position.needsUpdate = true; }
+    },
+  };
+}
 
 /* =========================================================
    SCENE 7 — the drive (endless main street)
@@ -4571,6 +4922,9 @@ function wheel(x, c, t) {
       if (c.win) for (const [u, v, k] of b.wins) if (k < c.win) { g.fillStyle = `rgba(255,${200 + k * 40 | 0},${130 + k * 60 | 0},${0.55 * (0.55 + 0.45 * Math.sin(t * 0.3 + k * 40))})`; g.fillRect(b.x + 2 + u * (b.w - 4), HOR - b.h + 2 + v * (b.h - 4), 1.6, 2.2); } }
     const big = (x, f) => { g.save(); g.translate(x, HOR); g.scale(1.2, 1.2); g.translate(-x, -HOR); f(); g.restore(); };
     big(1400, () => cathedral(1400, c, t, br)); big(1190, () => coronado(1190, c, t, br)); wallGate(c, t, br);
+    // the Old Town docks at the south end of Bayshore: sheds and two cranes (the warehouse is down there)
+    { const pc2 = c.far.map(v => v * 0.88); g.fillStyle = rgb(pc2); g.fillRect(700, HOR - 8, 130, 8); for (let x = 706; x < 826; x += 14) { g.beginPath(); g.moveTo(x, HOR - 8); g.lineTo(x + 7, HOR - 13); g.lineTo(x + 7, HOR - 8); g.fill(); }
+      g.save(); g.translate(770, HOR); g.scale(0.5, 0.5); g.translate(-770, -HOR); cranes(770, c, t); g.restore(); for (let x = 704; x < 830; x += 20) { g.fillStyle = `rgba(255,170,80,${0.15 + 0.7 * c.lamp})`; g.fillRect(x, HOR - 12, 1.6, 1.6); } }
     // the precinct on Bayshore: a squat block with its two green globes at the steps
     const pc = c.far.map(v => v * 0.85); g.fillStyle = rgb(pc); g.fillRect(1044, HOR - 19, 32, 19); g.fillRect(1042, HOR - 21, 36, 2); g.fillRect(1059.5, HOR - 32, 1, 11);
     if (c.win > 0.2) for (let k = 0; k < 4; k++) { g.fillStyle = warm(0.6); g.fillRect(1048 + k * 7.5, HOR - 14, 2.4, 3); }
@@ -4645,7 +4999,7 @@ function wheel(x, c, t) {
   function make(S) {
     const conf = S.skyline, c = SKIES[conf.sky || 'evening'], R = conf.radius || RING, P = painter(conf);
     const mkCv = () => { const cv = document.createElement('canvas'); cv.width = 4096; cv.height = 512; return cv; };
-    const cv = mkCv(), L = P.layered ? { far: cv, mid: mkCv(), near: mkCv() } : null;
+    const cv = mkCv(), L = P.layered && !conf.noGround ? { far: cv, mid: mkCv(), near: mkCv() } : null;   // the drives keep one ring: their nearer rings would cut through the bay
     P.fn(cv, c, 0, L);
     const H0 = 2 * Math.PI * R / (8 * (conf.repeat || 1)) * (conf.scale || 1);
     // each layer is its own ring, scaled about the eye so from the centre the picture is unchanged; walk about and the near shore slides across the far city
@@ -5464,7 +5818,7 @@ function buildBridge(mal = false) {      // mal: El Malecón, the island's seawa
   return self;
 }
 
-const BUILDERS = { front: buildFront, doorway: buildDoorway, alley: buildAlley, office: buildOffice, precinct: buildPrecinct, warehouse: buildWarehouse, cemetery: buildCemetery, fort: buildFort, drive: () => buildBridge(false), malecon: () => buildBridge(true), lot: buildLot };
+const BUILDERS = { front: buildFront, doorway: buildDoorway, alley: buildAlley, office: buildOffice, precinct: buildPrecinct, warehouse: buildWarehouse, cemetery: buildCemetery, fort: buildFort, hotel: buildHotel, drive: () => buildBridge(false), malecon: () => buildBridge(true), lot: buildLot };
 const built = {};
 const fadeEl = document.getElementById('fade');
 const scenesBar = document.getElementById('scenes');
@@ -5511,7 +5865,7 @@ function buildMoodButtons() {
     moodsEl.appendChild(b);
   }
 }
-for (const [key, label] of [['doorway', 'The Doorway'], ['alley', 'The Alley'], ['office', 'The Office'], ['precinct', 'The Precinct'], ['lot', 'The Parking Lot'], ['front', 'Precinct Front'], ['warehouse', 'The Warehouse'], ['malecon', 'El Malecón'], ['cemetery', 'The Cemetery'], ['fort', 'El Morro'], ['drive', 'The Drive']]) {
+for (const [key, label] of [['doorway', 'The Doorway'], ['alley', 'The Alley'], ['office', 'The Office'], ['precinct', 'The Precinct'], ['lot', 'The Parking Lot'], ['front', 'Precinct Front'], ['warehouse', 'The Warehouse'], ['malecon', 'El Malecón'], ['cemetery', 'The Cemetery'], ['fort', 'Castillo Coquina'], ['hotel', 'Hotel Osario'], ['drive', 'The Drive']]) {
   const b = document.createElement('button'); b.textContent = label; b.dataset.key = key;
   b.onclick = () => loadScene(key); scenesBar.appendChild(b);
 }
@@ -5651,13 +6005,14 @@ const DEST = {
   precinct: { label: 'Precinct', say: 'the precinct', go: () => loadScene('lot', { spawn: 'car' }) },
   cemetery: { label: 'Cemetery', say: 'the cemetery', go: () => loadScene('cemetery') },
   warehouse: { label: 'Warehouse', say: 'the warehouse', go: () => loadScene('warehouse') },
-  fort: { label: 'El Morro', say: 'El Morro', go: () => loadScene('fort', { spawn: 'car' }) },
+  fort: { label: 'Castillo Coquina', say: 'Castillo Coquina', go: () => loadScene('fort', { spawn: 'car' }) },
 };
-const ROUTES = { front: ['cemetery', 'warehouse'], lot: ['cemetery', 'warehouse'], warehouse: ['precinct', 'cemetery'], cemetery: ['precinct', 'warehouse'], fort: ['precinct', 'warehouse'] };
+const ROUTES = { hotel: ['precinct', 'cemetery'], front: ['cemetery', 'warehouse'], lot: ['cemetery', 'warehouse'], warehouse: ['precinct', 'cemetery'], cemetery: ['precinct', 'warehouse'], fort: ['precinct', 'warehouse'] };
 const drv = { t: 0, chosen: null, left: 0, opts: ROUTES.lot };
 // the roads each trip takes: the Skyway always lands at the port; the cemetery is up the Malecón from there
-var TRIPS = { lot: { cemetery: ['drive', 'malecon'], warehouse: ['drive'] }, front: { cemetery: ['drive', 'malecon'], warehouse: ['drive'] },
-  warehouse: { precinct: ['drive'], cemetery: ['malecon'] }, cemetery: { precinct: ['malecon', 'drive'], warehouse: ['malecon'] }, fort: { precinct: ['malecon', 'drive'], warehouse: ['malecon'] } };
+// the warehouse is on the Old Town docks now: no bridge between it and the precinct, the Skyway and the Malecón to the island
+var TRIPS = { hotel: { precinct: ['malecon', 'drive'], cemetery: ['malecon'] }, lot: { cemetery: ['drive', 'malecon'], warehouse: [] }, front: { cemetery: ['drive', 'malecon'], warehouse: [] },
+  warehouse: { precinct: [], cemetery: ['drive', 'malecon'] }, cemetery: { precinct: ['malecon', 'drive'], warehouse: ['malecon', 'drive'] }, fort: { precinct: ['malecon', 'drive'], warehouse: ['malecon', 'drive'] } };
 var trip = null, pendingTrip = null;
 const ROAD = { drive: 'the Skyway', malecon: 'the Malecón' };
 function askTrip(spawn) {
@@ -5668,11 +6023,11 @@ function askTrip(spawn) {
 function cancelTrip() { if (!pendingTrip) return; pendingTrip = null; whereTo.classList.remove('show'); }
 addEventListener('keydown', e => { if (e.code === 'Escape') cancelTrip(); });
 function setRoutes() {
-  drv.opts = currentKey === 'malecon' ? ['cemetery', 'warehouse'] : ROUTES[lastSpawn] || ROUTES.lot;
+  drv.opts = currentKey === 'malecon' ? ['cemetery', 'precinct'] : ROUTES[lastSpawn] || ROUTES.lot;
   whereTo.querySelectorAll('button').forEach((b, i) => { b.innerHTML = DEST[drv.opts[i]].label + '<kbd>' + (i ? 'E' : 'Q') + '</kbd>'; });
 }
 function chooseDest(i) {
-  if (pendingTrip) { const sp = pendingTrip, to = drv.opts[i]; pendingTrip = null; trip = { spawn: sp, to, legs: TRIPS[sp][to], i: 0 }; whereTo.classList.remove('show'); loadScene(trip.legs[0], { spawn: sp }); return; }
+  if (pendingTrip) { const sp = pendingTrip, to = drv.opts[i]; pendingTrip = null; const legs = TRIPS[sp][to]; whereTo.classList.remove('show'); if (!legs.length) { trip = null; DEST[to].go(); return; } trip = { spawn: sp, to, legs, i: 0 }; loadScene(trip.legs[0], { spawn: sp }); return; }
   if (!S || !S.drive || drv.chosen) return;
   drv.chosen = drv.opts[i]; drv.left = 4; S.onChoose && S.onChoose(i); whereTo.classList.add('chosen'); whereQ.textContent = 'Heading to ' + DEST[drv.chosen].say + '…';
 }
@@ -5932,7 +6287,7 @@ const cityMap = document.createElement('canvas'); cityMap.width = 640; cityMap.h
   g.strokeStyle = '#52608a'; g.lineWidth = 10; g.beginPath(); g.moveTo(0, 270); g.bezierCurveTo(200, 250, 380, 300, 580, 260); g.stroke();
   g.fillStyle = '#26332a'; g.fillRect(60, 300, 110, 90); g.fillStyle = '#2b2f3a'; g.fillRect(480, 300, 90, 70);
   g.fillStyle = '#56607a'; g.font = 'bold 18px ' + MONO; g.fillText('COQUINA CITY', 16, 26); g.fillText('BAY', 585, 230); }
-const YOU = { front: 'Precinct', doorway: 'Doorway', alley: 'Alley', lot: 'Parking lot', precinct: 'Precinct', office: 'Precinct', warehouse: 'Warehouse', cemetery: 'Cemetery', fort: 'El Morro' };
+const YOU = { hotel: 'Hotel Osario', front: 'Precinct', doorway: 'Doorway', alley: 'Alley', lot: 'Parking lot', precinct: 'Precinct', office: 'Precinct', warehouse: 'Warehouse', cemetery: 'Cemetery', fort: 'Castillo Coquina', hotel: 'Hotel Osario' };
 const youPin = () => YOU[currentKey] || '';
 const snake = { body: [], dir: [1, 0], next: [1, 0], food: [10, 6], t: 0, alive: true, score: 0, best: 0 };
 const SG = { w: 20, h: 12 };

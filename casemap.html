@@ -229,12 +229,12 @@ inkLine('M792,690 C784,600 776,500 778,440 C780,380 770,320 772,260 C774,220 778
 inkLine('M792,704 C860,700 912,650 908,560 C904,470 900,380 870,300 C846,236 820,196 800,176', (x, z) => groundY(x, z) + 0.2, null, 0.6, true);
 // the seawall along the Malecón
 { const pts = samplePath('M792,690 C784,600 776,500 778,440 C780,380 770,320 772,260 C774,220 778,196 792,180', 60), gs = []; for (let i = 0; i < pts.length - 1; i++) { const [x0, z0] = pts[i], [x1, z1] = pts[i + 1]; gs.push(boxG(0.8, 1.2, Math.hypot(x1 - x0, z1 - z0) + 0.2, (x0 + x1) / 2 - 2.5, LAND_H, (z0 + z1) / 2, Math.atan2(x1 - x0, z1 - z0))); } addMesh(mergeGeometries(gs), 'malecon'); }
-// the Motel Flamboyán: two storeys in an L, a sign on a pole
-{ const [x, z] = W(790, 590); addMesh(mergeGeometries([boxG(5, 5, 16, x + 3, LAND_H, z), boxG(10, 5, 5, x + 8, LAND_H, z - 5.5), boxG(0.3, 9, 0.3, x - 2, LAND_H, z + 7), boxG(3.4, 2, 0.4, x - 2, LAND_H + 9, z + 7)]), 'motel'); }
-// the port: sheds, cranes, the warehouse
-{ const [x, z] = W(826, 655), gs = [boxG(16, 6, 10, x, LAND_H, z), boxG(14, 4, 6, x - 2, LAND_H, z + 10), boxG(12, 4, 6, x + 2, LAND_H, z - 10)];
-  for (const dz of [-8, 6]) { const cx = x - 12, cz = z + dz; gs.push(boxG(0.6, 12, 0.6, cx - 1.5, LAND_H, cz), boxG(0.6, 12, 0.6, cx + 1.5, LAND_H, cz), boxG(14, 1, 1, cx - 3, LAND_H + 12, cz), boxG(2.4, 1.6, 2, cx, LAND_H + 13, cz)); }
-  addMesh(mergeGeometries(gs), 'warehouse'); const fen = []; for (let i = 0; i < 20; i++) fen.push(boxG(0.15, 1.6, 0.15, x + 10, LAND_H, z - 20 + i * 2)); addMesh(mergeGeometries(fen), 'warehouse', { edge: 0.5 }); }
+// the Hotel Osario on the Malecón: a crenellated coquina castle round a skylit atrium
+{ const [x, z] = W(795, 590); addMesh(mergeGeometries([boxG(10, 7, 16, x + 4, LAND_H, z), boxG(5, 10, 5, x + 4, LAND_H, z - 7), boxG(5, 10, 5, x + 4, LAND_H, z + 7), boxG(4, 1.2, 4, x + 4, LAND_H + 7, z)]), 'hotel'); }
+// the Old Town docks: sheds, cranes over the water, the warehouse
+{ const [x, z] = W(448, 655), gs = [boxG(16, 6, 10, x, LAND_H, z), boxG(14, 4, 6, x - 2, LAND_H, z + 10), boxG(12, 4, 6, x + 2, LAND_H, z - 10)];
+  for (const dz of [-8, 6]) { const cx = x + 13, cz = z + dz; gs.push(boxG(0.6, 12, 0.6, cx - 1.5, LAND_H, cz), boxG(0.6, 12, 0.6, cx + 1.5, LAND_H, cz), boxG(14, 1, 1, cx + 3, LAND_H + 12, cz), boxG(2.4, 1.6, 2, cx, LAND_H + 13, cz)); }
+  addMesh(mergeGeometries(gs), 'warehouse'); const fen = []; for (let i = 0; i < 20; i++) fen.push(boxG(0.15, 1.6, 0.15, x - 10, LAND_H, z - 20 + i * 2)); addMesh(mergeGeometries(fen), 'warehouse', { edge: 0.5 }); }
 // the fort: an eight-pointed star of coquina walls on the point, sentry boxes on the corners
 { const [x, z] = W(784, 152), s = new THREE.Shape(); for (let i = 0; i <= 8; i++) { const a = i / 8 * Math.PI * 2, rr = i % 2 ? 9 : 15; const px = Math.cos(a) * rr, pz = Math.sin(a) * rr; i ? s.lineTo(px, pz) : s.moveTo(px, pz); }
   const g = new THREE.ExtrudeGeometry(s, { depth: 6, bevelEnabled: false }); g.rotateX(-Math.PI / 2); g.translate(x, LAND_H, z); const gs = [g.toNonIndexed()];
@@ -261,13 +261,13 @@ for (let i = 0; i < 9; i++) { const b = new THREE.Group(), hull = new THREE.BoxG
 /* ---------------- the stops ---------------- */
 const at = (mx, my, y = 0) => { const [x, z] = W(mx, my); return new THREE.Vector3(x, (y || groundY(x, z)) + 2, z); };
 const STOPS = [
-  { id: 'motel', scene: null, where: 'ISLA LUZ', name: 'Motel Flamboyán', t: at(795, 590), yaw: 0.9, pitch: 0.62, dist: 170, cap: ['HOME, IF YOU CAN CALL IT THAT.', 'ROOM SIX. WEEKLY RATE. A VIEW OF THE TOWN THAT SIGNS HIS CHECKS.'], art: 'motel' },
+  { id: 'hotel', scene: 'hotel', where: 'ISLA LUZ', name: 'Hotel Osario', t: at(795, 590), yaw: 0.9, pitch: 0.62, dist: 170, cap: ['HOME, IF YOU CAN CALL IT THAT. ROOM 212, BY THE WEEK.', 'THE BONES CAME OUT OF THIS ISLAND. THE MONEY CAME FROM SOMEWHERE ELSE.'], art: 'motel' },
   { id: 'skyway', scene: 'drive', where: 'ÁNIMAS BAY', name: 'Ánimas Skyway', t: new THREE.Vector3().lerpVectors(SK0, SK1, 0.5).setY(10), yaw: 0.25, pitch: 0.5, dist: 250, cap: ['ONE ROAD BETWEEN THE ISLAND AND THE BADGE.', 'FOUR MILES OF CONCRETE AND NOTHING TO DO BUT THINK.'], art: 'skyway' },
   { id: 'precinct', scene: 'precinct', where: 'OLD TOWN', name: 'The Precinct', t: at(455, 505), yaw: -0.7, pitch: 0.62, dist: 160, cap: ['VERA KEEPS THE COFFEE HOT AND THE CHIEF\'S DOOR SHUT.', 'THE CHIEF WANTS IT CLOSED BY FRIDAY. WHY SO QUICK?'], art: 'precinct' },
   { id: 'alley', scene: 'alley', where: 'OLD TOWN', name: 'The Alley', t: at(395, 470), yaw: -1.2, pitch: 0.7, dist: 130, cap: ['TUESDAY. 11:40 P.M.', 'A KID IN A PURPLE HOODIE RAN. TWO WHITE MASKS RAN AFTER HIM.'], art: 'alley' },
   { id: 'malecon', scene: 'malecon', where: 'ISLA LUZ', name: 'El Malecón', t: at(790, 400), yaw: 1.25, pitch: 0.55, dist: 210, cap: ['THE BARRIO STACKS UP THE HILL LIKE A HAND OF CARDS.', 'EVERYBODY UP THERE SAW SOMETHING. NOBODY SAYS SO.'], art: 'malecon' },
-  { id: 'warehouse', scene: 'warehouse', where: 'ISLA LUZ', name: 'The Warehouse', t: at(826, 655), yaw: 0.5, pitch: 0.65, dist: 160, cap: ['BERNARD WORKS THESE DOCKS.', 'OR HE DID, TILL TUESDAY.'], art: 'warehouse' },
-  { id: 'fort', scene: 'fort', where: 'ISLA LUZ', name: 'El Morro', t: at(784, 152, 8), yaw: 2.2, pitch: 0.5, dist: 190, cap: ['FOUR HUNDRED YEARS OF WATCHING FOR SHIPS.', 'TONIGHT IT WATCHES THE SUN GO DOWN ON A CROOKED TOWN.'], art: 'fort' },
+  { id: 'warehouse', scene: 'warehouse', where: 'OLD TOWN', name: 'The Warehouse', t: at(448, 655), yaw: -0.6, pitch: 0.65, dist: 160, cap: ['BERNARD WORKS THESE DOCKS.', 'OR HE DID, TILL TUESDAY.'], art: 'warehouse' },
+  { id: 'fort', scene: 'fort', where: 'ISLA LUZ', name: 'Castillo Coquina', t: at(784, 152, 8), yaw: 2.2, pitch: 0.5, dist: 190, cap: ['FOUR HUNDRED YEARS OF WATCHING FOR SHIPS.', 'TONIGHT IT WATCHES THE SUN GO DOWN ON A CROOKED TOWN.'], art: 'fort' },
   { id: 'cemetery', scene: 'cemetery', where: 'ISLA LUZ', name: 'The Cemetery', t: at(830, 130), yaw: 2.6, pitch: 0.55, dist: 170, cap: ['THE DEAD GET THE BEST VIEW IN COQUINA CITY.', 'OLD TOWN ACROSS THE WATER, PRETENDING IT DIDN\'T SEE A THING.'], art: 'cemetery' },
 ];
 const OVER = { t: new THREE.Vector3(10, 0, 0), yaw: 0.15, pitch: 0.95, dist: 640 };
@@ -321,7 +321,7 @@ function drawPanel(s) {
   const palm = (x, y, h, lean = 0.2) => { g.strokeStyle = K; g.lineWidth = 9; g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + h * lean, y - h * 0.6, x + h * lean * 1.3, y - h); g.stroke(); const tx = x + h * lean * 1.3, ty = y - h; g.fillStyle = K; for (let k = 0; k < 7; k++) { const a = -Math.PI + k / 6 * Math.PI; g.beginPath(); g.moveTo(tx, ty); g.quadraticCurveTo(tx + Math.cos(a) * 60, ty + Math.sin(a) * 40 - 20, tx + Math.cos(a) * 110, ty + Math.sin(a) * 30 + 40); g.quadraticCurveTo(tx + Math.cos(a) * 60, ty + Math.sin(a) * 40 - 6, tx, ty + 4); g.fill(); } };
   const rain = () => { g.strokeStyle = 'rgba(236,226,198,.35)'; g.lineWidth = 1.5; for (let i = 0; i < 260; i++) { const x = Math.random() * Wd, y = Math.random() * Hd; g.beginPath(); g.moveTo(x, y); g.lineTo(x - 8, y + 34); g.stroke(); } };
   // sky
-  const night = ['motel', 'alley', 'precinct', 'warehouse'].includes(s.art);
+  const night = ['hotel', 'motel', 'alley', 'precinct', 'warehouse'].includes(s.art);
   g.fillStyle = night ? K : P; g.fillRect(0, 0, Wd, Hd);
   if (night) dots(0, 0, Wd, Hd * 0.7, (x, y) => 0.25 * (1 - y / Hd), (gr ? '#3c3f42' : '#3a3229'), 10);
   else { g.fillStyle = Rd; g.fillRect(0, Hd * 0.42, Wd, Hd * 0.16); dots(0, 0, Wd, Hd * 0.42, (x, y) => 0.15 + 0.5 * (1 - y / (Hd * .42)), K, 10); }
