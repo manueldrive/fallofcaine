@@ -2925,6 +2925,77 @@ function buildSkybridge() {
 }
 
 /* =========================================================
+   THE FALL — the title screen's scene. Nothing but black, Caine dropping through it, a cold light from somewhere
+   far above just catching his hat brim and shoulders, motes and rain streaking up past us as he falls away.
+   ========================================================= */
+function buildVoid() {
+  const group = new THREE.Group();
+  let drift = false; try { drift = localStorage.getItem('caineFall') === 'drift'; } catch (e) {}   // dev: the first, slower take (he hangs in the dark rather than drops)
+  const N = 900, pg = new THREE.BufferGeometry(), pa = new Float32Array(N * 3), sp = new Float32Array(N);
+  for (let i = 0; i < N; i++) { const a = Math.random() * 7, r = 0.6 + Math.pow(Math.random(), 0.7) * 7; pa.set([Math.cos(a) * r, -24 + Math.random() * 36, Math.sin(a) * r], i * 3); sp[i] = 0.6 + Math.random() * 0.8; }
+  pg.setAttribute('position', new THREE.BufferAttribute(pa, 3));
+  const motes = new THREE.Points(pg, new THREE.PointsMaterial({ color: 0x9aa4b4, size: 0.03, transparent: true, opacity: 0.55, depthWrite: false })); motes.frustumCulled = false; group.add(motes);
+  const SN = drift ? 160 : 420, sg = new THREE.BufferGeometry(), sa = new Float32Array(SN * 6);
+  for (let i = 0; i < SN; i++) { const a = Math.random() * 7, r = 1 + Math.random() * 6, y = -24 + Math.random() * 36; const L = drift ? 0.9 : 1.6 + Math.random() * 2.6; sa.set([Math.cos(a) * r, y, Math.sin(a) * r, Math.cos(a) * r, y + L, Math.sin(a) * r], i * 6); }
+  sg.setAttribute('position', new THREE.BufferAttribute(sa, 3));
+  const streaks = new THREE.LineSegments(sg, new THREE.LineBasicMaterial({ color: 0x8a94a4, transparent: true, opacity: 0.42 })); streaks.frustumCulled = false; group.add(streaks);
+  const key = new THREE.SpotLight(0xdfe6f0, 60, 14, 0.32, 1, 1.6); key.position.set(0.6, 9, 0.8); key.target.position.set(0, 0.9, 0); group.add(key, key.target);   // barely lit, from far above
+  const under = new THREE.DirectionalLight(0x3a5a9a, 0.35); under.position.set(-1, -6, -2); group.add(under, under.target);     // a cold breath from below
+  let t = 0;
+  const pose = (tt) => {
+    const w = (f, ph = 0) => Math.sin(tt * f + ph), buf = w(23) * 0.5 + w(31, 1) * 0.3 + w(17, 2) * 0.2;   // the wind shaking everything
+    const sink = -0.9 - 0.55 * (0.5 + 0.5 * w(0.9)) - 0.12 * w(2.7);                                    // dropping away from us in surges
+    man.position.set(w(0.7) * 0.18 + buf * 0.015, sink, w(0.55, 1) * 0.14);
+    man.rotation.set(-0.75 + w(0.8) * 0.22 + buf * 0.03, tt * 0.55, w(0.6) * 0.38);                            // face-down, turning over faster
+    hips.position.y = 0.95; hips.rotation.set(0, 0, w(3.1) * 0.08); chest.rotation.set(-0.25 + buf * 0.05, w(2.3) * 0.1, 0);
+    // arms thrown up and back by the air, clawing at nothing
+    armL.sh.rotation.set(-0.9 + w(4.2) * 0.35 + buf * 0.08, 0, 2.25 + w(3.3, 1) * 0.3); armL.el.rotation.x = -0.4 + w(5.1) * 0.35;
+    armR.sh.rotation.set(-0.8 + w(3.9, 2) * 0.35 + buf * 0.08, 0, -2.15 + w(3.6, 3) * 0.3); armR.el.rotation.x = -0.5 + w(4.7, 1) * 0.35;
+    // legs kicking for a floor that isn't there
+    legL.hip.rotation.x = -0.6 + w(3.4) * 0.45; legL.knee.rotation.x = 0.9 + w(3.4, 1.2) * 0.4; legL.ankle.rotation.x = 0.3;
+    legR.hip.rotation.x = 0.15 + w(3.4, Math.PI) * 0.45; legR.knee.rotation.x = 0.6 + w(3.4, 4.3) * 0.4; legR.ankle.rotation.x = 0.2;
+    skirt.rotation.x = -1.05 + w(14) * 0.16 + buf * 0.06;                                                       // coat tails snapping straight up
+    neck.rotation.set(0.35, 0, 0); head.rotation.set(-0.35 + w(2.2) * 0.12, w(1.4) * 0.3, buf * 0.04);       // head craned back, looking up at where he fell from
+  };
+  const poseDrift = (tt) => {   // the first take: face-down, slowly turning over, limbs loose
+    man.position.set(0, -0.9, 0);
+    man.rotation.set(-0.55 + Math.sin(tt * 0.5) * 0.12, tt * 0.22, Math.sin(tt * 0.37) * 0.25);
+    hips.position.y = 0.95; hips.rotation.set(0, 0, 0); chest.rotation.set(-0.15, 0, 0);
+    armL.sh.rotation.set(-0.4 + Math.sin(tt * 1.3) * 0.12, 0, 1.75 + Math.sin(tt * 1.1) * 0.15); armL.el.rotation.x = -0.45;
+    armR.sh.rotation.set(-0.3 + Math.sin(tt * 1.2 + 1) * 0.12, 0, -1.6 + Math.sin(tt * 0.9 + 2) * 0.15); armR.el.rotation.x = -0.6;
+    legL.hip.rotation.x = -0.55 + Math.sin(tt * 0.8) * 0.1; legL.knee.rotation.x = 0.95; legL.ankle.rotation.x = 0.2;
+    legR.hip.rotation.x = 0.25 + Math.sin(tt * 0.8 + 2) * 0.1; legR.knee.rotation.x = 0.45; legR.ankle.rotation.x = 0.1;
+    skirt.rotation.x = -0.55 + Math.sin(tt * 6) * 0.06; neck.rotation.set(0.2, 0, 0); head.rotation.set(0.15, Math.sin(tt * 0.4) * 0.2, 0);
+  };
+  return {
+    group, grade: NOIR, name: 'The Fall', cutscene: true,
+    exposure: 1.05,
+    fog: new THREE.FogExp2(0x000000, 0.09),
+    bounds: { minX: -1, maxX: 1, minZ: -1, maxZ: 1 },
+    blocked() { return false; }, groundY() { return 0; },
+    start: { x: 0, z: 0, heading: 0 }, patrol: [{ p: [0, 0] }],
+    overhead(p, o, l) { o.set(0, 5, 1.6); l.set(0, 0, 0); },
+    camTargets(m, p, l) { const wide = innerWidth > innerHeight ? 1 : 0, sh = drift ? 0 : (Math.sin(t * 29) + Math.sin(t * 37 + 1) * 0.6) * 0.035;   // the camera falls too: shaken by the air
+      p.set(Math.sin(t * 0.13) * 0.7 + sh, 4.2 + wide * 1.6 - Math.sin(t * 0.2) * 0.3 + sh * 0.6, 2.2 + wide * 0.4 + Math.cos(t * 0.11) * 0.5); l.set(sh * 0.5, -0.35 - wide * 1.45, 0.15); },   // a wide screen stands further off so he clears the title   // above him, looking down as he drops away
+    camOK() { return true; },
+    onExit() { resetPose(); },
+    update(dt) {
+      t += dt; (drift ? poseDrift : pose)(t);
+      for (let i = 0; i < N; i++) { pa[i * 3 + 1] += (drift ? 7.5 : 24) * sp[i] * dt; if (pa[i * 3 + 1] > 12) pa[i * 3 + 1] -= 36; } pg.attributes.position.needsUpdate = true;
+      for (let i = 0; i < SN; i++) { const o = i * 6; const v = drift ? 16 : 46; sa[o + 1] += v * dt; sa[o + 4] += v * dt; if (sa[o + 1] > 12) { sa[o + 1] -= 36; sa[o + 4] -= 36; } } sg.attributes.position.needsUpdate = true;
+      key.intensity = 60 * (0.85 + 0.15 * Math.sin(t * 0.7));
+    },
+  };
+}
+// put him back to plain standing after a cutscene has bent him into shapes
+function resetPose() {
+  man.rotation.set(0, heading, 0); hips.position.y = 0.95; hips.rotation.set(0, 0, 0); chest.rotation.set(0, 0, 0); neck.rotation.set(0, 0, 0); head.rotation.set(0, 0, 0); skirt.rotation.set(0, 0, 0);
+  for (const A of [armL, armR]) { A.sh.rotation.set(0, 0, 0); A.el.rotation.set(0, 0, 0); }
+  armL.sh.rotation.z = 0.08; armR.sh.rotation.z = -0.08;
+  for (const L of [legL, legR]) { L.hip.rotation.set(0, 0, 0); L.knee.rotation.set(0, 0, 0); L.ankle.rotation.set(0, 0, 0); }
+}
+
+/* =========================================================
    SCENE 8 — the precinct front: the public face on Bayshore. Stone steps, the carved lintel and twin
    green globes, a flagpole, a newsstand, a police call box, squad cars at the curb, and across the
    street the seawall and the bay with Coquina City beyond.
@@ -4740,6 +4811,12 @@ function buildRoom212() {
     const hs = new THREE.Mesh(new THREE.CapsuleGeometry(0.02, 0.17, 4, 8), bk); hs.rotation.z = Math.PI / 2; hs.position.set(0, 0.11, -0.01); ph.add(hs);
     for (const x of [-0.1, 0.1]) { const cup = new THREE.Mesh(new THREE.SphereGeometry(0.032, 8, 6), bk); cup.position.set(x, 0.1, -0.01); ph.add(cup); }
     ph.traverse(o => { if (o.isMesh) o.castShadow = true; }); ph.position.set(NS.x + 0.12, 0.63, NS.z + 0.1); ph.rotation.y = 0.5; group.add(ph); }
+  // the wind-up alarm clock: twin bells, a hammer between them, little feet (it shakes itself across the nightstand at 6:58)
+  const clock = new THREE.Group(); { const ck = mat({ color: 0x1a1a1a, roughness: .3, metalness: .6 }), face = new THREE.Mesh(new THREE.CircleGeometry(0.055, 24), mat({ map: canvasTex(128, (g, q) => { g.fillStyle = '#e8e0c8'; g.fillRect(0, 0, q, q); g.strokeStyle = '#111'; g.lineWidth = 3; for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; g.beginPath(); g.moveTo(q / 2 + Math.cos(a) * 50, q / 2 + Math.sin(a) * 50); g.lineTo(q / 2 + Math.cos(a) * 58, q / 2 + Math.sin(a) * 58); g.stroke(); } g.lineWidth = 5; g.beginPath(); g.moveTo(q / 2, q / 2); g.lineTo(q / 2 + 28, q / 2 - 12); g.moveTo(q / 2, q / 2); g.lineTo(q / 2 - 4, q / 2 - 44); g.stroke(); }), roughness: .4 }));
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.065, 0.04, 24), ck); body.rotation.x = Math.PI / 2; body.position.y = 0.085; clock.add(body); face.position.set(0, 0.085, 0.021); clock.add(face);
+    for (const sd of [-1, 1]) { const bell = new THREE.Mesh(new THREE.SphereGeometry(0.032, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), ck); bell.position.set(sd * 0.04, 0.155, 0); bell.rotation.z = -sd * 0.5; clock.add(bell); const foot = new THREE.Mesh(new THREE.SphereGeometry(0.012, 6, 5), ck); foot.position.set(sd * 0.04, 0.012, 0); clock.add(foot); }
+    const hm = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.04, 0.008), ck); hm.position.set(0, 0.17, 0); clock.add(hm);
+    clock.traverse(o => { if (o.isMesh) o.castShadow = true; }); clock.position.set(NS.x - 0.17, 0.63, NS.z + 0.14); clock.rotation.y = 0.7; clock.userData.y = 0.63; group.add(clock); }
   // ashtray and the cigarette still burning in it
   const ash = cyl(0.06, 0.05, 0.025, glassM, NS.x + 0.17, 0.645, NS.z - 0.13, 12);
   const cig = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.08, 5), mat({ color: 0xe8e0d0 })); cig.rotation.z = Math.PI / 2 - 0.15; cig.position.set(NS.x + 0.2, 0.665, NS.z - 0.13); group.add(cig);
@@ -4849,7 +4926,8 @@ function buildRoom212() {
     },
     groundY() { return 0; },
     start: { x: 0.7, z: -0.5, heading: Math.PI * 0.9 },
-    spawns: { hotel: { x: doorX, z: doorZ, heading: 0 } },
+    spawns: { hotel: { x: doorX, z: doorZ, heading: 0 }, wake: { x: -2.05, z: 1.6, heading: 0 } },
+    clock,
     portals: [{ x: doorX, z: doorZ, to: 'hotel', spawn: 'room212', label: 'The gallery' }],
     props: [{ id: 'notebook', mesh: group.userData.nb, label: 'Read notebook' }],
     patrol: [
@@ -7303,7 +7381,7 @@ const MCam = (() => {
   return { bind(s, on) { st = s; el.classList.toggle('on', !!on); if (on) sync(); }, hide() { el.classList.remove('on'); },
     show(k) { tag.textContent = st && st.mode === 'auto' ? 'now: ' + NAMES[k] : ''; } };
 })();
-const BUILDERS = { front: buildFront, doorway: buildDoorway, alley: buildAlley, office: buildOffice, precinct: buildPrecinct, warehouse: buildWarehouse, cemetery: buildCemetery, fort: buildFort, hotel: buildHotel, room212: buildRoom212, kitlab: buildKitLab, drive: () => buildBridge(false), malecon: () => buildBridge(true), lot: buildLot, garage: buildGarage, skybridge: buildSkybridge };
+const BUILDERS = { front: buildFront, doorway: buildDoorway, alley: buildAlley, office: buildOffice, precinct: buildPrecinct, warehouse: buildWarehouse, cemetery: buildCemetery, fort: buildFort, hotel: buildHotel, room212: buildRoom212, kitlab: buildKitLab, drive: () => buildBridge(false), malecon: () => buildBridge(true), lot: buildLot, garage: buildGarage, skybridge: buildSkybridge, void: buildVoid };
 const built = {};
 const fadeEl = document.getElementById('fade');
 const scenesBar = document.getElementById('scenes');
@@ -7330,6 +7408,7 @@ function loadScene(key, { instant = false, spawn = null } = {}) {
     const st = (spawn && S.spawns && S.spawns[spawn]) || S.start;
     pos.set(st.x, S.groundY(st.x, st.z), st.z); heading = st.heading;
     route = []; pause = 0.8; patrolIdx = 0; faceTarget = null; walkAmt = 0;
+    if (key === 'room212' && spawn === 'wake' && typeof Intro !== 'undefined') Intro.onRoom(S);
     manualUntil = spawn ? performance.now() / 1000 + 4 : 0; portalCooldown = 0.5; portalArmed = false;
     loading = false;
     updateCamera(0, true);
@@ -7603,6 +7682,9 @@ function driveChoice(dt) {
   const sel = document.createElement('select'); sel.innerHTML = '<option value="">Jump to scene…</option>' + listed.map(([k, t]) => `<option value="${k}">${t}</option>`).join('');
   sel.onchange = () => { if (sel.value) loadScene(sel.value); sel.value = ''; }; body.append(sel);
   const rc = document.createElement('button'); rc.textContent = 'Reset clues'; rc.onclick = () => { Evidence.reset(); loadScene(currentKey); }; body.append(rc);
+  const fs = document.createElement('button'); const fl = () => { let d = false; try { d = localStorage.getItem('caineFall') === 'drift'; } catch (e) {} return d; };
+  fs.textContent = 'Intro: ' + (fl() ? 'drifting' : 'falling'); fs.onclick = () => { try { localStorage.setItem('caineFall', fl() ? 'fall' : 'drift'); } catch (e) {} fs.textContent = 'Intro: ' + (fl() ? 'drifting' : 'falling'); if (currentKey === 'void') location.reload(); }; body.append(fs);   // which take of the fall the title screen uses
+  const rl = document.createElement('button'); rl.textContent = 'Reload'; rl.onclick = () => location.reload(); body.append(rl);   // a fresh start (no #scene in the address = the opening plays)
   dock.querySelector('#devDockBtn').onclick = (e) => { e.stopPropagation(); body.hidden = !body.hidden; };
   dock.addEventListener('pointerdown', e => e.stopPropagation());
   const syncDock = () => { dock.hidden = !on; if (!on) body.hidden = true; }; syncDock();
@@ -7889,7 +7971,144 @@ const Calm = (() => {   // the interface steps back while you walk
   return { update(dt, now) { const moved = pos.distanceTo(last) > dt * 0.4; last.copy(pos); still = moved ? 0 : still + dt;
     bar.classList.toggle('calm', !S.drive && still < 1.4 && now - poked > 2.5); } };
 })();
-loadScene(BUILDERS[location.hash.slice(1)] ? location.hash.slice(1) : 'doorway', { instant: true });
+/* =========================================================
+   THE OPENING: the fall (title + START) → an alarm clock shatters it → Caine jolts awake in Room 212 → the Chief texts.
+   Plays on a fresh load (no #scene in the address); #intro forces it.
+   ========================================================= */
+const Intro = (() => {
+  const css = document.createElement('style'); css.textContent = `
+    body.intro #bottomBar, body.intro #hint, body.intro #propBtn, body.intro #topRight { opacity: 0 !important; pointer-events: none !important; }
+    #intro { position: fixed; inset: 0; z-index: 40; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding-bottom: 11vh; box-sizing: border-box; pointer-events: none; color: #efe9da; text-align: center; }
+    #intro .ttl { opacity: 0; transform: translateY(10px); transition: opacity 3s ease 1.2s, transform 3s ease 1.2s; line-height: .86; user-select: none; }
+    #intro.on .ttl { opacity: 1; transform: none; }
+    #intro .ttl i { display: block; font: 400 clamp(26px, 4vw, 44px) 'Great Vibes', cursive; text-shadow: 0 .1em .5em #000; }
+    #intro .ttl b { display: block; font: 400 clamp(84px, 15vw, 170px) 'Bebas Neue', Impact, sans-serif; letter-spacing: .04em; text-shadow: 2px 2px 0 #8d8c90, 4px 4px 0 #5a595d, 6px 8px 22px rgba(0,0,0,.8); }
+    #intro button { margin-top: 4.5vh; pointer-events: auto; background: rgba(0,0,0,.35); color: #e2b23a; border: 1px solid #e2b23a; font: 22px 'Bebas Neue', Impact, sans-serif; letter-spacing: .5em; padding: 14px 30px 12px 40px; cursor: pointer;
+      opacity: 0; transition: opacity 2s ease 3.6s, background .3s; }
+    #intro.on button { opacity: 1; animation: introPulse 3.2s ease-in-out 5.6s infinite; }
+    #intro button:hover { background: rgba(226,178,58,.12); }
+    @keyframes introPulse { 50% { box-shadow: 0 0 22px rgba(226,178,58,.35); } }
+    #intro .cr { position: absolute; inset: 0; pointer-events: none; }
+    #shards { position: fixed; inset: 0; z-index: 41; pointer-events: none; overflow: hidden; }
+    #shards div { position: absolute; inset: 0; background-size: 100% 100%; will-change: transform, opacity; }
+    #shake { animation: shake .45s linear; }
+    @keyframes shake { 10% { transform: translate(-9px, 5px) } 25% { transform: translate(8px, -7px) } 40% { transform: translate(-7px, -4px) } 55% { transform: translate(6px, 7px) } 70% { transform: translate(-4px, 3px) } 85% { transform: translate(3px, -2px) } }
+    #wakeFlash { position: fixed; inset: 0; z-index: 39; background: #fff; opacity: 0; pointer-events: none; }
+    #textNote { position: fixed; left: 50%; top: 14px; z-index: 45; width: min(400px, calc(100vw - 24px)); transform: translate(-50%, -140%); transition: transform .55s cubic-bezier(.2,.9,.25,1.15);
+      background: rgba(16,15,13,.94); border: 1px solid #3a352c; border-left: 3px solid #e2b23a; color: #e8e1cf; padding: 11px 14px 12px; font: 15px/1.35 Georgia, serif; cursor: pointer; box-shadow: 0 10px 30px rgba(0,0,0,.6); }
+    #textNote.show { transform: translate(-50%, 0); }
+    #textNote .hd { display: flex; justify-content: space-between; font: 600 11px 'Courier New', monospace; letter-spacing: .22em; color: #e2b23a; margin-bottom: 5px; }
+    #textNote .hd span:last-child { color: #8b8474; letter-spacing: .1em; }
+    #textNote .tap { margin-top: 6px; font: 11px 'Courier New', monospace; letter-spacing: .15em; color: #8b8474; }`;
+  document.head.appendChild(css);
+  let AC = null, ring = null, phase = 'off', t = 0, wakeS = null;
+  const audio = () => { if (!AC) try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} if (AC && AC.state === 'suspended') AC.resume(); return AC; };
+  // a wind-up bell: two struck tones, a hammer chattering between the bells, ringing in bursts
+  function alarm() { const c = audio(); if (!c) return null; const out = c.createGain(); out.gain.value = 0; out.connect(c.destination);
+    const hammer = c.createGain(); hammer.gain.value = 0; hammer.connect(out);
+    const oscs = [2150, 2690, 3420].map((f, i) => { const o = c.createOscillator(); o.type = i ? 'sine' : 'triangle'; o.frequency.value = f; const g = c.createGain(); g.gain.value = [0.5, 0.35, 0.15][i]; o.connect(g).connect(hammer); o.start(); return o; });
+    const lfo = c.createOscillator(); lfo.type = 'square'; lfo.frequency.value = 19; const lg = c.createGain(); lg.gain.value = 0.5; lfo.connect(lg).connect(hammer.gain); lfo.start(); hammer.gain.value = 0.5;
+    const t0 = c.currentTime; for (let k = 0; k < 8; k++) { out.gain.setValueAtTime(0.22, t0 + k * 1.15); out.gain.setValueAtTime(0.0, t0 + k * 1.15 + 0.9); }
+    return { stop(at = 0) { const s = c.currentTime + at; out.gain.cancelScheduledValues(s); out.gain.setValueAtTime(out.gain.value, s); out.gain.linearRampToValueAtTime(0, s + 0.05); setTimeout(() => { [...oscs, lfo].forEach(o => { try { o.stop(); } catch (e) {} }); }, (at + 0.2) * 1000); } }; }
+  function crash() { const c = audio(); if (!c) return; const len = c.sampleRate * 0.9, b = c.createBuffer(1, len, c.sampleRate), d = b.getChannelData(0);
+    for (let i = 0; i < len; i++) { const k = i / len; d[i] = (Math.random() * 2 - 1) * Math.pow(1 - k, 3) * (Math.random() < 0.02 ? 2 : 1); }
+    const s = c.createBufferSource(); s.buffer = b; const f = c.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 1800; const g = c.createGain(); g.gain.value = 0.55; s.connect(f).connect(g).connect(c.destination); s.start(); }
+  function buzz() { const c = audio(); if (!c) return; const t0 = c.currentTime; for (const st of [0, 0.32]) { const o = c.createOscillator(); o.type = 'square'; o.frequency.value = 150; const g = c.createGain(); g.gain.setValueAtTime(0, t0 + st); g.gain.linearRampToValueAtTime(0.06, t0 + st + 0.02); g.gain.setValueAtTime(0.06, t0 + st + 0.2); g.gain.linearRampToValueAtTime(0, t0 + st + 0.24); o.connect(g).connect(c.destination); o.start(t0 + st); o.stop(t0 + st + 0.3); }
+    try { navigator.vibrate && navigator.vibrate([180, 120, 180]); } catch (e) {} }
+  // ---- the title over the fall
+  const el = document.createElement('div'); el.id = 'intro'; el.innerHTML = '<div class="ttl"><i>The Fall of</i><b>CAINE</b></div><button>START</button>'; 
+  function start() {
+    document.body.classList.add('intro'); document.body.appendChild(el); phase = 'title';
+    loadScene('void', { instant: true });
+    requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('on')));
+    el.querySelector('button').onclick = (e) => { e.stopPropagation(); shatter(); };
+  }
+  // ---- the alarm breaks the dream: freeze the frame (with the title on it), crack it, throw the pieces
+  function shatter() {
+    if (phase !== 'title') return; phase = 'shatter';
+    ring = alarm(); setTimeout(crash, 380);
+    Grade.render(scene, camera); const shot = renderer.domElement.toDataURL('image/jpeg', 0.9);
+    const img = new Image(); img.onload = () => {
+      const W = innerWidth, H = innerHeight, cv = document.createElement('canvas'); cv.width = W; cv.height = H; const g = cv.getContext('2d'); g.drawImage(img, 0, 0, W, H);
+      const r = el.querySelector('.ttl').getBoundingClientRect(), cs = getComputedStyle(el.querySelector('.ttl b')), cs2 = getComputedStyle(el.querySelector('.ttl i'));
+      g.textAlign = 'center'; g.fillStyle = '#efe9da'; g.font = `${cs2.fontSize} 'Great Vibes', cursive`; g.fillText('The Fall of', r.left + r.width / 2, r.top + parseFloat(cs2.fontSize) * 0.86);
+      g.font = `${cs.fontSize} 'Bebas Neue', Impact, sans-serif`; g.fillStyle = '#5a595d'; g.fillText('CAINE', r.left + r.width / 2 + 4, r.bottom - parseFloat(cs.fontSize) * 0.1 + 4); g.fillStyle = '#efe9da'; g.fillText('CAINE', r.left + r.width / 2, r.bottom - parseFloat(cs.fontSize) * 0.1);
+      const url = cv.toDataURL('image/jpeg', 0.9);
+      // cracks first: radiating from where the noise hit
+      const ix = W * (0.45 + Math.random() * 0.1), iy = H * (0.4 + Math.random() * 0.15);
+      const cols = 7, rows = 5, P = []; for (let j = 0; j <= rows; j++) for (let i = 0; i <= cols; i++) { const edge = i === 0 || j === 0 || i === cols || j === rows; P.push([i / cols * W + (edge ? 0 : (Math.random() - .5) * W / cols * 0.7), j / rows * H + (edge ? 0 : (Math.random() - .5) * H / rows * 0.7)]); }
+      const at = (i, j) => P[j * (cols + 1) + i];
+      const svg = `<svg class="cr" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"><g stroke="rgba(255,255,255,.85)" stroke-width="1.3" fill="none">` +
+        [...Array(cols)].flatMap((_, i) => [...Array(rows)].map((__, j) => { const a = at(i, j), b = at(i + 1, j), c = at(i + 1, j + 1), d = at(i, j + 1); return `<path d="M${a} L${b} L${c} L${d} Z M${a} L${c}"/>`; })).join('') + `</g></svg>`;
+      const sh = document.createElement('div'); sh.id = 'shards'; document.body.appendChild(sh);
+      const base = document.createElement('div'); base.style.backgroundImage = `url(${url})`; sh.appendChild(base); sh.insertAdjacentHTML('beforeend', svg);
+      el.remove(); sh.style.animation = 'shake .45s linear';
+      setTimeout(() => {   // the pieces go
+        base.remove(); sh.querySelector('svg').remove();
+        loadScene('room212', { instant: true, spawn: 'wake' });
+        for (let i = 0; i < cols; i++) for (let j = 0; j < rows; j++) for (const tri of [[at(i, j), at(i + 1, j), at(i + 1, j + 1)], [at(i, j), at(i + 1, j + 1), at(i, j + 1)]]) {
+          const d = document.createElement('div'); d.style.backgroundImage = `url(${url})`; d.style.clipPath = `polygon(${tri.map(([x, y]) => `${x}px ${y}px`).join(',')})`;
+          const cx = (tri[0][0] + tri[1][0] + tri[2][0]) / 3, cy = (tri[0][1] + tri[1][1] + tri[2][1]) / 3, dx = cx - ix, dy = cy - iy, dist = Math.hypot(dx, dy) + 1;
+          const delay = dist / Math.hypot(W, H) * 0.35, sp = 0.6 + Math.random() * 0.6;
+          d.style.transformOrigin = `${cx}px ${cy}px`; d.style.transition = `transform ${1.2 + Math.random() * 0.5}s cubic-bezier(.35,.0,.8,.6) ${delay}s, opacity .9s ease ${delay + 0.5}s`;
+          sh.appendChild(d);
+          requestAnimationFrame(() => requestAnimationFrame(() => { d.style.transform = `translate(${dx / dist * W * 0.35 * sp}px, ${dy / dist * H * 0.25 * sp + H * 0.9}px) rotate(${(Math.random() - .5) * 140}deg) scale(${0.85 + Math.random() * 0.3})`; d.style.opacity = 0; }));
+        }
+        setTimeout(() => sh.remove(), 2600);
+      }, 470);
+    };
+    img.src = shot;
+  }
+  // ---- Room 212: he jolts up on the edge of the bed, slaps the clock quiet, gets up; then the phone goes
+  const lerp = THREE.MathUtils.lerp, ease = (k) => k * k * (3 - 2 * k);
+  function wakePose(tt) {
+    const sit = tt < 2.4 ? 1 : 1 - ease(Math.min(1, (tt - 2.4) / 1.0));
+    const jolt = Math.max(0, 1 - tt / 0.5);                                         // the start of a man thrown out of sleep
+    const slap = tt > 1.5 && tt < 2.2 ? Math.sin((tt - 1.5) / 0.7 * Math.PI) : 0;    // his left hand comes down on the clock
+    man.position.set(-2.05, 0, lerp(1.6, 0.98, sit)); man.rotation.set(0, lerp(0, -0.35, slap), 0);
+    hips.position.y = lerp(0.95, 0.6, sit); hips.rotation.set(0, 0, 0);
+    chest.rotation.set(lerp(0, 0.38, sit) - jolt * 0.35, 0, 0); neck.rotation.set(0, 0, 0);
+    head.rotation.set(lerp(0, tt < 1.4 ? 0.55 : 0.25, sit) - jolt * 0.4, -slap * 0.5, 0);
+    for (const L of [legL, legR]) { L.hip.rotation.set(-1.45 * sit, 0, 0); L.knee.rotation.set(1.45 * sit, 0, 0); L.ankle.rotation.set(0, 0, 0); }
+    skirt.rotation.set(-0.9 * sit, 0, 0);
+    // right hand dragged down his face; left arm reaches back and down for the nightstand
+    armR.sh.rotation.set(lerp(0, tt < 1.5 ? -1.9 : -0.3, sit), 0, -0.25 * sit); armR.el.rotation.set(lerp(-0.15, tt < 1.5 ? -2.1 : -0.6, sit), 0, 0);
+    armL.sh.rotation.set(lerp(0, -0.2, sit) + slap * 0.9, 0, 0.08 + slap * 0.7); armL.el.rotation.set(-0.3 * sit - slap * 0.2, 0, 0);
+  }
+  function update(dt) {
+    if (phase !== 'wake' || !S || currentKey !== 'room212') return;
+    t += dt;
+    if (wakeS.clock) { const on = t < 2.0; wakeS.clock.rotation.z = on ? Math.sin(t * 70) * 0.09 : 0; wakeS.clock.position.y = wakeS.clock.userData.y + (on ? Math.abs(Math.sin(t * 35)) * 0.006 : 0); }
+    if (t > 1.95 && ring) { ring.stop(); ring = null; }
+    if (t < 3.4) { wakePose(t); return; }
+    if (wakeS.cutscene) { wakeS.cutscene = false; pos.set(-2.05, 0, 1.6); heading = 0; route = []; walkAmt = 0; resetPose(); }
+    if (t > 4.6 && !textSent) { textSent = true; textChief(); }
+  }
+  let textSent = false;
+  function onRoom(S2) {   // called by loadScene when Room 212 opens from the intro
+    wakeS = S2; S2.cutscene = true; t = 0; phase = 'wake'; textSent = false;
+    document.body.classList.remove('intro');
+    const f = document.createElement('div'); f.id = 'wakeFlash'; document.body.appendChild(f); f.animate([{ opacity: 0.85 }, { opacity: 0 }], { duration: 700, easing: 'ease-out' }).onfinish = () => f.remove();
+  }
+  // ---- the text
+  function textChief() {
+    const d = new Date(), hh = d.getHours() % 12 || 12, mm = String(d.getMinutes()).padStart(2, '0');
+    PhoneUI.addText({ from: 'CHIEF R.', time: hh + ':' + mm + (d.getHours() < 12 ? 'a' : 'p'), unread: true, body: ['Caine. Precinct.', 'Now.', "Don't make me send Rush."] });
+    buzz();
+    const n = document.createElement('div'); n.id = 'textNote';
+    n.innerHTML = '<div class="hd"><span>CHIEF R.</span><span>now</span></div><div>Caine. Precinct. Now. Don\'t make me send Rush.</div><div class="tap">TAP TO OPEN</div>';
+    document.body.appendChild(n); requestAnimationFrame(() => requestAnimationFrame(() => n.classList.add('show')));
+    const bye = () => { n.classList.remove('show'); setTimeout(() => n.remove(), 700); };
+    n.onclick = (e) => { e.stopPropagation(); PhoneUI.openThread(0); bye(); };
+    n.addEventListener('pointerdown', e => e.stopPropagation());
+    setTimeout(bye, 8000);
+    phase = 'done';
+  }
+  return { start, update, onRoom, get active() { return phase === 'title' || phase === 'shatter' || phase === 'wake'; } };
+})();
+
+if (!location.hash || location.hash === '#intro') Intro.start();   // a fresh load opens on the fall
+else loadScene(BUILDERS[location.hash.slice(1)] ? location.hash.slice(1) : 'doorway', { instant: true });
 
 
 /* =========================================================
@@ -8549,6 +8768,8 @@ function drawHudTo(g, W, t) {
   }
   return {
     screenRect, get isOpen() { return open || !!inHand || (typeof Dialogue !== 'undefined' && Dialogue.isOpen); },
+    addText(m) { THREADS.unshift(m); ph.unread = THREADS.filter(t => t.unread).length; },
+    openThread(i) { setOpen(true); ph.list = i; ph.open = i; ph.scroll = 0; ph.openT = pt; ph.app = 'thread'; if (THREADS[i] && THREADS[i].unread) { THREADS[i].unread = false; ph.unread = THREADS.filter(t => t.unread).length; } },
     photos, saveRoll, poseCaine, povCamera, examine: (pr) => { if (!inHand && !Dialogue.isOpen) pickUp(pr); }, close: () => setOpen(false), toggle: () => setOpen(!open), mapHome: () => { if (ph.app === 'map') ph.app = 'home'; },
     openMap: () => { setOpen(true); ph.app = 'map'; ph.sel = APPS.indexOf('Map'); setTimeout(() => { if (ph.app === 'map' && open) openCityMap({ inPhone: true }); }, 450); },
     get mapOpen() { return open && ph.app === 'map'; },
@@ -9121,7 +9342,7 @@ renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.05), now = performance.now() / 1000;
   Calm.update(dt, now); Ambience.update(dt);
   keyWalk(dt); mouseSteer(); Ripple.update(dt); driveChoice(dt);
-  if (!paused) { if (!S.drive) updateWalker(dt, now); S.update && S.update(dt, now); Life.update(S.group, dt, now); Pigeons.update(dt, now); Skyline.update(S, dt); }
+  if (!paused) { if (!S.drive && !S.cutscene) updateWalker(dt, now); Intro.update(dt); S.update && S.update(dt, now); Life.update(S.group, dt, now); Pigeons.update(dt, now); Skyline.update(S, dt); }
   PhoneUI.poseCaine();
   SkinRig.update();
   updateCamera(dt);
