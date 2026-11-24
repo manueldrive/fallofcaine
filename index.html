@@ -4730,6 +4730,8 @@ function buildHotel({ beam = true } = {}) {
    round the room; rain runs down the glass; a cigarette burns in the ashtray; a line of hall light under the door.
    Cutaway like the office: back wall (z = RZ) and left wall (x = RX), open toward the camera.
    ========================================================= */
+const HatState = { on: (() => { try { return localStorage.getItem('caineHat') === 'on' || !(!location.hash || location.hash.startsWith('#intro')); } catch (e) { return true; } })(),   // a fresh morning: the hat's on the bed
+  take(h) { this.on = true; try { localStorage.setItem('caineHat', 'on'); } catch (e) {} if (h) h.visible = false; CaineModel.wantHat = true; CaineModel.setHat && CaineModel.setHat(true); CaineModel.origHat && CaineModel.origHat(); } };
 function buildRoom212() {
   const group = new THREE.Group(), add = makeAdder(group);
   const RX = -3.2, RZ = -2.8, H = 3.0, FX1 = 3.6, FZ1 = 3.6;
@@ -4845,14 +4847,16 @@ function buildRoom212() {
     box(BX1 - BX0 - 0.05, 0.22, BZ1 - BZ0 - 0.05, mat({ color: 0x8a8070, roughness: .9 }), (BX0 + BX1) / 2 + 0.02, 0.45, (BZ0 + BZ1) / 2);   // mattress
     // rumpled sheet: a displaced plane draped over the mattress and spilling off the open side
     const sg = new THREE.PlaneGeometry(BX1 - BX0 + 0.1, BZ1 - BZ0 + 0.55, 40, 24); sg.rotateX(-Math.PI / 2); const sp = sg.attributes.position;
-    for (let i = 0; i < sp.count; i++) { const x = sp.getX(i), z = sp.getZ(i), hw = (BZ1 - BZ0) / 2; let y = 0.58 + Math.sin(x * 7 + z * 3) * 0.02 + Math.sin(x * 13 - z * 9) * 0.012 + Math.max(0, Math.sin(x * 2.4 + 1)) * 0.06 * (Math.abs(z) < 0.35 ? 1 : 0.3);
+    for (let i = 0; i < sp.count; i++) { const x = sp.getX(i), z = sp.getZ(i), hw = (BZ1 - BZ0) / 2; let y = 0.58 + Math.sin(x * 7 + z * 3) * 0.008 + Math.sin(x * 13 - z * 9) * 0.005 - 0.035 * Math.exp(-((x + 0.15) ** 2) / 0.5 - (z + 0.05) ** 2 / 0.04) + 0 *  Math.max(0, Math.sin(x * 2.4 + 1)) * 0.06 * (Math.abs(z) < 0.35 ? 1 : 0.3);
       if (z > hw - 0.02) y -= (z - hw + 0.02) * 1.6; if (z < -hw + 0.02) y -= (-hw + 0.02 - z) * 1.8; sp.setY(i, Math.max(0.03, y)); }
     sg.computeVertexNormals(); const sheet = add(new THREE.Mesh(sg, linen)); sheet.position.set((BX0 + BX1) / 2 + 0.06, 0, (BZ0 + BZ1) / 2 + 0.12); sheet.material.side = THREE.DoubleSide;
     const pil = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.11, 0.6, 4, 10), linen)); pil.rotation.x = Math.PI / 2; pil.scale.set(1.6, 1, 0.55); pil.position.set(BX0 + 0.33, 0.66, (BZ0 + BZ1) / 2 - 0.05); pil.rotation.z = 0.08;
+    pil.position.set(BX0 + 0.9, 0.09, BZ1 + 0.55); pil.rotation.set(Math.PI / 2, 0, 0.9);   // knocked to the floor in the night
+    const pil2 = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.11, 0.6, 4, 10), linen)); pil2.rotation.x = Math.PI / 2; pil2.scale.set(1.6, 1, 0.5); pil2.position.set(BX0 + 0.3, 0.68, (BZ0 + BZ1) / 2); pil2.rotation.z = 0.1;   // the one still under his head, crushed flat
     // the fedora, crown down on the blanket
     const hat = new THREE.Group(); const hm = mat({ color: 0x141210, roughness: .55 }); const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.016, 24), hm); hat.add(brim);
     const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.105, 0.125, 0.14, 18), hm); crown.position.y = 0.07; hat.add(crown); const band = new THREE.Mesh(new THREE.CylinderGeometry(0.127, 0.127, 0.03, 18), mat({ color: 0x3a2a18 })); band.position.y = 0.02; hat.add(band);
-    hat.traverse(o => { if (o.isMesh) o.castShadow = o.receiveShadow = true; }); hat.position.set(BX1 - 0.55, 0.64, BZ1 - 0.3); hat.rotation.set(0.12, 0.6, 0.06); group.add(hat);
+    hat.traverse(o => { if (o.isMesh) o.castShadow = o.receiveShadow = true; }); hat.position.set(BX1 - 0.55, 0.64, BZ1 - 0.3); hat.rotation.set(0.12, 0.6, 0.06); group.add(hat); group.userData.hat = hat; hat.visible = !HatState.on;
     // the suitcase at the foot of the bed, half unpacked
     box(0.75, 0.2, 0.48, mat({ color: 0x4a3020, roughness: .6 }), BX1 + 0.55, 0.1, 0.55).rotation.y = 0.18;
     const lid = box(0.75, 0.04, 0.48, mat({ color: 0x4a3020, roughness: .6 }), BX1 + 0.55, 0.42, 0.24); lid.rotation.set(-1.25, 0.18, 0);
@@ -4879,6 +4883,11 @@ function buildRoom212() {
     for (const sd of [-1, 1]) { const bell = new THREE.Mesh(new THREE.SphereGeometry(0.032, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), ck); bell.position.set(sd * 0.04, 0.155, 0); bell.rotation.z = -sd * 0.5; clock.add(bell); const foot = new THREE.Mesh(new THREE.SphereGeometry(0.012, 6, 5), ck); foot.position.set(sd * 0.04, 0.012, 0); clock.add(foot); }
     const hm = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.04, 0.008), ck); hm.position.set(0, 0.17, 0); clock.add(hm);
     clock.traverse(o => { if (o.isMesh) o.castShadow = true; }); clock.position.set(NS.x - 0.17, 0.63, NS.z + 0.14); clock.rotation.y = 0.7; clock.userData.y = 0.63; group.add(clock); }
+  // last night: a second bottle, empty, on its side; a glass tipped over; a heap of butts
+  { const eb = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.22, 12), glassM); eb.rotation.z = Math.PI / 2; eb.rotation.y = 0.5; eb.position.set(NS.x - 0.14, 0.655, NS.z + 0.15); group.add(eb);
+    const tg = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.026, 0.08, 10), new THREE.MeshStandardMaterial({ color: 0xcfd6d8, transparent: true, opacity: .35, roughness: .05 })); tg.rotation.z = Math.PI / 2; tg.position.set(NS.x + 0.2, 0.66, NS.z + 0.18); group.add(tg);
+    const spill = new THREE.Mesh(new THREE.CircleGeometry(0.07, 16), new THREE.MeshStandardMaterial({ color: 0x3a2410, roughness: .05, transparent: true, opacity: .6 })); spill.rotation.x = -Math.PI / 2; spill.position.set(NS.x + 0.27, 0.632, NS.z + 0.2); group.add(spill);
+    const butt = mat({ color: 0xd8d0c0, roughness: .8 }); for (let k = 0; k < 7; k++) { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.035, 5), butt); b.rotation.set(Math.PI / 2, Math.random() * 3, 0); b.position.set(NS.x + 0.17 + (Math.random() - .5) * 0.06, 0.665, NS.z - 0.13 + (Math.random() - .5) * 0.06); group.add(b); } }
   // ashtray and the cigarette still burning in it
   const ash = cyl(0.06, 0.05, 0.025, glassM, NS.x + 0.17, 0.645, NS.z - 0.13, 12);
   const cig = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.08, 5), mat({ color: 0xe8e0d0 })); cig.rotation.z = Math.PI / 2 - 0.15; cig.position.set(NS.x + 0.2, 0.665, NS.z - 0.13); group.add(cig);
@@ -4991,7 +5000,7 @@ function buildRoom212() {
     spawns: { hotel: { x: doorX, z: doorZ, heading: 0 }, wake: { x: -2.05, z: 1.6, heading: 0 } },
     clock,
     portals: [{ x: doorX, z: doorZ, to: 'hotel', spawn: 'room212', label: 'The gallery' }],
-    props: [{ id: 'notebook', mesh: group.userData.nb, label: 'Read notebook' }],
+    props: [{ id: 'notebook', mesh: group.userData.nb, label: 'Read notebook' }, { id: 'hat', mesh: group.userData.hat, label: 'Put on your hat', reach: 1.6, act: () => HatState.take(group.userData.hat), when: () => !HatState.on }],
     patrol: [
       { p: [BX1 + 0.5, -0.5], wait: 3, face: Math.PI * 0.8 },     // stand in the stripes, looking out
       { p: [-0.6, RZ + 0.75], wait: 3.5, face: Math.PI },          // at the window, through the blinds
@@ -7464,7 +7473,7 @@ function loadScene(key, { instant = false, spawn = null } = {}) {
     scene.add(S.group); scene.fog = S.fog; renderer.toneMappingExposure = S.exposure; Skyline.apply(S);
     if (!S.drive) Life.auto(S, key);
     if (camMode === 'street') btnO.onclick();
-    CaineModel.wantHat = key !== 'room212'; CaineModel.setHat && CaineModel.setHat(CaineModel.wantHat); CaineModel.origHat && CaineModel.origHat();   /* in 212 his hat is on the bed */
+    CaineModel.wantHat = key !== 'room212' || HatState.on; CaineModel.setHat && CaineModel.setHat(CaineModel.wantHat); CaineModel.origHat && CaineModel.origHat();   /* in 212 his hat is on the bed */
     S.onEnter && S.onEnter(); if (!S.drive) trip = null;
     nav = S._nav || (S._nav = buildNav(S));
     const st = (spawn && S.spawns && S.spawns[spawn]) || S.start;
@@ -7535,7 +7544,7 @@ const povUp = e => { if (e.pointerId !== povLook.id) return; povLook.id = null; 
 /* what's under a screen point, within arm's reach of a few steps (the props, their whole model) */
 const _pr = new THREE.Raycaster(), _pn = new THREE.Vector2();
 function propAt(cx, cy) { if (!S.props || !S.props.length) return null; _pn.set(cx / innerWidth * 2 - 1, -(cy / innerHeight) * 2 + 1); _pr.setFromCamera(_pn, camera); _pr.far = 4.5;
-  let best = null, bd = 1e9; for (const p of S.props) { const tgt = p.group || p.mesh, h = _pr.intersectObject(tgt, true)[0]; if (h && h.distance < bd) { bd = h.distance; best = p; } }
+  let best = null, bd = 1e9; for (const p of S.props) { if (p.when && !p.when()) continue; const tgt = p.group || p.mesh, h = _pr.intersectObject(tgt, true)[0]; if (h && h.distance < bd) { bd = h.distance; best = p; } }
   if (best) return best;
   for (const p of S.props) { const w = (p.group || p.mesh).getWorldPosition(new THREE.Vector3()), d = _pr.ray.distanceToPoint(w), t = w.distanceTo(_pr.ray.origin); if (t < 4.5 && d < 0.12 + t * 0.04 && d < bd) { bd = d; best = p; } }   /* small things: a little forgiveness */
   return best; }
@@ -8069,6 +8078,8 @@ const Intro = (() => {
     #guide { position: fixed; left: 50%; bottom: calc(86px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 30; width: max-content; max-width: 92vw; text-align: center; pointer-events: none;
       color: #ecdfbe; font: 600 12px 'Courier New', monospace; letter-spacing: .28em; text-transform: uppercase; text-shadow: 0 1px 8px #000, 0 0 2px #000; opacity: 0; transition: opacity 1.2s ease; }
     #guide.on { opacity: .95; }
+    body:has(#propBtn.show) #guide { bottom: calc(168px + env(safe-area-inset-bottom, 0px)); }   /* clear of the action button */
+    #guide { transition: opacity 1.2s ease, bottom .4s ease; }
     #guide small { display: block; margin-top: 6px; font: italic 14px Georgia, serif; letter-spacing: .01em; text-transform: none; color: #c4b89c; }
     body.guiding #bottomBar.calm { opacity: 1; }   /* the button being pointed at stays lit */
     .nudge { animation: nudgeRing 1.8s ease-out infinite; border-color: #e2b23a !important; }
@@ -8094,6 +8105,7 @@ const Intro = (() => {
   // ---- the title over the fall
   const el = document.createElement('div'); el.id = 'intro'; el.innerHTML = '<div class="ttl"><i>The Fall of</i><b data-t="CAINE">CAINE</b></div><button>START</button>'; 
   function start() {
+    HatState.on = false; try { localStorage.removeItem('caineHat'); } catch (e) {}
     document.body.classList.add('intro'); document.body.appendChild(el); phase = 'title';
     loadScene('void', { instant: true });
     requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('on')));
@@ -8185,6 +8197,7 @@ const Guide = (() => {
   const nudge = (id, on) => { const b = document.getElementById(id); if (b) b.classList.toggle('nudge', on); };
   const go = (st) => { step = st; seen = 0; lookT = 0; document.body.classList.toggle('guiding', st === 'msg' || st === 'look');
     if (st === 'msg') { say('New message', touch ? 'tap your phone, then Messages' : 'click your phone (or press P), then Messages'); nudge('phoneBtn', true); }
+    if (st === 'hat') { nudge('phoneBtn', false); say('Grab your hat', touch ? 'walk over to the bed, then tap Put on your hat' : 'walk over to the bed, then press E (or click it)'); }
     if (st === 'walk') { nudge('phoneBtn', false); say('Head for the door', touch ? 'drag anywhere to walk · or tap where to go' : 'WASD or arrow keys · or click where to go'); }
     if (st === 'bellhop') { say('Talk to the bellhop', touch ? 'walk up to him by the desk, then tap him' : 'walk up to him by the desk, then press E (or click him)'); }
     if (st === 'look') { say('Look up at her', (touch ? 'tap the eye' : 'click the eye or press C') + ' to see through his eyes · drag to look up at the skeleton'); nudge('camToggle', true); }
@@ -8194,7 +8207,8 @@ const Guide = (() => {
   const _f = new THREE.Vector3(), _d = new THREE.Vector3();
   function update(dt) {
     if (!step || !S) return;
-    if (step === 'msg') { const m = PhoneUI.threads.find(t => t.from === 'CHIEF R.'); if (PhoneUI.isOpen) el.classList.remove('on'); else if (m && !m.unread) go('walk'); else el.classList.add('on'); }
+    if (step === 'msg') { const m = PhoneUI.threads.find(t => t.from === 'CHIEF R.'); if (PhoneUI.isOpen) el.classList.remove('on'); else if (m && !m.unread) go(HatState.on ? 'walk' : 'hat'); else el.classList.add('on'); }
+    else if (step === 'hat') { el.classList.toggle('on', !PhoneUI.isOpen); if (HatState.on) go('walk'); }
     else if (step === 'walk') { if (PhoneUI.isOpen) el.classList.remove('on'); else el.classList.add('on'); if (currentKey === 'hotel') go('bellhop'); }
     else if (step === 'bellhop') { el.classList.toggle('on', currentKey === 'hotel' && !Dialogue.isOpen && !PhoneUI.isOpen); }   // (wander back upstairs and it waits for you)
     else if (step === 'look') {
@@ -8732,6 +8746,7 @@ function drawHudTo(g, W, t) {
   const inspectCard = document.createElement('div'); inspectCard.id = 'inspectCard'; document.body.appendChild(inspectCard);
   const wp = new THREE.Vector3();
   function pickUp(pr) {
+    if (pr.act) { pr.act(); nearProp = null; propBtn.classList.remove('show'); return; }
     if (pr.talk) { const w = pr; heading = Math.atan2(pr.mesh.getWorldPosition(wp).x - pos.x, wp.z - pos.z); faceTarget = null; Dialogue.open({ vera: VERA, keeper: KEEPER, bellhop: BELLHOP }[pr.talk], { with: pr.id, onEnd: pr.onEnd }); /* add target: pr.mesh for an over-the-shoulder two-shot */ propBtn.classList.remove('show'); return; }
     if (open) setOpen(false);
     inHand = pr; pv.yaw = pv.pitch = 0; pv.zoom = 1;
@@ -8795,9 +8810,9 @@ function drawHudTo(g, W, t) {
     nearProp = null;
     if (!inHand && !open && !S.drive && S.props && !loading && !Dialogue.isOpen) {
       let best = 1.05;
-      for (const pr of S.props) { pr.mesh.getWorldPosition(wp); const d = Math.hypot(wp.x - pos.x, wp.z - pos.z) - (pr.reach ? pr.reach - 1.05 : 0); if (d < best) { best = d; nearProp = pr; } }
+      for (const pr of S.props) { if (pr.when && !pr.when()) continue; pr.mesh.getWorldPosition(wp); const d = Math.hypot(wp.x - pos.x, wp.z - pos.z) - (pr.reach ? pr.reach - 1.05 : 0); if (d < best) { best = d; nearProp = pr; } }
     }
-    if (S.props) for (const pr of S.props) { if (pr.talk || pr.review) continue; const m = Array.isArray(pr.mesh.material) ? pr.mesh.material[2] : pr.mesh.material; m.emissiveIntensity = pr === nearProp ? (pr.view ? 0.06 : 0.18) + Math.sin(pt * 5) * (pr.view ? 0.04 : 0.12) : 0; if (!pr.view) pr.mesh.visible = !(inHand === pr && kp > 0.35); }
+    if (S.props) for (const pr of S.props) { if (pr.talk || pr.review || pr.act) continue; const m = Array.isArray(pr.mesh.material) ? pr.mesh.material[2] : pr.mesh.material; m.emissiveIntensity = pr === nearProp ? (pr.view ? 0.06 : 0.18) + Math.sin(pt * 5) * (pr.view ? 0.04 : 0.12) : 0; if (!pr.view) pr.mesh.visible = !(inHand === pr && kp > 0.35); }
     if (!inHand) { if (nearProp) { propBtn.textContent = ({ map: '🗺 ', notebook: '📓 ', board: '🔍 ' }[nearProp.id] || (nearProp.talk ? '💬 ' : '')) + nearProp.label; propBtn.classList.add('show'); } else propBtn.classList.remove('show'); }
     kp += ((inHand ? 1 : 0) - kp) * Math.min(1, dt * 6);
     const portrait = innerWidth < innerHeight;
@@ -9014,7 +9029,7 @@ const BELLHOP = (() => {   // Eddie, the bellhop: first the bones, then (once yo
   return {
     who: 'Eddie · Bellhop',
     get stage() { return stage; }, set stage(v) { stage = v; },
-    start: () => stage === 0 ? { line: "Morning, Mr. Caine. Rough night? You look like you fell out of bed.", replies: [{ t: 'Something like that.', go: 'dino' }, { t: "What's with the bones?", go: 'dino' }] }
+    start: () => stage === 0 ? { line: "Morning, Mr. Caine. Rough night? You look like you fell out of bed. Did you sleep in that suit?", replies: [{ t: 'Something like that.', go: 'dino' }, { t: "What's with the bones?", go: 'dino' }] }
       : stage === 1 ? { line: "Go on, look up at her. I'll wait." }
       : { line: pick2(["Skybridge is through the green doors past the grand stair, Mr. Caine.", "Car's in the municipal garage. Green doors, by the stair. Up and over."]) },
     dino: { line: "Ain't she something? The old girl. Old man Osario dug her out of the coquina pits and built the whole hotel around her. Go on, look up at her. Nobody ever looks up.", do: () => { stage = 1; } },
