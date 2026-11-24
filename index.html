@@ -2941,7 +2941,7 @@ function buildVoid() {
   const streaks = new THREE.LineSegments(sg, new THREE.LineBasicMaterial({ color: 0x8a94a4, transparent: true, opacity: 0.42 })); streaks.frustumCulled = false; group.add(streaks);
   const key = new THREE.SpotLight(0xdfe6f0, 60, 14, 0.32, 1, 1.6); key.position.set(0.6, 9, 0.8); key.target.position.set(0, 0.9, 0); group.add(key, key.target);   // barely lit, from far above
   const under = new THREE.DirectionalLight(0x3a5a9a, 0.35); under.position.set(-1, -6, -2); group.add(under, under.target);     // a cold breath from below
-  let t = 0;
+  let t = 0, plungeAt = null, boost = 1;
   const pose = (tt) => {
     const w = (f, ph = 0) => Math.sin(tt * f + ph), buf = w(23) * 0.5 + w(31, 1) * 0.3 + w(17, 2) * 0.2;   // the wind shaking everything
     const sink = -0.9 - 0.55 * (0.5 + 0.5 * w(0.9)) - 0.12 * w(2.7);                                    // dropping away from us in surges
@@ -2978,11 +2978,15 @@ function buildVoid() {
     camTargets(m, p, l) { const wide = innerWidth > innerHeight ? 1 : 0, sh = drift ? 0 : (Math.sin(t * 29) + Math.sin(t * 37 + 1) * 0.6) * 0.035;   // the camera falls too: shaken by the air
       p.set(Math.sin(t * 0.13) * 0.7 + sh, 4.2 + wide * 1.6 - Math.sin(t * 0.2) * 0.3 + sh * 0.6, 2.2 + wide * 0.4 + Math.cos(t * 0.11) * 0.5); l.set(sh * 0.5, -0.35 - wide * 1.45, 0.15); },   // a wide screen stands further off so he clears the title   // above him, looking down as he drops away
     camOK() { return true; },
-    onExit() { resetPose(); },
+    onExit() { resetPose(); plungeAt = null; boost = 1; },
+    plunge() { if (plungeAt === null) plungeAt = t; },
     update(dt) {
       t += dt; (drift ? poseDrift : pose)(t);
-      for (let i = 0; i < N; i++) { pa[i * 3 + 1] += (drift ? 7.5 : 24) * sp[i] * dt; if (pa[i * 3 + 1] > 12) pa[i * 3 + 1] -= 36; } pg.attributes.position.needsUpdate = true;
-      for (let i = 0; i < SN; i++) { const o = i * 6; const v = drift ? 16 : 46; sa[o + 1] += v * dt; sa[o + 4] += v * dt; if (sa[o + 1] > 12) { sa[o + 1] -= 36; sa[o + 4] -= 36; } } sg.attributes.position.needsUpdate = true;
+      if (plungeAt !== null) { const k = t - plungeAt;   // START: the floor drops out of the dream — he's gone, down and away into the black
+        man.position.y -= 3.2 * k * k + 1.2 * k; man.position.x += k * 0.3; man.rotation.x -= k * 1.8; man.rotation.z += k * 0.9;
+        key.intensity *= Math.max(0, 1 - k / 1.3); boost = 1 + k * 2.5; }
+      for (let i = 0; i < N; i++) { pa[i * 3 + 1] += (drift ? 7.5 : 24) * sp[i] * dt * boost; if (pa[i * 3 + 1] > 12) pa[i * 3 + 1] -= 36; } pg.attributes.position.needsUpdate = true;
+      for (let i = 0; i < SN; i++) { const o = i * 6; const v = (drift ? 16 : 46) * boost; sa[o + 1] += v * dt; sa[o + 4] += v * dt; if (sa[o + 1] > 12) { sa[o + 1] -= 36; sa[o + 4] -= 36; } } sg.attributes.position.needsUpdate = true;
       key.intensity = 60 * (0.85 + 0.15 * Math.sin(t * 0.7));
     },
   };
@@ -7972,7 +7976,7 @@ const Calm = (() => {   // the interface steps back while you walk
     bar.classList.toggle('calm', !S.drive && still < 1.4 && now - poked > 2.5); } };
 })();
 /* =========================================================
-   THE OPENING: the fall (title + START) → an alarm clock shatters it → Caine jolts awake in Room 212 → the Chief texts.
+   THE OPENING: the fall (title + START) → he drops out of frame into black → the alarm rings out of the dark → Caine jolts awake in Room 212 → the Chief texts.
    Plays on a fresh load (no #scene in the address); #intro forces it.
    ========================================================= */
 const Intro = (() => {
@@ -7989,11 +7993,8 @@ const Intro = (() => {
     #intro button:hover { background: rgba(226,178,58,.12); }
     @keyframes introPulse { 50% { box-shadow: 0 0 22px rgba(226,178,58,.35); } }
     #intro .cr { position: absolute; inset: 0; pointer-events: none; }
-    #shards { position: fixed; inset: 0; z-index: 41; pointer-events: none; overflow: hidden; }
-    #shards div { position: absolute; inset: 0; background-size: 100% 100%; will-change: transform, opacity; }
     #shake { animation: shake .45s linear; }
     @keyframes shake { 10% { transform: translate(-9px, 5px) } 25% { transform: translate(8px, -7px) } 40% { transform: translate(-7px, -4px) } 55% { transform: translate(6px, 7px) } 70% { transform: translate(-4px, 3px) } 85% { transform: translate(3px, -2px) } }
-    #wakeFlash { position: fixed; inset: 0; z-index: 39; background: #fff; opacity: 0; pointer-events: none; }
     #textNote { position: fixed; left: 50%; top: 14px; z-index: 45; width: min(400px, calc(100vw - 24px)); transform: translate(-50%, -140%); transition: transform .55s cubic-bezier(.2,.9,.25,1.15);
       background: rgba(16,15,13,.94); border: 1px solid #3a352c; border-left: 3px solid #e2b23a; color: #e8e1cf; padding: 11px 14px 12px; font: 15px/1.35 Georgia, serif; cursor: pointer; box-shadow: 0 10px 30px rgba(0,0,0,.6); }
     #textNote.show { transform: translate(-50%, 0); }
@@ -8010,9 +8011,6 @@ const Intro = (() => {
     const lfo = c.createOscillator(); lfo.type = 'square'; lfo.frequency.value = 19; const lg = c.createGain(); lg.gain.value = 0.5; lfo.connect(lg).connect(hammer.gain); lfo.start(); hammer.gain.value = 0.5;
     const t0 = c.currentTime; for (let k = 0; k < 8; k++) { out.gain.setValueAtTime(0.22, t0 + k * 1.15); out.gain.setValueAtTime(0.0, t0 + k * 1.15 + 0.9); }
     return { stop(at = 0) { const s = c.currentTime + at; out.gain.cancelScheduledValues(s); out.gain.setValueAtTime(out.gain.value, s); out.gain.linearRampToValueAtTime(0, s + 0.05); setTimeout(() => { [...oscs, lfo].forEach(o => { try { o.stop(); } catch (e) {} }); }, (at + 0.2) * 1000); } }; }
-  function crash() { const c = audio(); if (!c) return; const len = c.sampleRate * 0.9, b = c.createBuffer(1, len, c.sampleRate), d = b.getChannelData(0);
-    for (let i = 0; i < len; i++) { const k = i / len; d[i] = (Math.random() * 2 - 1) * Math.pow(1 - k, 3) * (Math.random() < 0.02 ? 2 : 1); }
-    const s = c.createBufferSource(); s.buffer = b; const f = c.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 1800; const g = c.createGain(); g.gain.value = 0.55; s.connect(f).connect(g).connect(c.destination); s.start(); }
   function buzz() { const c = audio(); if (!c) return; const t0 = c.currentTime; for (const st of [0, 0.32]) { const o = c.createOscillator(); o.type = 'square'; o.frequency.value = 150; const g = c.createGain(); g.gain.setValueAtTime(0, t0 + st); g.gain.linearRampToValueAtTime(0.06, t0 + st + 0.02); g.gain.setValueAtTime(0.06, t0 + st + 0.2); g.gain.linearRampToValueAtTime(0, t0 + st + 0.24); o.connect(g).connect(c.destination); o.start(t0 + st); o.stop(t0 + st + 0.3); }
     try { navigator.vibrate && navigator.vibrate([180, 120, 180]); } catch (e) {} }
   // ---- the title over the fall
@@ -8021,43 +8019,24 @@ const Intro = (() => {
     document.body.classList.add('intro'); document.body.appendChild(el); phase = 'title';
     loadScene('void', { instant: true });
     requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('on')));
-    el.querySelector('button').onclick = (e) => { e.stopPropagation(); shatter(); };
+    el.querySelector('button').onclick = (e) => { e.stopPropagation(); plunge(); };
   }
-  // ---- the alarm breaks the dream: freeze the frame (with the title on it), crack it, throw the pieces
-  function shatter() {
-    if (phase !== 'title') return; phase = 'shatter';
-    ring = alarm(); setTimeout(crash, 380);
-    Grade.render(scene, camera); const shot = renderer.domElement.toDataURL('image/jpeg', 0.9);
-    const img = new Image(); img.onload = () => {
-      const W = innerWidth, H = innerHeight, cv = document.createElement('canvas'); cv.width = W; cv.height = H; const g = cv.getContext('2d'); g.drawImage(img, 0, 0, W, H);
-      const r = el.querySelector('.ttl').getBoundingClientRect(), cs = getComputedStyle(el.querySelector('.ttl b')), cs2 = getComputedStyle(el.querySelector('.ttl i'));
-      g.textAlign = 'center'; g.fillStyle = '#efe9da'; g.font = `${cs2.fontSize} 'Great Vibes', cursive`; g.fillText('The Fall of', r.left + r.width / 2, r.top + parseFloat(cs2.fontSize) * 0.86);
-      g.font = `${cs.fontSize} 'Bebas Neue', Impact, sans-serif`; g.fillStyle = '#5a595d'; g.fillText('CAINE', r.left + r.width / 2 + 4, r.bottom - parseFloat(cs.fontSize) * 0.1 + 4); g.fillStyle = '#efe9da'; g.fillText('CAINE', r.left + r.width / 2, r.bottom - parseFloat(cs.fontSize) * 0.1);
-      const url = cv.toDataURL('image/jpeg', 0.9);
-      // cracks first: radiating from where the noise hit
-      const ix = W * (0.45 + Math.random() * 0.1), iy = H * (0.4 + Math.random() * 0.15);
-      const cols = 7, rows = 5, P = []; for (let j = 0; j <= rows; j++) for (let i = 0; i <= cols; i++) { const edge = i === 0 || j === 0 || i === cols || j === rows; P.push([i / cols * W + (edge ? 0 : (Math.random() - .5) * W / cols * 0.7), j / rows * H + (edge ? 0 : (Math.random() - .5) * H / rows * 0.7)]); }
-      const at = (i, j) => P[j * (cols + 1) + i];
-      const svg = `<svg class="cr" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"><g stroke="rgba(255,255,255,.85)" stroke-width="1.3" fill="none">` +
-        [...Array(cols)].flatMap((_, i) => [...Array(rows)].map((__, j) => { const a = at(i, j), b = at(i + 1, j), c = at(i + 1, j + 1), d = at(i, j + 1); return `<path d="M${a} L${b} L${c} L${d} Z M${a} L${c}"/>`; })).join('') + `</g></svg>`;
-      const sh = document.createElement('div'); sh.id = 'shards'; document.body.appendChild(sh);
-      const base = document.createElement('div'); base.style.backgroundImage = `url(${url})`; sh.appendChild(base); sh.insertAdjacentHTML('beforeend', svg);
-      el.remove(); sh.style.animation = 'shake .45s linear';
-      setTimeout(() => {   // the pieces go
-        base.remove(); sh.querySelector('svg').remove();
-        loadScene('room212', { instant: true, spawn: 'wake' });
-        for (let i = 0; i < cols; i++) for (let j = 0; j < rows; j++) for (const tri of [[at(i, j), at(i + 1, j), at(i + 1, j + 1)], [at(i, j), at(i + 1, j + 1), at(i, j + 1)]]) {
-          const d = document.createElement('div'); d.style.backgroundImage = `url(${url})`; d.style.clipPath = `polygon(${tri.map(([x, y]) => `${x}px ${y}px`).join(',')})`;
-          const cx = (tri[0][0] + tri[1][0] + tri[2][0]) / 3, cy = (tri[0][1] + tri[1][1] + tri[2][1]) / 3, dx = cx - ix, dy = cy - iy, dist = Math.hypot(dx, dy) + 1;
-          const delay = dist / Math.hypot(W, H) * 0.35, sp = 0.6 + Math.random() * 0.6;
-          d.style.transformOrigin = `${cx}px ${cy}px`; d.style.transition = `transform ${1.2 + Math.random() * 0.5}s cubic-bezier(.35,.0,.8,.6) ${delay}s, opacity .9s ease ${delay + 0.5}s`;
-          sh.appendChild(d);
-          requestAnimationFrame(() => requestAnimationFrame(() => { d.style.transform = `translate(${dx / dist * W * 0.35 * sp}px, ${dy / dist * H * 0.25 * sp + H * 0.9}px) rotate(${(Math.random() - .5) * 140}deg) scale(${0.85 + Math.random() * 0.3})`; d.style.opacity = 0; }));
-        }
-        setTimeout(() => sh.remove(), 2600);
-      }, 470);
-    };
-    img.src = shot;
+  // ---- START: he falls out of frame, the title goes, everything goes black and quiet... then, out of the black, the alarm
+  function whoosh() { const c = audio(); if (!c) return; const len = c.sampleRate * 2.2, b = c.createBuffer(1, len, c.sampleRate), d = b.getChannelData(0); let last = 0;
+    for (let i = 0; i < len; i++) { const w = Math.random() * 2 - 1; last = (last + 0.04 * w) / 1.04; d[i] = last * 6; }
+    const src = c.createBufferSource(); src.buffer = b; const f = c.createBiquadFilter(); f.type = 'lowpass'; f.Q.value = 0.8; const g = c.createGain(); const t0 = c.currentTime;
+    f.frequency.setValueAtTime(300, t0); f.frequency.exponentialRampToValueAtTime(1600, t0 + 0.9); f.frequency.exponentialRampToValueAtTime(120, t0 + 2.1);
+    g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(0.5, t0 + 0.5); g.gain.linearRampToValueAtTime(0, t0 + 2.1);
+    src.connect(f).connect(g).connect(c.destination); src.start(); }
+  function plunge() {
+    if (phase !== 'title') return; phase = 'plunge';
+    audio(); whoosh();   // (the tap unlocks sound on phones; the bell comes later out of the dark)
+    el.style.transition = 'opacity .9s ease'; el.style.opacity = 0; setTimeout(() => el.remove(), 1000);
+    S && S.plunge && S.plunge();
+    const black = document.createElement('div'); black.id = 'abyss'; black.style.cssText = 'position:fixed;inset:0;z-index:42;background:#000;opacity:0;pointer-events:none;transition:opacity 1.5s ease-in .35s'; document.body.appendChild(black);
+    requestAnimationFrame(() => requestAnimationFrame(() => { black.style.opacity = 1; }));
+    setTimeout(() => { ring = alarm(); }, 2700);                                   // a beat of black and silence, then the bell
+    setTimeout(() => { loadScene('room212', { instant: true, spawn: 'wake' }); }, 3500);
   }
   // ---- Room 212: he jolts up on the edge of the bed, slaps the clock quiet, gets up; then the phone goes
   const lerp = THREE.MathUtils.lerp, ease = (k) => k * k * (3 - 2 * k);
@@ -8081,14 +8060,16 @@ const Intro = (() => {
     if (wakeS.clock) { const on = t < 2.0; wakeS.clock.rotation.z = on ? Math.sin(t * 70) * 0.09 : 0; wakeS.clock.position.y = wakeS.clock.userData.y + (on ? Math.abs(Math.sin(t * 35)) * 0.006 : 0); }
     if (t > 1.95 && ring) { ring.stop(); ring = null; }
     if (t < 3.4) { wakePose(t); return; }
-    if (wakeS.cutscene) { wakeS.cutscene = false; pos.set(-2.05, 0, 1.6); heading = 0; route = []; walkAmt = 0; resetPose(); }
+    if (wakeS.cutscene) { wakeS.cutscene = false; delete wakeS.camTargets; pos.set(-2.05, 0, 1.6); heading = 0; route = []; walkAmt = 0; resetPose(); }   // the room's own camera eases back in from here
     if (t > 4.6 && !textSent) { textSent = true; textChief(); }
   }
   let textSent = false;
   function onRoom(S2) {   // called by loadScene when Room 212 opens from the intro
     wakeS = S2; S2.cutscene = true; t = 0; phase = 'wake'; textSent = false;
+    const tall = innerHeight > innerWidth;   // framed on him on the edge of the bed (the room's own camera can leave him off the side of a phone screen)
+    S2.camTargets = (m, p, l) => { const k = Math.min(1, t / 3.2); p.set(tall ? -0.6 : 0.4, 2.0 - k * 0.15, tall ? 3.1 : 3.0); l.set(tall ? -2.15 : -1.9, 0.85, 0.95); };
     document.body.classList.remove('intro');
-    const f = document.createElement('div'); f.id = 'wakeFlash'; document.body.appendChild(f); f.animate([{ opacity: 0.85 }, { opacity: 0 }], { duration: 700, easing: 'ease-out' }).onfinish = () => f.remove();
+    const b = document.getElementById('abyss'); if (b) { b.style.transition = 'opacity .35s ease-out'; b.style.opacity = 0; setTimeout(() => b.remove(), 450); }   // eyes open: out of the black, hard
   }
   // ---- the text
   function textChief() {
@@ -8104,7 +8085,7 @@ const Intro = (() => {
     setTimeout(bye, 8000);
     phase = 'done';
   }
-  return { start, update, onRoom, get active() { return phase === 'title' || phase === 'shatter' || phase === 'wake'; } };
+  return { start, update, onRoom, get active() { return phase === 'title' || phase === 'plunge' || phase === 'wake'; } };
 })();
 
 if (!location.hash || location.hash === '#intro') Intro.start();   // a fresh load opens on the fall
