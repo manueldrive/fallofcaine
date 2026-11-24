@@ -4574,6 +4574,47 @@ function buildHotel({ beam = true } = {}) {
     box(2.4, 0.02, 1.2, mat({ color: 0x3a1410, roughness: 1 }), 0, 0.01, WZ - 0.9, false); }
 
   // ---------- the centrepiece: the Osario tyrant, 12 m nose to tail, rearing in the well on an iron armature
+  // ---------- the front desk, dressed: brass RECEPTION plate, a ring-for-service card, blotter, a candlestick phone, mail, a key on its tag
+  { const cv = (w, h, draw) => { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; };
+    const plate = cv(512, 96, (g, W, Hh) => { g.fillStyle = '#b08a3a'; g.fillRect(0, 0, W, Hh); g.strokeStyle = '#5a4214'; g.lineWidth = 6; g.strokeRect(6, 6, W - 12, Hh - 12); g.fillStyle = '#2a1c08'; g.font = 'bold 54px Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('R E C E P T I O N', W / 2, Hh / 2 + 3); });
+    const pm = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.28), new THREE.MeshStandardMaterial({ map: plate, metalness: .8, roughness: .3 })); pm.position.set(0, 0.72, -WZ + 2.2 + 0.41); group.add(pm);
+    const card = cv(256, 160, (g, W, Hh) => { g.fillStyle = '#efe6cf'; g.fillRect(0, 0, W, Hh); g.fillStyle = '#3a2214'; g.font = 'italic 34px Georgia, serif'; g.textAlign = 'center'; g.fillText('Please ring', W / 2, 62); g.fillText('for service', W / 2, 108); });
+    const cd = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.14), mat({ map: card, roughness: .8 })); cd.position.set(1.15, 1.25, -WZ + 2.05); cd.rotation.x = -0.35; group.add(cd);
+    box(0.7, 0.012, 0.45, mat({ color: 0x1f3a2a, roughness: .9 }), -0.6, 1.19, -WZ + 2.15, false);   // green blotter under the register
+    { const ph = new THREE.Group(); const bk = mat({ color: 0x0c0c0c, roughness: .3, metalness: .4 }); const st = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.05, 0.3, 10), bk); st.position.y = 0.15; ph.add(st);
+      const mo = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.03, 0.05, 12), bk); mo.position.y = 0.32; mo.rotation.x = 0.5; ph.add(mo); const ear = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.03, 0.1, 10), bk); ear.position.set(0.07, 0.2, 0); ear.rotation.z = 0.3; ph.add(ear);
+      ph.position.set(2.1, 1.18, -WZ + 2.1); group.add(ph); }
+    for (let i = 0; i < 5; i++) box(0.2, 0.006, 0.12, mat({ color: i % 2 ? 0xe8dcc0 : 0xd8ccb0, roughness: .9 }), 0.55 + i * 0.01, 1.185 + i * 0.006, -WZ + 2.05 + i * 0.005, false);   // the morning's mail
+    { const key = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.01, 0.03), brassM); key.position.set(0.25, 1.19, -WZ + 2.0); group.add(key); const tag = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.008, 12), mat({ color: 0x5a1a14 })); tag.position.set(0.33, 1.19, -WZ + 2.0); group.add(tag); } }
+  // ---------- the lift beside the desk: brass doors, a dial over them — the way up to 212
+  const LIFTX = -6.0;
+  { box(1.6, 2.7, 0.1, woodD, LIFTX, 1.35, -WZ + 0.06); const doors = mat({ color: 0xb08a3a, metalness: .85, roughness: .35 });
+    for (const sd of [-1, 1]) { const d = box(0.6, 2.2, 0.04, doors, LIFTX + sd * 0.31, 1.1, -WZ + 0.13); for (let k = 0; k < 4; k++) box(0.5, 0.02, 0.01, woodD, LIFTX + sd * 0.31, 0.4 + k * 0.5, -WZ + 0.16, false); }
+    const dial = new THREE.Mesh(new THREE.CircleGeometry(0.22, 24, 0, Math.PI), new THREE.MeshStandardMaterial({ color: 0xd8c08a, emissive: 0xffc870, emissiveIntensity: .5, side: THREE.DoubleSide })); dial.position.set(LIFTX, 2.45, -WZ + 0.13); group.add(dial);
+    const nd = box(0.012, 0.18, 0.01, mat({ color: 0x111111 }), LIFTX - 0.05, 2.52, -WZ + 0.14, false); nd.rotation.z = 0.6; }
+  // ---------- the bellhop, by the end of the desk: oxblood jacket, pillbox cap, a brass luggage cart
+  const BX = -3.5, BZ = -6.0;
+  const bell = makePerson({ coat: 0x6a1a14, pants: 0x161214, skin: 0x7a5a44, hat: 'cap', badge: false, tie: 0x111111 }); bell.root.position.set(BX, 0, BZ); bell.root.rotation.y = -1.25; group.add(bell.root);
+  bell.armR.sh.rotation.x = -0.15; bell.armL.sh.rotation.set(-0.1, 0, 0.12);
+  { const cart = new THREE.Group(); const br = brassM; for (const [x, z] of [[-0.35, -0.22], [0.35, -0.22], [-0.35, 0.22], [0.35, 0.22]]) { const w = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.03, 10), mat({ color: 0x111111 })); w.rotation.z = Math.PI / 2; w.position.set(x, 0.05, z); cart.add(w); }
+    const base = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.04, 0.5), mat({ color: 0x5a1a14, roughness: .7 })); base.position.y = 0.12; cart.add(base);
+    for (const x of [-0.4, 0.4]) { const up = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 1.4, 8), br); up.position.set(x, 0.8, 0); cart.add(up); }
+    const arch = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.015, 6, 20, Math.PI), br); arch.position.y = 1.5; cart.add(arch);
+    const s1 = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.3, 0.4), mat({ color: 0x3a2a1c, roughness: .6 })); s1.position.set(0, 0.29, 0); cart.add(s1); const s2 = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.22, 0.32), mat({ color: 0x6a5a40, roughness: .6 })); s2.position.set(0.04, 0.55, 0); s2.rotation.y = 0.2; cart.add(s2);
+    cart.traverse(o => { if (o.isMesh) o.castShadow = true; }); cart.position.set(BX - 0.9, 0, BZ - 0.9); cart.rotation.y = 0.3; group.add(cart); }
+  // ---------- the way to the skybridge: green doors in the east wall past the stair, a lit sign over them, a runner leading there
+  const SBZ = -3.6;
+  { const green = mat({ color: 0x1f3a2a, roughness: .45, metalness: .2 });
+    box(0.14, 2.9, 2.0, woodD, WX - 0.07, 1.45, SBZ);
+    for (const sd of [-1, 1]) { box(0.06, 2.4, 0.78, green, WX - 0.12, 1.2, SBZ + sd * 0.4); const gl = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 1.1), new THREE.MeshStandardMaterial({ color: 0xd8b878, emissive: 0xffc880, emissiveIntensity: .45 })); gl.rotation.y = -Math.PI / 2; gl.position.set(WX - 0.16, 1.55, SBZ + sd * 0.4); group.add(gl); box(0.04, 0.05, 0.5, brassM, WX - 0.2, 1.05, SBZ + sd * 0.4, false); }
+    const sign = (() => { const c = document.createElement('canvas'); c.width = 1024; c.height = 220; const g = c.getContext('2d'); g.fillStyle = '#120d08'; g.fillRect(0, 0, 1024, 220); g.strokeStyle = '#e2b23a'; g.lineWidth = 8; g.strokeRect(10, 10, 1004, 200);
+      g.fillStyle = '#ffd27a'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = "bold 92px 'Bebas Neue', Impact, sans-serif"; g.fillText('SKYBRIDGE  →', 512, 92); g.font = "44px Georgia, serif"; g.fillText('to the Municipal Garage', 512, 168);
+      const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })();
+    const sm = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 0.28), new THREE.MeshStandardMaterial({ map: sign, emissive: 0xffffff, emissiveMap: sign, emissiveIntensity: 0.45 })); sm.rotation.y = -Math.PI / 2; sm.position.set(WX - 0.16, 3.15, SBZ); group.add(sm);
+    const sl = new THREE.PointLight(0xffc870, 2.5, 4, 1.6); sl.position.set(WX - 0.8, 2.9, SBZ); group.add(sl);
+    const run = canvasTex(256, (g, q) => { g.fillStyle = '#4a1612'; g.fillRect(0, 0, q, q); g.fillStyle = '#b08a3a'; g.fillRect(0, 10, q, 8); g.fillRect(0, q - 18, q, 8); noise(g, q, 20); }, [6, 1]);
+    const rn = add(new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.4), mat({ map: run, roughness: 1 })), false); rn.rotation.x = -Math.PI / 2; rn.position.set(WX - 1.0, 0.012, SBZ);   // just a mat at the doors
+    const hl = new THREE.PointLight(0xffc870, 4, 5, 1.6); hl.position.set(WX - 0.9, 1.6, SBZ); group.add(hl); }
   const dino = Fossil.trex(); dino.rotation.y = Math.PI + 0.5; dino.position.set(0.3 - 1.35 * 0.878, 0.4, 0.4 + 1.35 * 0.479); group.add(dino);   // head toward the door and the stair, tail down the plinth
   // the plinth and its plaque
   const plinth = new THREE.Mesh(new THREE.BoxGeometry(11.2, 0.4, 3.0), Kit.coquina(3, 0.2, { tone: 'ochre', stucco: 0.1, moss: false, mildew: 0.2, lichen: 0 })); plinth.position.set(0.3, 0.2, 0.4); plinth.rotation.y = 0.5; plinth.receiveShadow = true; group.add(plinth);
@@ -4614,11 +4655,12 @@ function buildHotel({ beam = true } = {}) {
   const dinoBits = [];   /* the skeleton as a string of spheres, for the camera's line-of-sight test */
   { dino.updateMatrixWorld(true); const bb = new THREE.Box3(), c = new THREE.Vector3();
     dino.traverse(o => { if (o.isMesh) { o.geometry.computeBoundingSphere(); const sp = o.geometry.boundingSphere; c.copy(sp.center).applyMatrix4(o.matrixWorld); const r = sp.radius * o.matrixWorld.getMaxScaleOnAxis(); if (r > 0.12 && c.y > 1.2) dinoBits.push({ x: c.x, y: c.y, z: c.z, r: Math.min(r, 1.2) + 0.2 }); } }); }
-  const cpulse = portalMarker(group, 0, WZ - 0.8), spulse = portalMarker(group, (STX0 + STX1) / 2, STZ1 + 0.65);
+  const cpulse = portalMarker(group, 0, WZ - 0.8), spulse = portalMarker(group, LIFTX, -WZ + 1.0), bpulse = portalMarker(group, WX - 0.75, SBZ);
 
   return {
     group,
-    name: 'Hotel Osario',
+    name: 'Hotel Osario', dinoBits,
+    props: [{ id: 'bellhop', talk: 'bellhop', mesh: bell.head, label: 'Talk to the bellhop', reach: 1.9, onEnd: () => Guide.heard() }],
     exposure: 1.3,
     fog: new THREE.FogExp2(0x1a120a, 0.012),
     bounds: { minX: -WX, maxX: WX, minZ: -WZ, maxZ: WZ },
@@ -4626,6 +4668,7 @@ function buildHotel({ beam = true } = {}) {
       if (Math.abs(x) > WX - r - 0.05 || Math.abs(z) > WZ - r - 0.05) return true;
       if (onPlinth(x, z, r)) return true;
       if (rectBlock(x, z, -2.7, 2.7, -WZ, -WZ + 2.65, r)) return true;            // front desk
+      if (circBlock(x, z, BX, BZ, 0.25, r) || rectBlock(x, z, BX - 1.4, BX - 0.4, BZ - 1.2, BZ - 0.6, r)) return true;   // the bellhop and his cart
       if (rectBlock(x, z, STX0 - 0.1, WX, STZ0, STZ1, r)) return true;             // the stair
       for (const [cx, cz] of colAt) if (circBlock(x, z, cx, cz, 0.32, r)) return true;
       if (rectBlock(x, z, -WX, -6.6, 2.4, 5.6, r) || rectBlock(x, z, -WX, -6.6, -5.0, -2.8, r)) return true;   // chairs
@@ -4634,8 +4677,8 @@ function buildHotel({ beam = true } = {}) {
     },
     groundY() { return 0; },
     start: { x: 0, z: WZ - 3.0, heading: Math.PI },
-    spawns: { front: { x: 0, z: WZ - 3.0, heading: Math.PI }, car: { x: 0, z: WZ - 3.0, heading: Math.PI }, room212: { x: 4.4, z: 5.2, heading: Math.PI * 1.2 }, skybridge: { x: STX0 - 0.8, z: STZ0 - 1.4, heading: Math.PI } },
-    portals: [{ x: 0, z: WZ - 0.8, to: 'drive', spawn: 'hotel', label: 'Your car' }, { x: (STX0 + STX1) / 2, z: STZ1 + 0.65, to: 'room212', spawn: 'hotel', label: 'Up to 212' }, { x: STX0 - 0.6, z: STZ0 - 0.7, to: 'skybridge', spawn: 'hotel', label: 'Skybridge · garage' }],
+    spawns: { front: { x: 0, z: WZ - 3.0, heading: Math.PI }, car: { x: 0, z: WZ - 3.0, heading: Math.PI }, room212: { x: LIFTX, z: -WZ + 1.9, heading: 0.35 }, skybridge: { x: WX - 1.5, z: SBZ, heading: -Math.PI / 2 } },   // out of the lift by the desk; back in through the green doors
+    portals: [{ x: 0, z: WZ - 0.8, to: 'drive', spawn: 'hotel', label: 'Your car' }, { x: LIFTX, z: -WZ + 1.0, to: 'room212', spawn: 'hotel', label: 'Lift · up to 212' }, { x: WX - 0.75, z: SBZ, to: 'skybridge', spawn: 'hotel', label: 'Skybridge · garage' }],
     patrol: [
       { p: [0, 5.8], wait: 3, face: Math.PI },                 // look up at it from the door
       { p: [-4.6, 3.6], wait: 2.5, face: Math.PI * 0.75 },      // the skull
@@ -4655,6 +4698,7 @@ function buildHotel({ beam = true } = {}) {
           for (const [cx, cz] of colAt) if (Math.hypot(x - cx, z - cz) < 0.45) return false; }                 // a pillar
         return true; };
       // one fixed vantage, high in the well: the skeleton always seen from the same side, him moving round it
+      if (typeof Guide !== 'undefined' && Guide.step === 'bridge') { outPos.set(-lim + 0.4, Y - 0.6, 0.8); outLook.set(pos.x * 0.45 + 3.6, 1.0, pos.z * 0.45 - 2.2); return; }   // the walkthrough's last step: turned to face the green doors
       const home = hotelCam.home || (hotelCam.home = new THREE.Vector3(lim - 0.2, Y + 0.6, 1.2));
       const seen = (c) => { for (let k = 1; k < 24; k++) { const t = k / 24, x = c.x + (pos.x - c.x) * t, y = c.y + (pos.y + 1.2 - c.y) * t, z = c.z + (pos.z - c.z) * t;
           if ((Math.abs(x) > WELL - 0.1 || Math.abs(z) > WELL - 0.1) && y > F2 - 0.4) return false; } return true; };   // only a gallery floor counts: the skeleton passing in front of him is the point
@@ -4671,7 +4715,8 @@ function buildHotel({ beam = true } = {}) {
     camOK(v) { return Math.abs(v.x) < WX - 0.4 && Math.abs(v.z) < WZ - 0.4 && v.y < TOP; },
     camClamp(v) { v.x = THREE.MathUtils.clamp(v.x, -WX + 0.5, WX - 0.5); v.z = THREE.MathUtils.clamp(v.z, -WZ + 0.5, WZ - 0.5); v.y = Math.min(v.y, F2 - 0.8); },
     update(dt, now) {
-      cpulse(now); spulse(now);
+      cpulse(now); spulse(now); bpulse(now);
+      { const want = Math.atan2(pos.x - BX, pos.z - BZ) - bell.root.rotation.y, d = Math.atan2(Math.sin(want), Math.cos(want)); bell.head.rotation.y += (THREE.MathUtils.clamp(d, -1.1, 1.1) - bell.head.rotation.y) * Math.min(1, dt * 3); bell.chest.rotation.x = Math.sin(now * 1.3) * 0.012; }   // he watches you cross the lobby
       for (const l of lights) l.pl.intensity = l.base * (0.92 + 0.05 * Math.sin(now * 6 + l.ph) + 0.03 * Math.sin(now * 13 + l.ph * 2));
       rainTex.offset.y = (now * 0.12) % 1;
       if (beamDust.length) { const [dg, DN] = beamDust, a = dg.attributes.position.array; for (let i = 0; i < DN; i++) { a[i * 3 + 1] -= dt * 0.012; a[i * 3] += Math.sin(now * 0.3 + i) * dt * 0.02; if (a[i * 3 + 1] < -1) a[i * 3 + 1] += 1; } dg.attributes.position.needsUpdate = true; }
@@ -7525,8 +7570,8 @@ const ICON_OVER = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" st
 const ICON_STREET = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>';
 function syncCamToggle() {
   const over = camMode === 'over';
-  camToggle.innerHTML = over ? ICON_OVER : ICON_STREET;
-  camToggle.title = over ? 'Camera: overhead (C to switch)' : 'Look around (C) · walk to go back up';
+  camToggle.innerHTML = over ? ICON_STREET : ICON_OVER;   // the button shows where it takes you: the eye to look through his eyes, the overhead view to rise back up
+  camToggle.title = over ? 'Look through his eyes (C)' : 'Back to the overhead view (C) · or just walk';
 }
 camToggle.onclick = () => (camMode === 'over' ? btnS : btnO).onclick();
 addEventListener('keydown', e => { if (e.code === 'KeyC' && !e.repeat) camToggle.onclick(); });
@@ -7595,6 +7640,8 @@ const SONGS = [['theme', 'Theme'], ['investigate', 'Investigate'], ['intense', '
 const musicBtn = document.getElementById('musicBtn'), songsEl = document.getElementById('songs');
 const audio = new Audio(); audio.loop = true; audio.preload = 'auto'; audio.volume = 0.6;
 let song = 'theme', musicOn = true, started = false;
+let introQuiet = !location.hash || location.hash.startsWith('#intro');   // the opening keeps the music back until the verse in the dark
+const musicEl = audio;
 function setSong(key) {
   song = key; audio.src = 'music/' + key + '.mp3';
   musicBtn.title = 'Now playing: ' + SONGS.find(x => x[0] === key)[1] + ' · tap to mute · hold to change song';
@@ -7610,9 +7657,9 @@ for (const [key, label] of SONGS) {
 }
 setSong('theme');
 // try to start right away; if the browser blocks it, the first tap or key starts it
-audio.play().then(() => { started = true; }).catch(() => {});
+if (!introQuiet) audio.play().then(() => { started = true; }).catch(() => {});
 // browsers only allow sound after the first tap or key press
-const kick = (e) => { if (started || musicBtn.contains(e.target) || songsEl.contains(e.target)) return; started = true; if (musicOn) audio.play().catch(() => { started = false; }); };
+const kick = (e) => { if (started || introQuiet || musicBtn.contains(e.target) || songsEl.contains(e.target)) return; started = true; if (musicOn) audio.play().catch(() => { started = false; }); };
 addEventListener('pointerdown', kick, true); addEventListener('keydown', kick, true);
 let holdT = null, held2 = false;
 musicBtn.addEventListener('pointerdown', e => {
@@ -8012,6 +8059,20 @@ const Intro = (() => {
     #intro .cr { position: absolute; inset: 0; pointer-events: none; }
     #shake { animation: shake .45s linear; }
     @keyframes shake { 10% { transform: translate(-9px, 5px) } 25% { transform: translate(8px, -7px) } 40% { transform: translate(-7px, -4px) } 55% { transform: translate(6px, 7px) } 70% { transform: translate(-4px, 3px) } 85% { transform: translate(3px, -2px) } }
+    #verse { position: fixed; inset: 0; z-index: 43; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 9vw; box-sizing: border-box; text-align: center; pointer-events: none; opacity: 0; transition: opacity 2.2s ease; }
+    #verse.on { opacity: 1; }
+    #verse p { max-width: 620px; margin: 0; color: #e6dfcb; font: italic clamp(18px, 2.4vw, 26px)/1.6 Georgia, 'Times New Roman', serif; }
+    #verse span { margin-top: 22px; color: #c9a23a; font: 600 12px 'Courier New', monospace; letter-spacing: .4em; }
+    #phoneBtn { position: relative; }
+    #phoneBtn.unread::after { content: ''; position: absolute; top: -5px; right: -5px; width: 11px; height: 11px; border-radius: 50%; background: #e2b23a; box-shadow: 0 0 0 2px #111, 0 0 10px #e2b23a; animation: dotPulse 1.6s ease-in-out infinite; }
+    @keyframes dotPulse { 50% { transform: scale(1.25); box-shadow: 0 0 0 2px #111, 0 0 16px #e2b23a; } }
+    #guide { position: fixed; left: 50%; bottom: calc(86px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 30; width: max-content; max-width: 92vw; text-align: center; pointer-events: none;
+      color: #ecdfbe; font: 600 12px 'Courier New', monospace; letter-spacing: .28em; text-transform: uppercase; text-shadow: 0 1px 8px #000, 0 0 2px #000; opacity: 0; transition: opacity 1.2s ease; }
+    #guide.on { opacity: .95; }
+    #guide small { display: block; margin-top: 6px; font: italic 14px Georgia, serif; letter-spacing: .01em; text-transform: none; color: #c4b89c; }
+    body.guiding #bottomBar.calm { opacity: 1; }   /* the button being pointed at stays lit */
+    .nudge { animation: nudgeRing 1.8s ease-out infinite; border-color: #e2b23a !important; }
+    @keyframes nudgeRing { 0% { box-shadow: 0 0 0 0 rgba(226,178,58,.55); } 100% { box-shadow: 0 0 0 12px rgba(226,178,58,0); } }
     #textNote { position: fixed; left: 50%; top: 14px; z-index: 45; width: min(400px, calc(100vw - 24px)); transform: translate(-50%, -140%); transition: transform .55s cubic-bezier(.2,.9,.25,1.15);
       background: rgba(16,15,13,.94); border: 1px solid #3a352c; border-left: 3px solid #e2b23a; color: #e8e1cf; padding: 11px 14px 12px; font: 15px/1.35 Georgia, serif; cursor: pointer; box-shadow: 0 10px 30px rgba(0,0,0,.6); }
     #textNote.show { transform: translate(-50%, 0); }
@@ -8052,8 +8113,29 @@ const Intro = (() => {
     S && S.plunge && S.plunge();
     const black = document.createElement('div'); black.id = 'abyss'; black.style.cssText = 'position:fixed;inset:0;z-index:42;background:#000;opacity:0;pointer-events:none;transition:opacity 1.6s ease-in 1.7s'; document.body.appendChild(black);
     requestAnimationFrame(() => requestAnimationFrame(() => { black.style.opacity = 1; }));
-    setTimeout(() => { ring = alarm(); }, 4300);                                   // a beat of black and silence, then the bell
-    setTimeout(() => { loadScene('room212', { instant: true, spawn: 'wake' }); }, 5100);
+    musicEl.play().then(() => { if (introQuiet) { musicEl.pause(); musicEl.currentTime = 0; } }).catch(() => {});   // unlock the music on this tap (phones), but keep it quiet for now
+    setTimeout(verse, 3600);                                                         // in the black: Genesis 4:7, and the theme comes in
+    setTimeout(() => { textAlert(); }, 12400);                                       // then his phone goes off in the dark...
+    setTimeout(() => { loadScene('room212', { instant: true, spawn: 'wake' }); }, 13700);   // eyes open on the chime   // ...and he's awake
+  }
+  function verse() {
+    const v = document.createElement('div'); v.id = 'verse';
+    v.innerHTML = '<p>If you do well, will you not be accepted? And if you do not do well, sin is crouching at the door. Its desire is contrary to you, but you must rule over it.</p><span>GENESIS 4:7 · ESV</span>';
+    document.body.appendChild(v); requestAnimationFrame(() => requestAnimationFrame(() => v.classList.add('on')));
+    introQuiet = false; started = true; musicEl.currentTime = 0; if (musicOn) musicEl.play().catch(() => {});
+    setTimeout(() => { v.classList.remove('on'); setTimeout(() => v.remove(), 1800); }, 6600);
+  }
+  function textAlert() {   // loud and ugly on purpose: a phone rattling on a wooden nightstand, then a sharp, sour chime
+    const c = audio(); if (!c) return; const t0 = c.currentTime + 0.05, out = c.createDynamicsCompressor(); out.connect(c.destination);
+    try { navigator.vibrate && navigator.vibrate([350, 120, 350, 120, 350]); } catch (e) {}
+    for (const st of [0, 0.42, 0.84]) {   // three hard buzzes
+      const o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.value = 118; const f = c.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 480; f.Q.value = 1.2;
+      const am = c.createGain(); const lfo = c.createOscillator(); lfo.type = 'square'; lfo.frequency.value = 38; const ld = c.createGain(); ld.gain.value = 0.5; lfo.connect(ld).connect(am.gain); am.gain.value = 0.5;
+      const g = c.createGain(); g.gain.setValueAtTime(0, t0 + st); g.gain.linearRampToValueAtTime(0.9, t0 + st + 0.015); g.gain.setValueAtTime(0.9, t0 + st + 0.3); g.gain.linearRampToValueAtTime(0, t0 + st + 0.34);
+      o.connect(f).connect(am).connect(g).connect(out); o.start(t0 + st); lfo.start(t0 + st); o.stop(t0 + st + 0.36); lfo.stop(t0 + st + 0.36); }
+    for (const [f, at] of [[1568, 1.25], [1661, 1.25], [2093, 1.42], [2217, 1.42]]) {   // the chime, a half-step out of true
+      const o = c.createOscillator(); o.type = 'triangle'; o.frequency.value = f; const g = c.createGain(); g.gain.setValueAtTime(0, t0 + at); g.gain.linearRampToValueAtTime(0.38, t0 + at + 0.006); g.gain.exponentialRampToValueAtTime(0.001, t0 + at + 0.7);
+      o.connect(g).connect(out); o.start(t0 + at); o.stop(t0 + at + 0.75); }
   }
   // ---- Room 212: he jolts up on the edge of the bed, slaps the clock quiet, gets up; then the phone goes
   const lerp = THREE.MathUtils.lerp, ease = (k) => k * k * (3 - 2 * k);
@@ -8074,37 +8156,58 @@ const Intro = (() => {
   function update(dt) {
     if (phase !== 'wake' || !S || currentKey !== 'room212') return;
     t += dt;
-    if (wakeS.clock) { const on = t < 2.0; wakeS.clock.rotation.z = on ? Math.sin(t * 70) * 0.09 : 0; wakeS.clock.position.y = wakeS.clock.userData.y + (on ? Math.abs(Math.sin(t * 35)) * 0.006 : 0); }
+    if (wakeS.clock) { const on = false; wakeS.clock.rotation.z = on ? Math.sin(t * 70) * 0.09 : 0; wakeS.clock.position.y = wakeS.clock.userData.y + (on ? Math.abs(Math.sin(t * 35)) * 0.006 : 0); }
     if (t > 1.95 && ring) { ring.stop(); ring = null; }
     if (t < 3.4) { wakePose(t); return; }
     if (wakeS.cutscene) { wakeS.cutscene = false; delete wakeS.camTargets; pos.set(-2.05, 0, 1.6); heading = 0; route = []; walkAmt = 0; resetPose(); }   // the room's own camera eases back in from here
-    if (t > 4.6 && !textSent) { textSent = true; textChief(); }
+    if (t > 4.2 && !textSent) { textSent = true; showTip(); }
   }
   let textSent = false;
   function onRoom(S2) {   // called by loadScene when Room 212 opens from the intro
     wakeS = S2; S2.cutscene = true; t = 0; phase = 'wake'; textSent = false;
     const tall = innerHeight > innerWidth;   // framed on him on the edge of the bed (the room's own camera can leave him off the side of a phone screen)
     S2.camTargets = (m, p, l) => { const k = Math.min(1, t / 3.2); p.set(tall ? -0.6 : 0.4, 2.0 - k * 0.15, tall ? 3.1 : 3.0); l.set(tall ? -2.15 : -1.9, 0.85, 0.95); };
-    document.body.classList.remove('intro');
-    const b = document.getElementById('abyss'); if (b) { b.style.transition = 'opacity .35s ease-out'; b.style.opacity = 0; setTimeout(() => b.remove(), 450); }   // eyes open: out of the black, hard
-  }
-  // ---- the text
-  function textChief() {
+    document.body.classList.remove('intro'); document.getElementById('hint').style.opacity = 0;   // (how to walk comes later)
     const d = new Date(), hh = d.getHours() % 12 || 12, mm = String(d.getMinutes()).padStart(2, '0');
     PhoneUI.addText({ from: 'CHIEF R.', time: hh + ':' + mm + (d.getHours() < 12 ? 'a' : 'p'), unread: true, body: ['Caine. Precinct.', 'Now.', "Don't make me send Rush."] });
-    buzz();
-    const n = document.createElement('div'); n.id = 'textNote';
-    n.innerHTML = '<div class="hd"><span>CHIEF R.</span><span>now</span></div><div>Caine. Precinct. Now. Don\'t make me send Rush.</div><div class="tap">TAP TO OPEN</div>';
-    document.body.appendChild(n); requestAnimationFrame(() => requestAnimationFrame(() => n.classList.add('show')));
-    const bye = () => { n.classList.remove('show'); setTimeout(() => n.remove(), 700); };
-    n.onclick = (e) => { e.stopPropagation(); PhoneUI.openThread(0); bye(); };
-    n.addEventListener('pointerdown', e => e.stopPropagation());
-    setTimeout(bye, 8000);
-    phase = 'done';
+    const b = document.getElementById('abyss'); if (b) { b.style.transition = 'opacity .35s ease-out'; b.style.opacity = 0; setTimeout(() => b.remove(), 450); }   // eyes open: out of the black, hard
   }
+  function showTip() { Guide.start(); phase = 'done'; }
   return { start, update, onRoom, get active() { return phase === 'title' || phase === 'plunge' || phase === 'wake'; } };
 })();
 
+/* GUIDE: the first-time walkthrough after the opening — read the Chief's text, walk out of 212, look at the skeleton, take the skybridge. Quiet text, low on the screen. */
+const Guide = (() => {
+  const el = document.createElement('div'); el.id = 'guide'; document.body.appendChild(el);
+  const touch = matchMedia('(pointer: coarse)').matches;
+  let step = null, lastKey = null, seen = 0, lookT = 0;
+  const say = (a, b) => { el.innerHTML = a + (b ? '<small>' + b + '</small>' : ''); el.classList.add('on'); };
+  const nudge = (id, on) => { const b = document.getElementById(id); if (b) b.classList.toggle('nudge', on); };
+  const go = (st) => { step = st; seen = 0; lookT = 0; document.body.classList.toggle('guiding', st === 'msg' || st === 'look');
+    if (st === 'msg') { say('New message', touch ? 'tap your phone, then Messages' : 'click your phone (or press P), then Messages'); nudge('phoneBtn', true); }
+    if (st === 'walk') { nudge('phoneBtn', false); say('Head for the door', touch ? 'drag anywhere to walk · or tap where to go' : 'WASD or arrow keys · or click where to go'); }
+    if (st === 'bellhop') { say('Talk to the bellhop', touch ? 'walk up to him by the desk, then tap him' : 'walk up to him by the desk, then press E (or click him)'); }
+    if (st === 'look') { say('Look up at her', (touch ? 'tap the eye' : 'click the eye or press C') + ' to see through his eyes · drag to look up at the skeleton'); nudge('camToggle', true); }
+    if (st === 'bridge') { nudge('camToggle', false); say('Take the skybridge to your car', 'the green doors past the grand stair'); }
+    if (st === null) { el.classList.remove('on'); nudge('phoneBtn', false); nudge('camToggle', false); try { localStorage.setItem('caineTut', 'done'); } catch (e) {} }
+  };
+  const _f = new THREE.Vector3(), _d = new THREE.Vector3();
+  function update(dt) {
+    if (!step || !S) return;
+    if (step === 'msg') { const m = PhoneUI.threads.find(t => t.from === 'CHIEF R.'); if (PhoneUI.isOpen) el.classList.remove('on'); else if (m && !m.unread) go('walk'); else el.classList.add('on'); }
+    else if (step === 'walk') { if (PhoneUI.isOpen) el.classList.remove('on'); else el.classList.add('on'); if (currentKey === 'hotel') go('bellhop'); }
+    else if (step === 'bellhop') { el.classList.toggle('on', currentKey === 'hotel' && !Dialogue.isOpen && !PhoneUI.isOpen); }   // (wander back upstairs and it waits for you)
+    else if (step === 'look') {
+      if (currentKey !== 'hotel') { el.classList.remove('on'); return; }
+      if (camMode === 'street' && S.dinoBits) { camera.getWorldDirection(_f); let best = 9; for (const b of S.dinoBits) { _d.set(b.x, b.y, b.z).sub(camera.position).normalize(); best = Math.min(best, _f.angleTo(_d)); }
+        seen = best < 0.4 ? seen + dt : Math.max(0, seen - dt * 0.25); lookT += dt;
+        if (seen > 3.5 && lookT > 7) { /* let them take her in: a few seconds on her, and some time to look around */ step = 'after'; nudge('camToggle', false); el.classList.remove('on'); setTimeout(() => { if (camMode === 'street') btnO.onclick(); Dialogue.open(BELLHOP, { with: 'bellhop', start: 'after', onEnd: () => go('bridge') }); }, 2200); } }   // he's seen her: Eddie picks up again
+    }
+    else if (step === 'bridge') { if (currentKey === 'skybridge') { say('', ''); go(null); } else if (camMode === 'street') el.classList.remove('on'); else el.classList.add('on'); }
+  }
+  return { get step() { return step; }, start() { go('msg'); }, update, heard() { if (step === 'bellhop' && BELLHOP.stage === 1) go('look'); } };
+})();
+setInterval(() => document.getElementById('phoneBtn').classList.toggle('unread', PhoneUI.unread > 0 && !document.body.classList.contains('intro')), 400);   // a gold dot on the phone while a message waits
 if (!location.hash || location.hash.startsWith('#intro')) Intro.start();   // a fresh load opens on the fall
 else loadScene(BUILDERS[location.hash.slice(1)] ? location.hash.slice(1) : 'doorway', { instant: true });
 
@@ -8211,14 +8314,10 @@ const aim = { pitch: 0, fov: 32 };   // camera app: where Caine points the lens,
 const photos = [];
 try { (JSON.parse(localStorage.getItem('caineRoll') || '[]')).forEach(p => { const im = new Image(); const c = document.createElement('canvas'); c.width = 240; c.height = 180; const e = { id: p.id || 'p' + [...(p.src || '')].reduce((h, ch, i) => i % 7 ? h : (h * 31 + ch.charCodeAt(0)) >>> 0, 7).toString(36), cv: c, where: p.where, when: p.when, sent: !!p.sent, pinned: !!p.pinned, ver: 0 }; im.onload = () => { c.getContext('2d').drawImage(im, 0, 0); e.ver++; }; im.src = p.src; photos.push(e); }); } catch (e) {}
 function saveRoll() { try { localStorage.setItem('caineRoll', JSON.stringify(photos.slice(0, 24).map(p => ({ id: p.id, src: p.cv.toDataURL('image/jpeg', 0.7), where: p.where, when: p.when, sent: p.sent, pinned: p.pinned })))); } catch (e) {} }
-const ph = { app: 'home', pSel: 0, sel: 1, filed: 0, filedNow: false, unread: 1, snapT: -9, list: 0, scroll: 0, open: null, mapX: 300, mapY: 230 };
+const ph = { app: 'home', pSel: 0, sel: 1, filed: 0, filedNow: false, unread: 0, snapT: -9, list: 0, scroll: 0, open: null, mapX: 300, mapY: 230 };
 const MONO = '"Courier New", monospace', CREAM = '#ece6d2', INK = '#1c2230';
-const THREADS = [
-  { from: 'UNKNOWN', time: '3:12a', unread: true, body: ['Stop looking for the kid, Caine.'] },
-  { from: 'RUSH', time: '1:47a', body: ['where u at', 'Chief is asking', 'im covering. call me'] },
-  { from: 'CHIEF R.', time: 'Tue', body: ['My office. 9am.', 'Bring the Bravano file.'] },
-  { from: 'MARCUS', time: 'Mon', body: ['owe u one for the', 'thing on 9th. dont', 'make it a habit'] },
-];
+const THREADS = [];   // his phone starts empty: the Chief's text is the first thing on it
+if (location.hash && !location.hash.startsWith('#intro')) THREADS.push({ from: 'CHIEF R.', time: '6:58a', body: ['Caine. Precinct.', 'Now.', "Don't make me send Rush."] });   // (jumping straight into a scene: it's already been read)
 const NOTES = [
   { title: 'Alley off 9th & Lime', when: 'Tue 11:40p', lines: ['Kid in a purple hoodie ran', 'two masks after him.', 'White masks. Jabbawockeez?', 'Shell casing by the drain.', '9mm. Who carries 9s?', 'Matchbook: CLUB COQUINA.'] },
   { title: 'Bartender (Q&A)', when: 'Wed 12:15a', lines: ['Q: Who was the kid?', 'A: "Bernard." Works docks.', 'Q: The masks?', 'A: Nobody saw nothin.', '(She was lying.)', 'Ask about the back room.'] },
@@ -8396,7 +8495,7 @@ function drawHudTo(g, W, t) {
   function snap() { try { capture(); } catch (e) { console.warn(e); } ph.snapT = pt; const f = document.getElementById('phoneFlash'); f.style.transition = 'none'; f.style.opacity = .9; requestAnimationFrame(() => { f.style.transition = 'opacity .5s'; f.style.opacity = 0; }); }
   let open = false, k = 0;
   const btn = document.getElementById('phoneBtn');
-  function setOpen(v) { if (v && typeof Dialogue !== 'undefined' && Dialogue.isOpen) Dialogue.close(); if (v && inHand) { inHand = null; document.getElementById('propBtn').classList.remove('held'); } open = v; btn.classList.toggle('on', v); if (v) { held.clear(); route = []; ph.app = 'home'; } }
+  function setOpen(v) { if (v && typeof Dialogue !== 'undefined' && Dialogue.isOpen) Dialogue.close(); if (v && inHand) { inHand = null; document.getElementById('propBtn').classList.remove('held'); } open = v; btn.classList.toggle('on', v); if (v) { held.clear(); route = []; ph.app = 'home'; if (ph.unread) ph.sel = APPS.indexOf('Messages'); } }   // a waiting text: open with Messages already picked
   btn.addEventListener('click', () => setOpen(!open));
   // --- feel: a tiny click sound and a buzz where the device allows it
   let actx = null;
@@ -8633,7 +8732,7 @@ function drawHudTo(g, W, t) {
   const inspectCard = document.createElement('div'); inspectCard.id = 'inspectCard'; document.body.appendChild(inspectCard);
   const wp = new THREE.Vector3();
   function pickUp(pr) {
-    if (pr.talk) { const w = pr; heading = Math.atan2(pr.mesh.getWorldPosition(wp).x - pos.x, wp.z - pos.z); faceTarget = null; Dialogue.open({ vera: VERA, keeper: KEEPER }[pr.talk], { with: pr.id, onEnd: pr.onEnd }); /* add target: pr.mesh for an over-the-shoulder two-shot */ propBtn.classList.remove('show'); return; }
+    if (pr.talk) { const w = pr; heading = Math.atan2(pr.mesh.getWorldPosition(wp).x - pos.x, wp.z - pos.z); faceTarget = null; Dialogue.open({ vera: VERA, keeper: KEEPER, bellhop: BELLHOP }[pr.talk], { with: pr.id, onEnd: pr.onEnd }); /* add target: pr.mesh for an over-the-shoulder two-shot */ propBtn.classList.remove('show'); return; }
     if (open) setOpen(false);
     inHand = pr; pv.yaw = pv.pitch = 0; pv.zoom = 1;
     held.clear(); route = []; faceTarget = null;
@@ -8767,6 +8866,8 @@ function drawHudTo(g, W, t) {
   return {
     screenRect, get isOpen() { return open || !!inHand || (typeof Dialogue !== 'undefined' && Dialogue.isOpen); },
     addText(m) { THREADS.unshift(m); ph.unread = THREADS.filter(t => t.unread).length; },
+    get unread() { return ph.unread; },
+    get threads() { return THREADS; },
     openThread(i) { setOpen(true); ph.list = i; ph.open = i; ph.scroll = 0; ph.openT = pt; ph.app = 'thread'; if (THREADS[i] && THREADS[i].unread) { THREADS[i].unread = false; ph.unread = THREADS.filter(t => t.unread).length; } },
     photos, saveRoll, poseCaine, povCamera, examine: (pr) => { if (!inHand && !Dialogue.isOpen) pickUp(pr); }, close: () => setOpen(false), toggle: () => setOpen(!open), mapHome: () => { if (ph.app === 'map') ph.app = 'home'; },
     openMap: () => { setOpen(true); ph.app = 'map'; ph.sel = APPS.indexOf('Map'); setTimeout(() => { if (ph.app === 'map' && open) openCityMap({ inPhone: true }); }, 450); },
@@ -8908,6 +9009,19 @@ const KEEPER = (() => {
   };
 })();
 const pick2 = (a) => a[Math.random() * a.length | 0];
+const BELLHOP = (() => {   // Eddie, the bellhop: first the bones, then (once you've looked) the way to your car
+  let stage = 0;
+  return {
+    who: 'Eddie · Bellhop',
+    get stage() { return stage; }, set stage(v) { stage = v; },
+    start: () => stage === 0 ? { line: "Morning, Mr. Caine. Rough night? You look like you fell out of bed.", replies: [{ t: 'Something like that.', go: 'dino' }, { t: "What's with the bones?", go: 'dino' }] }
+      : stage === 1 ? { line: "Go on, look up at her. I'll wait." }
+      : { line: pick2(["Skybridge is through the green doors past the grand stair, Mr. Caine.", "Car's in the municipal garage. Green doors, by the stair. Up and over."]) },
+    dino: { line: "Ain't she something? The old girl. Old man Osario dug her out of the coquina pits and built the whole hotel around her. Go on, look up at her. Nobody ever looks up.", do: () => { stage = 1; } },
+    after: { line: "Told ya. Gives me the creeps on the night shift. Those eyes follow you up the stairs.", replies: [{ t: "Where'd I leave my car?", go: 'car' }] },
+    car: { line: "Municipal garage, same as always. Skybridge is through the green doors past the grand stair. Up the steps, across the street, and you're on the roof deck. Can't miss the sign.", do: () => { stage = 2; } },
+  };
+})();
 const VERA = (() => {
   let visits = 0; try { visits = +localStorage.getItem('caineVera') || 0; } catch (e) {}
   const queued = () => PhoneUI.photos.filter(p => p.sent && !p.pinned), pinned = () => PhoneUI.photos.filter(p => p.pinned);
@@ -9340,7 +9454,7 @@ renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.05), now = performance.now() / 1000;
   Calm.update(dt, now); Ambience.update(dt);
   keyWalk(dt); mouseSteer(); Ripple.update(dt); driveChoice(dt);
-  if (!paused) { if (!S.drive && !S.cutscene) updateWalker(dt, now); Intro.update(dt); S.update && S.update(dt, now); Life.update(S.group, dt, now); Pigeons.update(dt, now); Skyline.update(S, dt); }
+  if (!paused) { if (!S.drive && !S.cutscene) updateWalker(dt, now); Intro.update(dt); Guide.update(dt); S.update && S.update(dt, now); Life.update(S.group, dt, now); Pigeons.update(dt, now); Skyline.update(S, dt); }
   PhoneUI.poseCaine();
   SkinRig.update();
   updateCamera(dt);
