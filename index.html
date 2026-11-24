@@ -2928,10 +2928,10 @@ function buildSkybridge() {
    THE FALL — the title screen's scene. Nothing but black, Caine dropping through it, a cold light from somewhere
    far above just catching his hat brim and shoulders, motes and rain streaking up past us as he falls away.
    ========================================================= */
-const FALL_MODE = (() => { const h = /^#intro-(\w+)/.exec(location.hash); if (h) return h[1]; try { return localStorage.getItem('caineFall') || 'fall'; } catch (e) { return 'fall'; } })();
+const FALL_MODE = (() => { let m = null; const h = /^#intro-(\w+)/.exec(location.hash); if (h) m = h[1]; else try { m = localStorage.getItem('caineFall'); } catch (e) {} return m === 'drift' ? 'drift' : 'tunnel'; })();   // tunnel (default: drifting down the inside of his own head) · drift (the dark alone)
 function buildVoid() {
   const group = new THREE.Group();
-  const mode = FALL_MODE, drift = mode === 'drift';   // fall (default) · drift (the first, slower take) · city · tunnel (samples, dev)
+  const mode = FALL_MODE, drift = true;   // he always drifts; the tunnel (default) or the bare dark (dev) around him
   const N = 900, pg = new THREE.BufferGeometry(), pa = new Float32Array(N * 3), sp = new Float32Array(N);
   for (let i = 0; i < N; i++) { const a = Math.random() * 7, r = 0.6 + Math.pow(Math.random(), 0.7) * 7; pa.set([Math.cos(a) * r, -24 + Math.random() * 36, Math.sin(a) * r], i * 3); sp[i] = 0.6 + Math.random() * 0.8; }
   pg.setAttribute('position', new THREE.BufferAttribute(pa, 3));
@@ -2943,25 +2943,9 @@ function buildVoid() {
   const key = new THREE.SpotLight(0xdfe6f0, 60, 14, 0.32, 1, 1.6); key.position.set(0.6, 9, 0.8); key.target.position.set(0, 0.9, 0); group.add(key, key.target);   // barely lit, from far above
   const under = new THREE.DirectionalLight(0x3a5a9a, 0.35); under.position.set(-1, -6, -2); group.add(under, under.target);     // a cold breath from below
   let t = 0, plungeAt = null, boost = 1;
-  const UP = new THREE.Vector3(0, 1, 0), lookDown = mode === 'city' || mode === 'tunnel';
+  const UP = new THREE.Vector3(0, 1, 0), lookDown = mode === 'tunnel';
   const scrollers = [], movers = [];
-  if (mode === 'city' || mode === 'tunnel') { motes.visible = mode === 'city'; streaks.visible = mode === 'city'; }
-  if (mode === 'city') {   // SAMPLE A — down the canyon of Coquina City: towers all round, their windows streaming up past him, the streets glowing far below
-    const winTex = (() => { const c = document.createElement('canvas'); c.width = 128; c.height = 256; const g = c.getContext('2d'); g.fillStyle = '#0b0c10'; g.fillRect(0, 0, 128, 256);
-      for (let y = 6; y < 256; y += 16) for (let x = 6; x < 128; x += 14) { const r = Math.random(); g.fillStyle = r < 0.16 ? '#e8b85a' : r < 0.24 ? '#cfd6e0' : r < 0.3 ? '#6a5a3a' : '#16181e'; g.fillRect(x, y, 8, 9); }
-      g.fillStyle = '#05060a'; for (let x = 0; x < 128; x += 42) g.fillRect(x, 0, 3, 256); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; return t; })();
-    const TH = 260;
-    for (let gx = -4; gx <= 4; gx++) for (let gz = -4; gz <= 4; gz++) {
-      const cx = gx * 7.5 + (Math.random() - .5) * 2, cz = gz * 7.5 + (Math.random() - .5) * 2; if (Math.hypot(cx, cz) < 7.5) continue;   // the shaft he falls down
-      const w = 3.5 + Math.random() * 2.5, d = 3.5 + Math.random() * 2.5, tx = winTex.clone(); tx.needsUpdate = true; tx.repeat.set(w / 4, TH / 8); tx.offset.set(Math.random(), Math.random());
-      const m = new THREE.Mesh(new THREE.BoxGeometry(w, TH, d), new THREE.MeshBasicMaterial({ map: tx })); m.position.set(cx, -TH / 2 + 6 + Math.random() * 6, cz); group.add(m); scrollers.push(tx); }
-    // gold neon sliding past: the OSARIO blade, a hotel sign, a bar
-    const neon = (txt, col) => { const c = document.createElement('canvas'); c.width = 96; c.height = 512; const g = c.getContext('2d'); g.fillStyle = '#120d08'; g.fillRect(0, 0, 96, 512); g.strokeStyle = col; g.lineWidth = 5; g.strokeRect(6, 6, 84, 500); g.fillStyle = col; g.shadowColor = col; g.shadowBlur = 18; g.font = "bold 64px 'Bebas Neue', Impact, sans-serif"; g.textAlign = 'center'; g.textBaseline = 'middle'; [...txt].forEach((ch, k) => g.fillText(ch, 48, 50 + k * 70)); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; };
-    [['OSARIO', '#ffcf6a', 5.2, 0.4], ['HOTEL', '#ffcf6a', -4.6, 2.2], ['BAR', '#e8a050', 1.0, -5.6], ['CLUB', '#ffcf6a', -5.4, -2.6]].forEach(([tx, col, x, z], k) => {
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 5.4), new THREE.MeshBasicMaterial({ map: neon(tx, col), side: THREE.DoubleSide, fog: false })); m.position.set(x, -10 - k * 22, z); m.lookAt(0, m.position.y, 0); group.add(m); movers.push({ m, span: 90 }); });
-    const street = (() => { const c = document.createElement('canvas'); c.width = c.height = 512; const g = c.getContext('2d'); g.fillStyle = '#050505'; g.fillRect(0, 0, 512, 512); g.fillStyle = '#e8b85a'; for (let k = 0; k < 512; k += 64) { g.fillRect(k + 28, 0, 6, 512); g.fillRect(0, k + 28, 512, 6); } for (let n = 0; n < 160; n++) { g.fillStyle = Math.random() < .5 ? '#fff0c8' : '#e85a3a'; g.fillRect(Math.random() * 512, Math.random() * 512, 3, 3); } const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })();
-    const gr = new THREE.Mesh(new THREE.PlaneGeometry(90, 90), new THREE.MeshBasicMaterial({ map: street })); gr.rotation.x = -Math.PI / 2; gr.position.y = -TH + 30; group.add(gr);
-  }
+  if (mode === 'tunnel') streaks.visible = false;   // just slow motes inside the tunnel
   if (mode === 'tunnel') {   // SAMPLE B — down the inside of his own head: ring after ring in Caine's profile (fedora, nose, chin), rushing up past him, a gold one every few
     const prof = [[-0.45, -1.0], [-0.5, -0.4], [-0.65, 0.0], [-0.7, 0.35], [-0.98, 0.42], [-0.98, 0.5], [-0.55, 0.53], [-0.5, 1.0], [0.0, 1.1], [0.45, 1.0], [0.5, 0.56], [1.02, 0.5], [1.02, 0.42], [0.55, 0.38], [0.6, 0.15], [0.8, -0.05], [0.6, -0.15], [0.63, -0.32], [0.55, -0.42], [0.58, -0.56], [0.35, -0.72], [0.25, -1.0]];
     const ringG = (() => {   // a band between his profile at two sizes, stitched as a strip (so the middle stays open)
@@ -2974,21 +2958,6 @@ function buildVoid() {
     for (let k = 0; k < 46; k++) { const m = new THREE.Mesh(ringG, k % 7 === 0 ? mats[2] : mats[k % 2]); m.position.y = 6 - k * 1.5; m.scale.setScalar(1 + (k % 2) * 0.04); group.add(m); movers.push({ m, span: 46 * 1.5, ring: true }); }
     const glow = new THREE.PointLight(0xffcf6a, 30, 60, 1.4); glow.position.set(0, -40, 0); group.add(glow);
   }
-  const pose = (tt) => {
-    const w = (f, ph = 0) => Math.sin(tt * f + ph), buf = w(23) * 0.5 + w(31, 1) * 0.3 + w(17, 2) * 0.2;   // the wind shaking everything
-    const sink = -0.9 - 0.55 * (0.5 + 0.5 * w(0.9)) - 0.12 * w(2.7);                                    // dropping away from us in surges
-    man.position.set(w(0.7) * 0.18 + buf * 0.015, sink, w(0.55, 1) * 0.14);
-    man.rotation.set(-0.75 + w(0.8) * 0.22 + buf * 0.03, tt * 0.55, w(0.6) * 0.38);                            // face-down, turning over faster
-    hips.position.y = 0.95; hips.rotation.set(0, 0, w(3.1) * 0.08); chest.rotation.set(-0.25 + buf * 0.05, w(2.3) * 0.1, 0);
-    // arms thrown up and back by the air, clawing at nothing
-    armL.sh.rotation.set(-0.9 + w(4.2) * 0.35 + buf * 0.08, 0, 2.25 + w(3.3, 1) * 0.3); armL.el.rotation.x = -0.4 + w(5.1) * 0.35;
-    armR.sh.rotation.set(-0.8 + w(3.9, 2) * 0.35 + buf * 0.08, 0, -2.15 + w(3.6, 3) * 0.3); armR.el.rotation.x = -0.5 + w(4.7, 1) * 0.35;
-    // legs kicking for a floor that isn't there
-    legL.hip.rotation.x = -0.6 + w(3.4) * 0.45; legL.knee.rotation.x = 0.9 + w(3.4, 1.2) * 0.4; legL.ankle.rotation.x = 0.3;
-    legR.hip.rotation.x = 0.15 + w(3.4, Math.PI) * 0.45; legR.knee.rotation.x = 0.6 + w(3.4, 4.3) * 0.4; legR.ankle.rotation.x = 0.2;
-    skirt.rotation.x = -1.05 + w(14) * 0.16 + buf * 0.06;                                                       // coat tails snapping straight up
-    neck.rotation.set(0.35, 0, 0); head.rotation.set(-0.35 + w(2.2) * 0.12, w(1.4) * 0.3, buf * 0.04);       // head craned back, looking up at where he fell from
-  };
   const poseDrift = (tt) => {   // the first take: face-down, slowly turning over, limbs loose
     man.position.set(0, -0.9, 0);
     man.rotation.set(-0.55 + Math.sin(tt * 0.5) * 0.12, tt * 0.22, Math.sin(tt * 0.37) * 0.25);
@@ -3002,14 +2971,14 @@ function buildVoid() {
   return {
     group, grade: NOIR, name: 'The Fall', cutscene: true,
     exposure: 1.05,
-    fog: new THREE.FogExp2(0x000000, mode === 'city' ? 0.014 : mode === 'tunnel' ? 0.04 : 0.09),
+    fog: new THREE.FogExp2(0x000000, mode === 'tunnel' ? 0.04 : 0.09),
     bounds: { minX: -1, maxX: 1, minZ: -1, maxZ: 1 },
     blocked() { return false; }, groundY() { return 0; },
     start: { x: 0, z: 0, heading: 0 }, patrol: [{ p: [0, 0] }],
     overhead(p, o, l) { o.set(0, 5, 1.6); l.set(0, 0, 0); },
     camTargets(m, p, l) {
       if (lookDown) {   // straight down the shaft over his back, the whole world slowly rolling round him; he rides high in the frame, clear of the title
-        const r = t * (mode === 'tunnel' ? 0.06 : 0.07), ux = Math.sin(r), uz = -Math.cos(r), off = (innerWidth > innerHeight ? 1.6 : 1.2) * (mode === 'tunnel' ? 1.3 : 1), sh = (Math.sin(t * 29) + Math.sin(t * 37 + 1) * 0.6) * 0.03;
+        const r = t * 0.035, ux = Math.sin(r), uz = -Math.cos(r), off = innerWidth > innerHeight ? 1.6 : 1.56, sh = (Math.sin(t * 29) + Math.sin(t * 37 + 1) * 0.6) * 0.03 * Math.min(1, (boost - 1) / 4);   // still while he drifts, shaking once he drops
         camera.up.set(ux, 0, uz); p.set(sh, 5.2, sh * 0.6); l.set(-ux * off, -10, -uz * off); return; }
       const wide = innerWidth > innerHeight ? 1 : 0, sh = drift ? 0 : (Math.sin(t * 29) + Math.sin(t * 37 + 1) * 0.6) * 0.035;   // the camera falls too: shaken by the air
       p.set(Math.sin(t * 0.13) * 0.7 + sh, 4.2 + wide * 1.6 - Math.sin(t * 0.2) * 0.3 + sh * 0.6, 2.2 + wide * 0.4 + Math.cos(t * 0.11) * 0.5); l.set(sh * 0.5, -0.35 - wide * 1.45, 0.15); },   // a wide screen stands further off so he clears the title   // above him, looking down as he drops away
@@ -3017,14 +2986,14 @@ function buildVoid() {
     onExit() { resetPose(); plungeAt = null; boost = 1; camera.up.copy(UP); },
     plunge() { if (plungeAt === null) plungeAt = t; },
     update(dt) {
-      t += dt; (drift ? poseDrift : pose)(t);
-      if (lookDown) { man.rotation.set(-1.45 + Math.sin(t * 0.8) * 0.15, 0, Math.sin(t * 0.6) * 0.3); }   // spread face-down below us
-      const fall = (mode === 'tunnel' ? 9 : 26) * boost;
+      t += dt; poseDrift(t);
+      if (lookDown && plungeAt === null) { man.rotation.set(-1.4 + Math.sin(t * 0.5) * 0.12, 0, Math.sin(t * 0.37) * 0.35); }   // drifting face-down below us, turning slowly
+      const fall = 3.2 * boost;   // a slow drift down the tunnel... until START
       for (const tx of scrollers) tx.offset.y -= fall * dt / 8;
       for (const o of movers) { o.m.position.y += fall * dt; if (o.m.position.y > 8) o.m.position.y -= o.span; if (o.ring) o.m.rotation.y = o.m.position.y * 0.006; }
       if (plungeAt !== null) { const k = t - plungeAt;   // START: the floor drops out of the dream — he's gone, down and away into the black
         man.position.y -= 3.2 * k * k + 1.2 * k; man.position.x += k * 0.3; man.rotation.x -= k * 1.8; man.rotation.z += k * 0.9;
-        key.intensity *= Math.max(0, 1 - k / 1.3); boost = 1 + k * 2.5; }
+        key.intensity *= Math.max(0, 1 - k / 1.3); boost = 1 + k * k * 9; }   // the plummet: the tunnel tears past
       for (let i = 0; i < N; i++) { pa[i * 3 + 1] += (drift ? 7.5 : 24) * sp[i] * dt * boost; if (pa[i * 3 + 1] > 12) pa[i * 3 + 1] -= 36; } pg.attributes.position.needsUpdate = true;
       for (let i = 0; i < SN; i++) { const o = i * 6; const v = (drift ? 16 : 46) * boost; sa[o + 1] += v * dt; sa[o + 4] += v * dt; if (sa[o + 1] > 12) { sa[o + 1] -= 36; sa[o + 4] -= 36; } } sg.attributes.position.needsUpdate = true;
       key.intensity = 60 * (0.85 + 0.15 * Math.sin(t * 0.7));
@@ -7726,8 +7695,8 @@ function driveChoice(dt) {
   const sel = document.createElement('select'); sel.innerHTML = '<option value="">Jump to scene…</option>' + listed.map(([k, t]) => `<option value="${k}">${t}</option>`).join('');
   sel.onchange = () => { if (sel.value) loadScene(sel.value); sel.value = ''; }; body.append(sel);
   const rc = document.createElement('button'); rc.textContent = 'Reset clues'; rc.onclick = () => { Evidence.reset(); loadScene(currentKey); }; body.append(rc);
-  const fs = document.createElement('button'), TAKES = ['fall', 'drift', 'city', 'tunnel'], NAMES = { fall: 'falling', drift: 'drifting', city: 'city', tunnel: 'tunnel' };
-  const cur = () => { let m = 'fall'; try { m = localStorage.getItem('caineFall') || 'fall'; } catch (e) {} return TAKES.includes(m) ? m : 'fall'; };
+  const fs = document.createElement('button'), TAKES = ['tunnel', 'drift'], NAMES = { tunnel: 'tunnel', drift: 'dark only' };
+  const cur = () => { let m = 'tunnel'; try { m = localStorage.getItem('caineFall') || 'tunnel'; } catch (e) {} return TAKES.includes(m) ? m : 'tunnel'; };
   fs.textContent = 'Intro: ' + NAMES[cur()]; fs.onclick = () => { const n = TAKES[(TAKES.indexOf(cur()) + 1) % TAKES.length]; try { localStorage.setItem('caineFall', n); } catch (e) {} fs.textContent = 'Intro: ' + NAMES[n]; if (currentKey === 'void') { location.hash = ''; location.reload(); } }; body.append(fs);   // which take of the fall the title screen uses
   const rl = document.createElement('button'); rl.textContent = 'Reload'; rl.onclick = () => location.reload(); body.append(rl);   // a fresh start (no #scene in the address = the opening plays)
   dock.querySelector('#devDockBtn').onclick = (e) => { e.stopPropagation(); body.hidden = !body.hidden; };
