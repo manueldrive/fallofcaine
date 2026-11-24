@@ -39,7 +39,7 @@
   .place::before { content: ''; position: absolute; left: var(--ax, 50%); bottom: 0; width: 7px; height: 7px; margin-left: -3px; border-radius: 50%; background: var(--ink); }
   .place:hover b, .place.here b { background: var(--red); border-color: var(--red); color: var(--paper); }
   .place:hover::after, .place:hover::before, .place.here::after, .place.here::before { background: var(--red); }
-  .place.here small { color: var(--red); }
+  .place.here small { color: var(--red); } .place.here { cursor: default; }
   .place.soon b { border-style: dashed; color: var(--mute); background: color-mix(in srgb, var(--paper) 75%, transparent); }
   .place.soon:hover b { background: color-mix(in srgb, var(--paper) 75%, transparent); color: var(--mute); border-color: var(--ink); }
   .place.soon small { color: var(--mute); }
@@ -315,6 +315,7 @@ const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
 function dive(i) {
   const s = STOPS[i]; if (mode !== 'map') return;
   if (!s.scene) { s.el.classList.remove('nope'); void s.el.offsetWidth; s.el.classList.add('nope'); return; }
+  if (i === hereStop) { s.el.classList.remove('nope'); void s.el.offsetWidth; s.el.classList.add('nope'); return; }   /* you're already here: a little shake, no trip */
   if (EMB && TRANS === 'here') { if (dive.busy) return; dive.busy = true; toGame({ enter: s.scene, fromHere: true }); setTimeout(() => { dive.busy = false; }, 1200); return; }   // the reel shoots the scene you're in, no dive
   mode = 'dive'; diveI = i; diveT = 0; sent = false; d0 = { t: cam.t.clone(), yaw: cam.yaw + look.yaw, pitch: cam.pitch + look.pitch, dist: cam.dist };
   look.yaw = look.pitch = lookT.yaw = lookT.pitch = 0; document.body.classList.add('diving');
