@@ -2928,9 +2928,10 @@ function buildSkybridge() {
    THE FALL — the title screen's scene. Nothing but black, Caine dropping through it, a cold light from somewhere
    far above just catching his hat brim and shoulders, motes and rain streaking up past us as he falls away.
    ========================================================= */
+const FALL_MODE = (() => { const h = /^#intro-(\w+)/.exec(location.hash); if (h) return h[1]; try { return localStorage.getItem('caineFall') || 'fall'; } catch (e) { return 'fall'; } })();
 function buildVoid() {
   const group = new THREE.Group();
-  let drift = false; try { drift = localStorage.getItem('caineFall') === 'drift'; } catch (e) {}   // dev: the first, slower take (he hangs in the dark rather than drops)
+  const mode = FALL_MODE, drift = mode === 'drift';   // fall (default) · drift (the first, slower take) · city · tunnel (samples, dev)
   const N = 900, pg = new THREE.BufferGeometry(), pa = new Float32Array(N * 3), sp = new Float32Array(N);
   for (let i = 0; i < N; i++) { const a = Math.random() * 7, r = 0.6 + Math.pow(Math.random(), 0.7) * 7; pa.set([Math.cos(a) * r, -24 + Math.random() * 36, Math.sin(a) * r], i * 3); sp[i] = 0.6 + Math.random() * 0.8; }
   pg.setAttribute('position', new THREE.BufferAttribute(pa, 3));
@@ -2942,6 +2943,37 @@ function buildVoid() {
   const key = new THREE.SpotLight(0xdfe6f0, 60, 14, 0.32, 1, 1.6); key.position.set(0.6, 9, 0.8); key.target.position.set(0, 0.9, 0); group.add(key, key.target);   // barely lit, from far above
   const under = new THREE.DirectionalLight(0x3a5a9a, 0.35); under.position.set(-1, -6, -2); group.add(under, under.target);     // a cold breath from below
   let t = 0, plungeAt = null, boost = 1;
+  const UP = new THREE.Vector3(0, 1, 0), lookDown = mode === 'city' || mode === 'tunnel';
+  const scrollers = [], movers = [];
+  if (mode === 'city' || mode === 'tunnel') { motes.visible = mode === 'city'; streaks.visible = mode === 'city'; }
+  if (mode === 'city') {   // SAMPLE A — down the canyon of Coquina City: towers all round, their windows streaming up past him, the streets glowing far below
+    const winTex = (() => { const c = document.createElement('canvas'); c.width = 128; c.height = 256; const g = c.getContext('2d'); g.fillStyle = '#0b0c10'; g.fillRect(0, 0, 128, 256);
+      for (let y = 6; y < 256; y += 16) for (let x = 6; x < 128; x += 14) { const r = Math.random(); g.fillStyle = r < 0.16 ? '#e8b85a' : r < 0.24 ? '#cfd6e0' : r < 0.3 ? '#6a5a3a' : '#16181e'; g.fillRect(x, y, 8, 9); }
+      g.fillStyle = '#05060a'; for (let x = 0; x < 128; x += 42) g.fillRect(x, 0, 3, 256); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; return t; })();
+    const TH = 260;
+    for (let gx = -4; gx <= 4; gx++) for (let gz = -4; gz <= 4; gz++) {
+      const cx = gx * 7.5 + (Math.random() - .5) * 2, cz = gz * 7.5 + (Math.random() - .5) * 2; if (Math.hypot(cx, cz) < 7.5) continue;   // the shaft he falls down
+      const w = 3.5 + Math.random() * 2.5, d = 3.5 + Math.random() * 2.5, tx = winTex.clone(); tx.needsUpdate = true; tx.repeat.set(w / 4, TH / 8); tx.offset.set(Math.random(), Math.random());
+      const m = new THREE.Mesh(new THREE.BoxGeometry(w, TH, d), new THREE.MeshBasicMaterial({ map: tx })); m.position.set(cx, -TH / 2 + 6 + Math.random() * 6, cz); group.add(m); scrollers.push(tx); }
+    // gold neon sliding past: the OSARIO blade, a hotel sign, a bar
+    const neon = (txt, col) => { const c = document.createElement('canvas'); c.width = 96; c.height = 512; const g = c.getContext('2d'); g.fillStyle = '#120d08'; g.fillRect(0, 0, 96, 512); g.strokeStyle = col; g.lineWidth = 5; g.strokeRect(6, 6, 84, 500); g.fillStyle = col; g.shadowColor = col; g.shadowBlur = 18; g.font = "bold 64px 'Bebas Neue', Impact, sans-serif"; g.textAlign = 'center'; g.textBaseline = 'middle'; [...txt].forEach((ch, k) => g.fillText(ch, 48, 50 + k * 70)); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; };
+    [['OSARIO', '#ffcf6a', 5.2, 0.4], ['HOTEL', '#ffcf6a', -4.6, 2.2], ['BAR', '#e8a050', 1.0, -5.6], ['CLUB', '#ffcf6a', -5.4, -2.6]].forEach(([tx, col, x, z], k) => {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 5.4), new THREE.MeshBasicMaterial({ map: neon(tx, col), side: THREE.DoubleSide, fog: false })); m.position.set(x, -10 - k * 22, z); m.lookAt(0, m.position.y, 0); group.add(m); movers.push({ m, span: 90 }); });
+    const street = (() => { const c = document.createElement('canvas'); c.width = c.height = 512; const g = c.getContext('2d'); g.fillStyle = '#050505'; g.fillRect(0, 0, 512, 512); g.fillStyle = '#e8b85a'; for (let k = 0; k < 512; k += 64) { g.fillRect(k + 28, 0, 6, 512); g.fillRect(0, k + 28, 512, 6); } for (let n = 0; n < 160; n++) { g.fillStyle = Math.random() < .5 ? '#fff0c8' : '#e85a3a'; g.fillRect(Math.random() * 512, Math.random() * 512, 3, 3); } const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })();
+    const gr = new THREE.Mesh(new THREE.PlaneGeometry(90, 90), new THREE.MeshBasicMaterial({ map: street })); gr.rotation.x = -Math.PI / 2; gr.position.y = -TH + 30; group.add(gr);
+  }
+  if (mode === 'tunnel') {   // SAMPLE B — down the inside of his own head: ring after ring in Caine's profile (fedora, nose, chin), rushing up past him, a gold one every few
+    const prof = [[-0.45, -1.0], [-0.5, -0.4], [-0.65, 0.0], [-0.7, 0.35], [-0.98, 0.42], [-0.98, 0.5], [-0.55, 0.53], [-0.5, 1.0], [0.0, 1.1], [0.45, 1.0], [0.5, 0.56], [1.02, 0.5], [1.02, 0.42], [0.55, 0.38], [0.6, 0.15], [0.8, -0.05], [0.6, -0.15], [0.63, -0.32], [0.55, -0.42], [0.58, -0.56], [0.35, -0.72], [0.25, -1.0]];
+    const ringG = (() => {   // a band between his profile at two sizes, stitched as a strip (so the middle stays open)
+      const P = [], I = [], n = prof.length;
+      for (const [x, y] of prof) P.push(x * 4.2, 0, -y * 4.2, x * 3.7, 0, -y * 3.7);
+      for (let k = 0; k < n; k++) { const a = k * 2, b = a + 1, c = ((k + 1) % n) * 2, d = c + 1; I.push(a, b, c, b, d, c); }
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setIndex(I); return g; })();
+    const mats = [new THREE.MeshBasicMaterial({ color: 0x24242a, side: THREE.DoubleSide }), new THREE.MeshBasicMaterial({ color: 0x121216, side: THREE.DoubleSide }), new THREE.MeshBasicMaterial({ color: 0xc9a23a, side: THREE.DoubleSide })];
+    // a solid sleeve of the same shape behind the rings, so the gaps read as depth, not void
+    for (let k = 0; k < 46; k++) { const m = new THREE.Mesh(ringG, k % 7 === 0 ? mats[2] : mats[k % 2]); m.position.y = 6 - k * 1.5; m.scale.setScalar(1 + (k % 2) * 0.04); group.add(m); movers.push({ m, span: 46 * 1.5, ring: true }); }
+    const glow = new THREE.PointLight(0xffcf6a, 30, 60, 1.4); glow.position.set(0, -40, 0); group.add(glow);
+  }
   const pose = (tt) => {
     const w = (f, ph = 0) => Math.sin(tt * f + ph), buf = w(23) * 0.5 + w(31, 1) * 0.3 + w(17, 2) * 0.2;   // the wind shaking everything
     const sink = -0.9 - 0.55 * (0.5 + 0.5 * w(0.9)) - 0.12 * w(2.7);                                    // dropping away from us in surges
@@ -2970,18 +3002,26 @@ function buildVoid() {
   return {
     group, grade: NOIR, name: 'The Fall', cutscene: true,
     exposure: 1.05,
-    fog: new THREE.FogExp2(0x000000, 0.09),
+    fog: new THREE.FogExp2(0x000000, mode === 'city' ? 0.014 : mode === 'tunnel' ? 0.04 : 0.09),
     bounds: { minX: -1, maxX: 1, minZ: -1, maxZ: 1 },
     blocked() { return false; }, groundY() { return 0; },
     start: { x: 0, z: 0, heading: 0 }, patrol: [{ p: [0, 0] }],
     overhead(p, o, l) { o.set(0, 5, 1.6); l.set(0, 0, 0); },
-    camTargets(m, p, l) { const wide = innerWidth > innerHeight ? 1 : 0, sh = drift ? 0 : (Math.sin(t * 29) + Math.sin(t * 37 + 1) * 0.6) * 0.035;   // the camera falls too: shaken by the air
+    camTargets(m, p, l) {
+      if (lookDown) {   // straight down the shaft over his back, the whole world slowly rolling round him; he rides high in the frame, clear of the title
+        const r = t * (mode === 'tunnel' ? 0.06 : 0.07), ux = Math.sin(r), uz = -Math.cos(r), off = (innerWidth > innerHeight ? 1.6 : 1.2) * (mode === 'tunnel' ? 1.3 : 1), sh = (Math.sin(t * 29) + Math.sin(t * 37 + 1) * 0.6) * 0.03;
+        camera.up.set(ux, 0, uz); p.set(sh, 5.2, sh * 0.6); l.set(-ux * off, -10, -uz * off); return; }
+      const wide = innerWidth > innerHeight ? 1 : 0, sh = drift ? 0 : (Math.sin(t * 29) + Math.sin(t * 37 + 1) * 0.6) * 0.035;   // the camera falls too: shaken by the air
       p.set(Math.sin(t * 0.13) * 0.7 + sh, 4.2 + wide * 1.6 - Math.sin(t * 0.2) * 0.3 + sh * 0.6, 2.2 + wide * 0.4 + Math.cos(t * 0.11) * 0.5); l.set(sh * 0.5, -0.35 - wide * 1.45, 0.15); },   // a wide screen stands further off so he clears the title   // above him, looking down as he drops away
     camOK() { return true; },
-    onExit() { resetPose(); plungeAt = null; boost = 1; },
+    onExit() { resetPose(); plungeAt = null; boost = 1; camera.up.copy(UP); },
     plunge() { if (plungeAt === null) plungeAt = t; },
     update(dt) {
       t += dt; (drift ? poseDrift : pose)(t);
+      if (lookDown) { man.rotation.set(-1.45 + Math.sin(t * 0.8) * 0.15, 0, Math.sin(t * 0.6) * 0.3); }   // spread face-down below us
+      const fall = (mode === 'tunnel' ? 9 : 26) * boost;
+      for (const tx of scrollers) tx.offset.y -= fall * dt / 8;
+      for (const o of movers) { o.m.position.y += fall * dt; if (o.m.position.y > 8) o.m.position.y -= o.span; if (o.ring) o.m.rotation.y = o.m.position.y * 0.006; }
       if (plungeAt !== null) { const k = t - plungeAt;   // START: the floor drops out of the dream — he's gone, down and away into the black
         man.position.y -= 3.2 * k * k + 1.2 * k; man.position.x += k * 0.3; man.rotation.x -= k * 1.8; man.rotation.z += k * 0.9;
         key.intensity *= Math.max(0, 1 - k / 1.3); boost = 1 + k * 2.5; }
@@ -7686,8 +7726,9 @@ function driveChoice(dt) {
   const sel = document.createElement('select'); sel.innerHTML = '<option value="">Jump to scene…</option>' + listed.map(([k, t]) => `<option value="${k}">${t}</option>`).join('');
   sel.onchange = () => { if (sel.value) loadScene(sel.value); sel.value = ''; }; body.append(sel);
   const rc = document.createElement('button'); rc.textContent = 'Reset clues'; rc.onclick = () => { Evidence.reset(); loadScene(currentKey); }; body.append(rc);
-  const fs = document.createElement('button'); const fl = () => { let d = false; try { d = localStorage.getItem('caineFall') === 'drift'; } catch (e) {} return d; };
-  fs.textContent = 'Intro: ' + (fl() ? 'drifting' : 'falling'); fs.onclick = () => { try { localStorage.setItem('caineFall', fl() ? 'fall' : 'drift'); } catch (e) {} fs.textContent = 'Intro: ' + (fl() ? 'drifting' : 'falling'); if (currentKey === 'void') location.reload(); }; body.append(fs);   // which take of the fall the title screen uses
+  const fs = document.createElement('button'), TAKES = ['fall', 'drift', 'city', 'tunnel'], NAMES = { fall: 'falling', drift: 'drifting', city: 'city', tunnel: 'tunnel' };
+  const cur = () => { let m = 'fall'; try { m = localStorage.getItem('caineFall') || 'fall'; } catch (e) {} return TAKES.includes(m) ? m : 'fall'; };
+  fs.textContent = 'Intro: ' + NAMES[cur()]; fs.onclick = () => { const n = TAKES[(TAKES.indexOf(cur()) + 1) % TAKES.length]; try { localStorage.setItem('caineFall', n); } catch (e) {} fs.textContent = 'Intro: ' + NAMES[n]; if (currentKey === 'void') { location.hash = ''; location.reload(); } }; body.append(fs);   // which take of the fall the title screen uses
   const rl = document.createElement('button'); rl.textContent = 'Reload'; rl.onclick = () => location.reload(); body.append(rl);   // a fresh start (no #scene in the address = the opening plays)
   dock.querySelector('#devDockBtn').onclick = (e) => { e.stopPropagation(); body.hidden = !body.hidden; };
   dock.addEventListener('pointerdown', e => e.stopPropagation());
@@ -7983,11 +8024,11 @@ const Intro = (() => {
   const css = document.createElement('style'); css.textContent = `
     body.intro #bottomBar, body.intro #hint, body.intro #propBtn, body.intro #topRight { opacity: 0 !important; pointer-events: none !important; }
     #intro { position: fixed; inset: 0; z-index: 40; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding-bottom: 11vh; box-sizing: border-box; pointer-events: none; color: #efe9da; text-align: center; }
-    #intro .ttl { opacity: 0; transform: translateY(10px); transition: opacity 3s ease 1.2s, transform 3s ease 1.2s; line-height: .86; user-select: none; }
+    #intro .ttl { filter: drop-shadow(0 0 18px rgba(0,0,0,.9)); opacity: 0; transform: translateY(10px); transition: opacity 3s ease 1.2s, transform 3s ease 1.2s; line-height: .86; user-select: none; }
     #intro.on .ttl { opacity: 1; transform: none; }
     #intro .ttl i { display: block; font: 400 clamp(26px, 4vw, 44px) 'Great Vibes', cursive; text-shadow: 0 .1em .5em #000; }
     #intro .ttl b { display: block; font: 400 clamp(84px, 15vw, 170px) 'Bebas Neue', Impact, sans-serif; letter-spacing: .04em; text-shadow: 2px 2px 0 #8d8c90, 4px 4px 0 #5a595d, 6px 8px 22px rgba(0,0,0,.8); }
-    #intro button { margin-top: 4.5vh; pointer-events: auto; background: rgba(0,0,0,.35); color: #e2b23a; border: 1px solid #e2b23a; font: 22px 'Bebas Neue', Impact, sans-serif; letter-spacing: .5em; padding: 14px 30px 12px 40px; cursor: pointer;
+    #intro button { margin-top: 4.5vh; pointer-events: auto; background: rgba(0,0,0,.72); color: #e2b23a; border: 1px solid #e2b23a; font: 22px 'Bebas Neue', Impact, sans-serif; letter-spacing: .5em; padding: 14px 30px 12px 40px; cursor: pointer;
       opacity: 0; transition: opacity 2s ease 3.6s, background .3s; }
     #intro.on button { opacity: 1; animation: introPulse 3.2s ease-in-out 5.6s infinite; }
     #intro button:hover { background: rgba(226,178,58,.12); }
@@ -8088,7 +8129,7 @@ const Intro = (() => {
   return { start, update, onRoom, get active() { return phase === 'title' || phase === 'plunge' || phase === 'wake'; } };
 })();
 
-if (!location.hash || location.hash === '#intro') Intro.start();   // a fresh load opens on the fall
+if (!location.hash || location.hash.startsWith('#intro')) Intro.start();   // a fresh load opens on the fall
 else loadScene(BUILDERS[location.hash.slice(1)] ? location.hash.slice(1) : 'doorway', { instant: true });
 
 
