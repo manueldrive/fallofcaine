@@ -789,7 +789,7 @@ function photoClue(group, { id, name, at, shot, caption, note, reach = 1.8, rang
   return { clue: { id, at: at.clone(), caption, note, range }, prop: { id: 'clue-' + id, mesh: h, label: "Photograph the " + name, reach, act: () => { group.updateMatrixWorld(true); PhoneUI.snapAt(group.localToWorld(shot.clone()), group.localToWorld(at.clone())); } } };
 }
 function shoePrintTex(big) { const c = document.createElement('canvas'); c.width = 64; c.height = 160; const g = c.getContext('2d');
-  g.fillStyle = 'rgba(0,0,0,0)'; g.fillRect(0, 0, 64, 160); g.fillStyle = 'rgba(206,192,160,.95)';   /* pale: cement dust off the warehouse floor, tracked out onto the wet stones */
+  g.fillStyle = 'rgba(0,0,0,0)'; g.fillRect(0, 0, 64, 160); g.fillStyle = 'rgba(170,160,138,.42)';   /* faint: a scuff of dust you notice when you look, not a stencil */   /* pale: cement dust off the warehouse floor, tracked out onto the wet stones */
   g.beginPath(); g.ellipse(32, 52, big ? 24 : 20, 44, 0, 0, 7); g.fill(); g.beginPath(); g.ellipse(32, 130, big ? 18 : 15, 24, 0, 0, 7); g.fill();
   g.globalCompositeOperation = 'destination-out'; g.fillStyle = 'rgba(0,0,0,.55)'; for (let y = 20; y < 92; y += 9) g.fillRect(12, y, 40, 3); for (let y = 114; y < 150; y += 8) g.fillRect(18, y, 28, 3);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; }
@@ -2365,7 +2365,7 @@ function buildAlley() {
   const towerTick = farWaterTower(group, 3, -50);   // the docks' water tower over the roofs past the far arch: that way's the yard
   /* the footprints: two sets in cement dust off the warehouse floor, running the alley out toward the docks past the dumpster — a long stride, and a bigger one right behind it */
   { const tA = shoePrintTex(false), tB = shoePrintTex(true);
-    for (const [x0, tex, sz, ph] of [[-0.55, tA, 0.34, 0], [0.15, tB, 0.38, 0.45]]) { const m = new THREE.MeshStandardMaterial({ map: tex, transparent: true, depthWrite: false, roughness: .9, polygonOffset: true, polygonOffsetFactor: -2 });
+    for (const [x0, tex, sz, ph] of [[-0.55, tA, 0.3, 0], [0.15, tB, 0.33, 0.45]]) { const m = new THREE.MeshStandardMaterial({ map: tex, transparent: true, depthWrite: false, roughness: .9, polygonOffset: true, polygonOffsetFactor: -2 });
       for (let k = 0; k < 6; k++) { const z = -21.4 - k * 0.85 - ph, side = k % 2 ? 1 : -1, f = new THREE.Mesh(new THREE.PlaneGeometry(sz * 0.42, sz), m);
         f.rotation.x = -Math.PI / 2; f.rotation.z = (Math.random() - 0.5) * 0.25; f.position.set(x0 + side * 0.11, 0.012, z); group.add(f); } } }
   const prints = photoClue(group, { id: 'footprints', name: 'footprints', at: new THREE.Vector3(-0.2, 0.02, -23.4), shot: new THREE.Vector3(-0.5, 1.75, -20.3), caption: 'Footprints · the alley', note: ['FOOTPRINTS · ALLEY', 'two sets, running · toward the docks'], reach: 3.2 });
@@ -3184,7 +3184,7 @@ function buildGarageOut() {
   /* west of the garage: copies of the drive scene's very own first stretch (same houses, same palms), laid so that at XH they line up
      with where the drive starts; east of that, fresh pieces with the garage's gap left in the barrio */
   const XH = -53.4;
-  const streetE = new THREE.Group(); streetE.rotation.y = Math.PI / 2; streetE.position.set(0, 0, ZC); group.add(streetE);
+  const streetE = new THREE.Group(); streetE.name = 'streetE'; streetE.rotation.y = Math.PI / 2; streetE.position.set(0, 0, ZC); group.add(streetE);
   for (const a0 of [-66.6, -26.6]) streetE.add(MK.piece(a0, a0 + 40, [-13.2, 13.2]));
   const streetW = new THREE.Group(); streetW.rotation.y = Math.PI / 2; streetW.position.set(XH, 0, ZC); group.add(streetW);
   for (let i = 0; i < 6; i++) streetW.add(MK.segs[i].clone(true));
@@ -3207,21 +3207,22 @@ function buildGarageOut() {
   /* ---------- across the street, the Ammonite Club, the island's casino: out of the garage you're facing its marquee. Isla Luz money — white stucco,
      gold trim, bulbs chasing round the canopy. Its own skybridge comes over from the garage's top deck (valet up, high rollers across);
      Hotel Osario's bridge is the one on the garage's far side, the one you walked. West of the Malecón here, just north of the hotel */
-  const extraUpd = [];
-  { const HX = -7, HZ = 16.7, HW = 38, HD = 30, stuM = mat({ color: 0xd9d1bf, roughness: .85 }), goldM = mat({ color: 0xb8913a, roughness: .35, metalness: .7 }), darkM = mat({ color: 0x1c1a1e, roughness: .6 });
+  const extraUpd = [], westHouses = [];
+  const casinoG = new THREE.Group(); casinoG.name = 'casino'; group.add(casinoG);
+  { const add = (o) => { casinoG.add(o); return o; }, HX = -7, HZ = 16.7, HW = 38, HD = 30, stuM = mat({ color: 0xd9d1bf, roughness: .85 }), goldM = mat({ color: 0xb8913a, roughness: .35, metalness: .7 }), darkM = mat({ color: 0x1c1a1e, roughness: .6 });
     const win = (cols, rows, seed) => cv(512, 512, (g, W, H) => { g.fillStyle = '#cfc6b2'; g.fillRect(0, 0, W, H); const cw = W / cols, rh = H / rows; let k = seed;
       for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) { k = (k * 9301 + 49297) % 233280; const on = k / 233280 < 0.5; g.fillStyle = on ? (k % 4 ? '#ffd890' : '#ffb0c8') : '#23252c'; g.fillRect(c * cw + cw * 0.12, r * rh + rh * 0.18, cw * 0.76, rh * 0.5); }
       g.fillStyle = '#b8913a'; for (let c = 0; c <= cols; c++) g.fillRect(c * cw - 2, 0, 4, H); });   /* ribbon windows between gold fins */
     const box = (w, h, d, x, y, z, m) => { const b = add(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m)); b.position.set(x, y, z); return b; };
     const lit = (w, h, d, x, y, z, tex) => box(w, h, d, x, y, z, [stuM, stuM, stuM, stuM, stuM, new THREE.MeshStandardMaterial({ map: tex, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: .85, roughness: .7 })]);
     const neon = (txt, w, h, col, glow, font) => cv(w, h, (g, W, H) => { g.fillStyle = '#0e0c10'; g.fillRect(0, 0, W, H); g.fillStyle = col; g.shadowColor = glow; g.shadowBlur = 18; g.font = font; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(txt, W / 2, H / 2 + 4); });
-    const sign = (tex, w, h, x, y, z, ry = Math.PI) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false })); m.position.set(x, y, z); m.rotation.y = ry; group.add(m); return m; };
+    const sign = (tex, w, h, x, y, z, ry = Math.PI) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false })); m.position.set(x, y, z); m.rotation.y = ry; casinoG.add(m); return m; };
     /* the podium: two storeys of glass doors and gaming-floor glow, a gold band, a streamlined rounded corner at each end */
     box(HW, 14, HD, HX, 3, HZ + HD / 2, stuM);   /* (down past the seawall to the water) */
     { const t = cv(1024, 256, (g, W, H) => { g.fillStyle = '#d9d1bf'; g.fillRect(0, 0, W, H); const gr = g.createLinearGradient(0, 120, 0, H); gr.addColorStop(0, '#ffcf7a'); gr.addColorStop(1, '#ff8fb0');
         for (let i = 0; i < 16; i++) { const x = 20 + i * 62; g.fillStyle = gr; g.fillRect(x, 120, 50, H - 130); g.fillStyle = 'rgba(30,20,20,.55)'; g.fillRect(x + 24, 120, 3, H - 130); }
         g.fillStyle = '#b8913a'; g.fillRect(0, 96, W, 14); for (let i = 0; i < 16; i++) { g.fillStyle = '#23252c'; g.fillRect(28 + i * 62, 22, 34, 50); if (i % 2) { g.fillStyle = '#ffd890'; g.fillRect(31 + i * 62, 25, 28, 44); } } });
-      const f = new THREE.Mesh(new THREE.PlaneGeometry(HW - 4, 9.2), new THREE.MeshStandardMaterial({ map: t, emissive: 0xffffff, emissiveMap: t, emissiveIntensity: .7, roughness: .8 })); f.position.set(HX, 4.6, HZ - 0.02); f.rotation.y = Math.PI; group.add(f); }
+      const f = new THREE.Mesh(new THREE.PlaneGeometry(HW - 4, 9.2), new THREE.MeshStandardMaterial({ map: t, emissive: 0xffffff, emissiveMap: t, emissiveIntensity: .7, roughness: .8 })); f.position.set(HX, 4.6, HZ - 0.02); f.rotation.y = Math.PI; casinoG.add(f); }
     box(HW + 0.4, 0.5, 0.5, HX, 10.2, HZ - 0.1, goldM);
     for (const sx of [-1, 1]) { const r = add(new THREE.Mesh(new THREE.CylinderGeometry(2.6, 2.6, 10.4, 24), stuM)); r.position.set(HX + sx * (HW / 2 - 0.4), 5.2, HZ + 2.2);
       for (let k = 0; k < 3; k++) { const b = add(new THREE.Mesh(new THREE.CylinderGeometry(2.66, 2.66, 0.18, 24), goldM)); b.position.set(HX + sx * (HW / 2 - 0.4), 7.2 + k * 0.9, HZ + 2.2); } }
@@ -3230,12 +3231,12 @@ function buildGarageOut() {
     sign(neon('THE  AMMONITE  CLUB', 512, 64, '#ffd36a', '#ffb040', "bold 44px 'Bebas Neue', Impact, sans-serif"), 11.4, 1.3, HX + 7, 5.15, HZ - 4.53);
     for (const dx of [-5.6, 5.6]) box(0.24, 4.2, 0.24, HX + 7 + dx, 2.1, HZ - 4.2, goldM);
     const bulbs = []; { const bm = new THREE.MeshBasicMaterial({ color: 0xfff0c0, toneMapped: false }), bm2 = new THREE.MeshBasicMaterial({ color: 0x5a4a30 }), bg = new THREE.SphereGeometry(0.07, 6, 4);
-      for (let i = 0; i < 48; i++) { const b = new THREE.Mesh(bg, bm); b.position.set(HX + 7 - 5.9 + i * 0.25, 4.05, HZ - 4.55); b.userData.on = bm; b.userData.off = bm2; group.add(b); bulbs.push(b); } }
-    const ml = new THREE.PointLight(0xffc070, 10, 13, 1.6); ml.position.set(HX + 7, 3.6, HZ - 2.5); group.add(ml);
+      for (let i = 0; i < 48; i++) { const b = new THREE.Mesh(bg, bm); b.position.set(HX + 7 - 5.9 + i * 0.25, 4.05, HZ - 4.55); b.userData.on = bm; b.userData.off = bm2; casinoG.add(b); bulbs.push(b); } }
+    const ml = new THREE.PointLight(0xffc070, 10, 13, 1.6); ml.position.set(HX + 7, 3.6, HZ - 2.5); casinoG.add(ml);
     /* the blade: a tall vertical CASINO sign off the corner, pink neon, seen all the way up the Malecón */
     { const bt = cv(128, 640, (g, W, H) => { g.fillStyle = '#0e0c10'; g.fillRect(0, 0, W, H); g.strokeStyle = '#b8913a'; g.lineWidth = 6; g.strokeRect(5, 5, W - 10, H - 10); g.fillStyle = '#ff6fa8'; g.shadowColor = '#ff2a80'; g.shadowBlur = 20; g.font = "bold 92px 'Bebas Neue', Impact, sans-serif"; g.textAlign = 'center'; g.textBaseline = 'middle'; [...'CASINO'].forEach((ch, i) => g.fillText(ch, W / 2, 62 + i * 103)); });
       const bx = HX - HW / 2 + 4; box(1.9, 9.4, 0.35, bx, 15.5, HZ - 0.9, darkM); sign(bt, 1.8, 9.0, bx, 15.5, HZ - 1.09); sign(bt, 1.8, 9.0, bx, 15.5, HZ - 0.71, 0);
-      const pl = new THREE.PointLight(0xff4f9a, 7, 18, 1.5); pl.position.set(bx, 15, HZ - 2.5); group.add(pl); }
+      const pl = new THREE.PointLight(0xff4f9a, 7, 18, 1.5); pl.position.set(bx, 15, HZ - 2.5); casinoG.add(pl); }
     /* the tower: rounded-off slab with ribbon windows, a stepped crown, AMMONITE in gold across the top */
     lit(22, 20, 14, HX, 20, HZ + 15, win(11, 8, 11)); lit(16, 10, 11, HX, 35, HZ + 15, win(8, 4, 5));
     { const cr = add(new THREE.Mesh(new THREE.CylinderGeometry(3.2, 4.6, 6, 8), goldM)); cr.position.set(HX, 43, HZ + 15); const sp = add(new THREE.Mesh(new THREE.ConeGeometry(0.5, 7, 8), goldM)); sp.position.set(HX, 49.5, HZ + 15); }
@@ -3245,20 +3246,54 @@ function buildGarageOut() {
         const cx = W / 2, cy = H / 2, r = (a) => 14 * Math.exp(0.19 * a); g.beginPath(); for (let a = 0; a <= 4.6 * Math.PI; a += 0.05) { const x = cx + r(a) * Math.cos(a), y = cy + r(a) * Math.sin(a); a ? g.lineTo(x, y) : g.moveTo(x, y); } g.stroke();
         g.lineWidth = 5; for (let a = 1.2 * Math.PI; a <= 4.6 * Math.PI; a += 0.42) { const r0 = r(a - 2 * Math.PI), r1 = r(a); g.beginPath(); g.moveTo(cx + r0 * Math.cos(a), cy + r0 * Math.sin(a)); g.lineTo(cx + r1 * Math.cos(a), cy + r1 * Math.sin(a)); g.stroke(); } });
       const disc = add(new THREE.Mesh(new THREE.CylinderGeometry(3.6, 3.6, 0.3, 32), goldM)); disc.rotation.x = Math.PI / 2; disc.position.set(HX, 24, HZ + 7.75); sign(sp, 6.6, 6.6, HX, 24, HZ + 7.57); }
-    { const nl = new THREE.PointLight(0xffb040, 6, 22, 1.4); nl.position.set(HX, 38, HZ + 7); group.add(nl); }
+    { const nl = new THREE.PointLight(0xffb040, 6, 22, 1.4); nl.position.set(HX, 38, HZ + 7); casinoG.add(nl); }
+    /* ---- the detail it needs for the weight it carries (it's the first thing you see out of the garage) ---- */
+    /* eyebrow ledges across the tower, floor by floor, and pink neon running up its corners: streamline moderne */
+    for (let y = 11.2; y < 30; y += 2.5) box(22.8, 0.16, 0.8, HX, y, HZ + 7.7, stuM);
+    for (let y = 31.2; y < 40; y += 2.5) box(16.8, 0.16, 0.8, HX, y, HZ + 9.2, stuM);
+    { const pk = new THREE.MeshBasicMaterial({ color: 0xff6fa8, toneMapped: false });
+      for (const sx of [-1, 1]) { const a = add(new THREE.Mesh(new THREE.BoxGeometry(0.14, 20, 0.14), pk)); a.position.set(HX + sx * 11.05, 20, HZ + 7.95);
+        const b = add(new THREE.Mesh(new THREE.BoxGeometry(0.14, 10, 0.14), pk)); b.position.set(HX + sx * 8.05, 35, HZ + 9.45); }
+      const cp = new THREE.PointLight(0xff4f9a, 5, 16, 1.6); cp.position.set(HX, 26, HZ + 5); casinoG.add(cp); }
+    /* globe lamps along the podium's parapet, warm, every few metres */
+    { const gm = new THREE.MeshBasicMaterial({ color: 0xffe2a0, toneMapped: false });
+      for (let x = HX - HW / 2 + 2; x <= HX + HW / 2 - 2; x += 3.4) { box(0.08, 0.7, 0.08, x, 10.8, HZ - 0.15, goldM); const g = add(new THREE.Mesh(new THREE.SphereGeometry(0.2, 10, 8), gm)); g.position.set(x, 11.25, HZ - 0.15); } }
+    /* the front step: a red carpet out to the curb under the marquee, brass posts and velvet rope, palms in planters either side, a doorman in white gloves */
+    { const cm = mat({ color: 0x6a1418, roughness: .95 }); box(3.0, 0.03, 4.6, HX + 7, 0.17, HZ - 2.3, cm);
+      for (const sx of [-1, 1]) { for (let k = 0; k < 4; k++) { const z = HZ - 0.6 - k * 1.25; box(0.07, 0.95, 0.07, HX + 7 + sx * 1.75, 0.62, z, goldM); const kn = add(new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), goldM)); kn.position.set(HX + 7 + sx * 1.75, 1.12, z);
+          if (k < 3) { const rp = add(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.25, 6), cm)); rp.rotation.x = Math.PI / 2; rp.position.set(HX + 7 + sx * 1.75, 0.95, z - 0.62); } } }
+      for (const dx of [-4.3, 4.3, -12, 12]) { const pl = box(1.2, 0.8, 1.2, HX + 7 + dx, 0.55, HZ - 0.75, stuM); box(1.3, 0.08, 1.3, HX + 7 + dx, 0.98, HZ - 0.75, goldM); try { const pm = Waterfront.palm(Math.abs(dx) > 5 ? 7.5 : 5.5); pm.position.set(HX + 7 + dx, 0.95, HZ - 0.75); casinoG.add(pm); } catch (e) {} }
+      try { const dm = makePerson({ coat: 0x5a1218, pants: 0x1a1a1a, skin: 0x6a5040, hat: 'cap', badge: false, shirt: 0xe8e2d0 }); dm.root.position.set(HX + 7 + 2.4, 0.17, HZ - 0.55); dm.root.rotation.y = Math.PI; casinoG.add(dm.root); } catch (e) {} }
+    /* two searchlights on the crown, sweeping the clouds: you see them before you see the building */
+    const beams = []; { const bm = new THREE.MeshBasicMaterial({ color: 0xfff2d0, transparent: true, opacity: 0.07, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
+      const geo = new THREE.CylinderGeometry(4.5, 0.35, 70, 20, 1, true); geo.translate(0, 35, 0);
+      for (const sx of [-1, 1]) { const piv = new THREE.Group(); piv.position.set(HX + sx * 3.2, 46.5, HZ + 15); casinoG.add(piv); const cone = new THREE.Mesh(geo, bm); cone.rotation.z = 0.42; piv.add(cone);
+        const can = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.6, 0.8, 12), goldM); piv.add(can); beams.push({ piv, ph: sx > 0 ? 0 : Math.PI * 0.8 }); } }
+    extraUpd.push((dt) => { for (const b of beams) { b.ph += dt * 0.35; b.piv.rotation.y = b.ph; } });
     let chase = 0; extraUpd.push((dt) => { chase += dt * 9; const k = Math.floor(chase); bulbs.forEach((b, i) => { b.material = (i + k) % 3 ? b.userData.on : b.userData.off; }); });
     /* the casino's skybridge: from the garage's top deck straight across to the gaming floor's mezzanine, a glazed tube with a gold neon underline */
     const SX = -7, z0 = -4.4, z1 = HZ, L = z1 - z0, zc = (z0 + z1) / 2, steelM = mat({ color: 0x2c3034, roughness: .5, metalness: .6 });
-    box(3.4, 0.45, L, SX, 8.45, zc, steelM); box(3.4, 0.3, L, SX, 11.15, zc, steelM);   /* high enough that the street camera's crane never meets it */
+    box(3.4, 0.45, L, SX, 11.45, zc, steelM); box(3.4, 0.3, L, SX, 14.15, zc, steelM);   /* high enough that the street camera's crane never meets it */
     { const gl = cv(1024, 128, (g, W, H) => { g.fillStyle = '#20262a'; g.fillRect(0, 0, W, H); for (let i = 0; i < 24; i++) { g.fillStyle = i % 5 === 2 ? '#2a3238' : '#cfe8dc'; g.globalAlpha = i % 5 === 2 ? 1 : 0.55; g.fillRect(i * W / 24 + 3, 10, W / 24 - 6, H - 20); } g.globalAlpha = 1; });
-      for (const sd of [-1, 1]) { const p = new THREE.Mesh(new THREE.PlaneGeometry(L, 2.3), new THREE.MeshStandardMaterial({ map: gl, emissive: 0xffffff, emissiveMap: gl, emissiveIntensity: .55, roughness: .3, metalness: .2 })); p.position.set(SX + sd * 1.68, 9.85, zc); p.rotation.y = sd * Math.PI / 2; group.add(p); }
-      for (const sd of [-1, 1]) { const n = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.08, L), new THREE.MeshBasicMaterial({ color: 0xffc860, toneMapped: false })); n.position.set(SX + sd * 1.73, 8.25, zc); group.add(n); }
-      for (const z of [z0 + 4, zc, z1 - 4]) { const d = new THREE.PointLight(0xffd090, 3.5, 8, 1.6); d.position.set(SX, 7.6, z); group.add(d); } }
-    box(4.2, 8.9, 2.2, SX, 7.35, -5.0, concM);   /* the garage's stair head the bridge springs from, up from the top deck */
+      for (const sd of [-1, 1]) { const p = new THREE.Mesh(new THREE.PlaneGeometry(L, 2.3), new THREE.MeshStandardMaterial({ map: gl, emissive: 0xffffff, emissiveMap: gl, emissiveIntensity: .55, roughness: .3, metalness: .2 })); p.position.set(SX + sd * 1.68, 12.85, zc); p.rotation.y = sd * Math.PI / 2; group.add(p); }
+      for (const sd of [-1, 1]) { const n = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.08, L), new THREE.MeshBasicMaterial({ color: 0xffc860, toneMapped: false })); n.position.set(SX + sd * 1.73, 11.25, zc); group.add(n); }
+      for (const z of [z0 + 4, zc, z1 - 4]) { const d = new THREE.PointLight(0xffd090, 3.5, 8, 1.6); d.position.set(SX, 10.6, z); group.add(d); } }
+    box(4.2, 11.9, 2.2, SX, 8.85, -5.0, concM); box(4.4, 4.6, 3.4, SX, 12.3, z1 + 1.6, stuM); box(4.6, 0.3, 3.6, SX, 14.75, z1 + 1.6, goldM);   /* and the casino's end: a little pavilion on the podium roof */   /* the garage's stair head the bridge springs from, up from the top deck */
     /* the promenade's lamps and palms where the casino stands come out (it's on that ground now) */
     streetE.updateMatrixWorld(true); const _p = new THREE.Vector3(), out = [];
     streetE.traverse(o => { if (o === streetE || !(o.isMesh || o.isGroup || o.isLight)) return; o.getWorldPosition(_p); if (_p.x > HX - HW / 2 - 2.5 && _p.x < HX + HW / 2 + 2.5 && _p.z > HZ - 0.6) out.push(o); });
-    for (const o of out) o.visible = false; }
+    for (const o of out) o.visible = false;
+    /* and the row of houses on the garage's own side, behind it: from the roof deck they walled off the skyline. The garage stands alone on its block now */
+    const _bx = new THREE.Box3(), cullZ = (x, z) => z < -2.2 && x > -15 && x < 90, _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3();
+    const behind = []; streetE.traverse(o => { if (o === streetE) return;
+      if (o.isInstancedMesh) { let hit = false; for (let i = 0; i < o.count; i++) { o.getMatrixAt(i, _m); _m.premultiply(o.matrixWorld).decompose(_p, _q, _s); if (cullZ(_p.x, _p.z)) { o.getMatrixAt(i, _m); _m.scale(_s.set(0, 0, 0)); o.setMatrixAt(i, _m); hit = true; } } if (hit) o.instanceMatrix.needsUpdate = true; return; }
+      if (o.isMesh) { _bx.setFromObject(o).getCenter(_p); if (cullZ(_p.x, _p.z)) behind.push(o); return; }
+      if (o.isLine) { _bx.setFromObject(o).getCenter(_p); if (_p.x > -15 && _p.z < 2) behind.push(o); return; }   /* (and the wires that ran back to them) */   /* (by the middle of what it covers: the houses are merged per block) */
+      if (!(o.isGroup || o.isLight)) return; o.getWorldPosition(_p); if (cullZ(_p.x, _p.z)) behind.push(o); });
+    for (const o of behind) o.visible = false;
+    /* west of the garage, the way you drive, the houses stay — but up on the roof they sit right behind the car and shut out the skyline,
+       so they only come up once the car's down at the street door */
+    streetE.traverse(o => { if (o === streetE || !o.isMesh || !o.visible) return; _bx.setFromObject(o).getCenter(_p); if (_p.z < -2.2 && _p.x <= -15 && _bx.max.y > 3) westHouses.push(o); }); }   /* (west of the garage, the way you drive, the houses stay) */
   // ---------- to the east the street's shut: sawhorses and a ROAD CLOSED board
   { const rc = cv(512, 128, (g, W, H) => { g.fillStyle = '#e8e2cf'; g.fillRect(0, 0, W, H); g.fillStyle = '#b02a1a'; for (let x = -H; x < W; x += 60) { g.beginPath(); g.moveTo(x, H); g.lineTo(x + 30, H); g.lineTo(x + 30 + H, 0); g.lineTo(x + H, 0); g.fill(); } g.fillStyle = '#111'; g.fillRect(70, 30, W - 140, H - 60); g.fillStyle = '#e8e2cf'; g.font = "bold 54px 'Bebas Neue', Impact, sans-serif"; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('ROAD CLOSED', W / 2, H / 2 + 2); });
     for (const z of [1.8, 5.2]) { const b = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.5, 2.6), [mat({ map: rc }), mat({ map: rc }), mat({ color: 0xe8e2cf }), mat({ color: 0xe8e2cf }), mat({ color: 0xe8e2cf }), mat({ color: 0xe8e2cf })]); b.position.set(13, 0.9, z); group.add(b);
@@ -3275,7 +3310,7 @@ function buildGarageOut() {
   for (let i = 0; i < RN; i++) { const x = (Math.random() - .5) * 60, y = -2 + Math.random() * 22, z = (Math.random() - .5) * 60; ra.set([x, y, z, x + 0.04, y + 0.55, z + 0.25], i * 6); }
   rg.setAttribute('position', new THREE.BufferAttribute(ra, 3)); const rain = new THREE.LineSegments(rg, new THREE.LineBasicMaterial({ color: 0xb4b8bc, transparent: true, opacity: .32, depthWrite: false })); rain.frustumCulled = false; group.add(rain);
   // ---------- driving: where the wheels can go, how high the ground is there
-  const GUIDE = [[6, -22.4], [1, -22.4], [0, -20], [0, -3], [0, 1.5], [-3, 5.4], [-9, 5.8], [-40, 5.8]];   // the line a learner should take (local coords)
+  const GUIDE = [[6, -22.4], [1, -22.4], [0, -20], [0, -3], [0, 1.2], [-3, 2.2], [-9, 1.8], [-40, 1.8]];   /* (a right turn takes you into the near, curbside lane) */   // the line a learner should take (local coords)
   let R = null;   // the roof, when we're part of it: { ok(xr, zr), gY(xr, zr), fade(k) }
   const toRoof = (x, z) => [z + 17, -x];
   const groundAt = (x, z) => { if (z >= -4.6 || !R) return 0; const [xr, zr] = toRoof(x, z); return 2.9 + R.gY(xr, zr); };
@@ -3307,7 +3342,7 @@ function buildGarageOut() {
     say('Drive', touch ? 'drag up to go, down to brake, left and right to steer' : 'W / ↑ to go · S / ↓ to brake or reverse · A D / ← → to steer');
   }
   function unboard() { if (!emb) return; emb = false; hint.classList.remove('on', 'top'); camera.far = 100; camera.updateProjectionMatrix(); self.idle = 0; }
-  const self = {
+  const self = { casino: casinoG,
     park, board, unboard,
     group, grade: NOIR, name: 'Leaving the garage', cutscene: true, hideMan: true,
     exposure: 1.2, fog: new THREE.FogExp2(0x5e6064, 0.0055),
@@ -3324,6 +3359,7 @@ function buildGarageOut() {
     onExit() { man.visible = true; self.idle = 0; hint.classList.remove('on', 'top'); camera.far = 100; camera.updateProjectionMatrix(); },
     update(dt, now) {
       for (const f of extraUpd) f(dt);
+      { const show = cz > -7; if (westHouses.length && westHouses[0].visible !== show) for (const o of westHouses) o.visible = show; }
       const camLoc = local(camera.position);
       const a = rg.attributes.position.array; for (let q = 1; q < a.length; q += 3) { a[q] -= dt * 18; if (a[q] < -2) a[q] += 22; } rg.attributes.position.needsUpdate = true; rain.position.set(camLoc.x, 0, camLoc.z);
       hintT += dt;
@@ -3339,7 +3375,7 @@ function buildGarageOut() {
       // input: keys, or the thumb on a phone (up = gas, sideways = steer)
       let thr = (held.has('u') ? 1 : 0) - (held.has('d') ? 1 : 0), str = (held.has('l') ? 1 : 0) - (held.has('r') ? 1 : 0);
       if (joy.on) { thr = THREE.MathUtils.clamp(-joy.y * 1.4, -1, 1); str = THREE.MathUtils.clamp(-joy.x * 1.3, -1, 1); }
-      if (leaving) { thr = 1; str = 0; autoT += dt; yaw += (Math.PI / 2 - yaw) * Math.min(1, dt * 2.5); cz += (ZC - 2.2 - cz) * Math.min(1, dt * 1.6); }   /* the Malecón's inside lane, where the drive picks up */   /* settle into the lane, heading west */
+      if (leaving) { thr = 1; str = 0; autoT += dt; yaw += (Math.PI / 2 - yaw) * Math.min(1, dt * 2.5); cz += (ZC - 6.2 - cz) * Math.min(1, dt * 1.6); }   /* the Malecón's curb lane, where the drive picks up: the Skyway's a merge left from there */   /* settle into the lane, heading west */
       const MAX = cz < -4.6 ? 5.5 : leaving ? 17 : 12;
       if (thr > 0) v = Math.min(MAX, v + 6 * thr * dt); else if (thr < 0) v = v > 0.2 ? v - 12 * dt : Math.max(-3, v - 4 * dt); else v *= Math.pow(0.35, dt);
       if (v > MAX) v = Math.max(MAX, v - 10 * dt);
@@ -3384,8 +3420,8 @@ function buildGarageOut() {
                           The chase cam keeps trailing; the shot is mixed in on top of it with no lag, so at the handover it is exactly the drive scene's camera */
         const k = THREE.MathUtils.smoothstep((x0 - cx) / Math.max(1, x0 - XH), 0.35, 0.95),   /* hold the wide shot a while, then settle into the drive's chase */ lx = -Math.cos(yaw), lz = Math.sin(yaw), bx = Math.sin(yaw), bz = Math.cos(yaw);
         camP.lerp(V(px, py, pz), Math.min(1, dt * 2.5)); camL.lerp(V(cx + fx * ahead, y + 1.0 + 1.2 * W, cz + fz * ahead), Math.min(1, dt * 3));
-        outP.copy(camP).lerp(V(cx + lx * 5 + bx * 13, y + 5.5, cz + lz * 5 + bz * 13), k);
-        outL.copy(camL).lerp(V(cx - lx * 6 + fx * 14, y + 2, cz - lz * 6 + fz * 14), k);
+        outP.copy(camP).lerp(V(cx + bx * 15, y + 10, cz + bz * 15), k);   /* (= the drive's 'D') */
+        outL.copy(camL).lerp(V(cx + fx * 26, y + 0.5, cz + fz * 26), k);
       } else {
         camP.lerp(V(px, py, pz), Math.min(1, dt * (4 - 1.5 * W))); camL.lerp(V(cx + fx * ahead, y + 1.0 + 1.2 * W, cz + fz * ahead), Math.min(1, dt * (5 - 2 * W)));
         outP.copy(camP); outL.copy(camL);
@@ -3891,9 +3927,9 @@ const Evidence = (() => {
 /* CLUES: the warehouse case. Each one, the first time it's found, gets a card and a note on the board back at the precinct */
 const Clues = (() => {
   const el = document.createElement('div'); el.id = 'clueToast'; document.body.appendChild(el);
-  const css = document.createElement('style'); css.textContent = `#clueToast { position: fixed; left: 50%; top: calc(18px + env(safe-area-inset-top, 0px)); z-index: 46; transform: translate(-50%, -150%); transition: transform .5s cubic-bezier(.2,.9,.25,1.15);
+  const css = document.createElement('style'); css.textContent = `#clueToast { position: fixed; left: 50%; top: calc(18px + env(safe-area-inset-top, 0px)); z-index: 46; transform: translate(-50%, calc(-100% - 40px)); opacity: 0; visibility: hidden; transition: transform .5s cubic-bezier(.2,.9,.25,1.15), opacity .3s, visibility 0s .5s;
       background: rgba(14,13,12,.92); border: 1px solid #e2b23a; padding: 10px 18px 11px; text-align: center; pointer-events: none; max-width: 92vw; box-shadow: 0 6px 30px rgba(0,0,0,.6); }
-    #clueToast.on { transform: translate(-50%, 0); }
+    #clueToast.on { transform: translate(-50%, 0); opacity: 1; visibility: visible; transition: transform .5s cubic-bezier(.2,.9,.25,1.15), opacity .3s, visibility 0s; }   /* (fully gone when off: an empty card used to peek its gold edge down from the top) */
     #clueToast b { display: block; color: #e2b23a; font: 600 12px 'Courier New', monospace; letter-spacing: .28em; text-transform: uppercase; }
     #clueToast small { display: block; margin-top: 5px; color: #d8cdb2; font: italic 14px Georgia, serif; }`; document.head.appendChild(css);
   let t = 0;
@@ -7532,7 +7568,7 @@ const Waterfront = (() => {
 
 function buildBridge(mal = false) {      // mal: El Malecón, the island's seawall road (mock), instead of the Skyway
   const group = new THREE.Group();
-  const L = 40, NSEG = 16, P = L * NSEG, WL = mal ? -1.6 : -3.6;            // segment length, repeat period, water level
+  const L = 40, NSEG = mal ? 16 : 24, P = L * NSEG, WL = mal ? -1.6 : -3.6;   /* (the Skyway gets more deck, so the wide shots never see where it stops) */            // segment length, repeat period, water level
   const ZP = -60, HUMP = mal ? 0 : 9, W = 150, TOP = HUMP + 50;           // first pylon, how high the span climbs, half-length of the climb, pylon top
   const LANES = [2.2, 6.2], ONC = [-2.2, -6.2], EDGE = 8, R = 300;
   const SLOTS = [2.2, 4.2, 6.2], CAR_W = 1.9;                // left lane, the line between (room to split two cars, just), right lane
@@ -7751,7 +7787,7 @@ function buildBridge(mal = false) {      // mal: El Malecón, the island's seawa
   function buildFork(zf, side, solo = false) {   /* solo: just the one ramp peeling off left (the Malecón's Skyway on-ramp); the road itself carries on */
     const g = new THREE.Group(); group.add(g);
     for (const sd of solo ? [0] : [0, 1]) {
-      const path = bpath(sd, zf), A = 200, n = 100, s = sd ? 1 : -1;
+      const path = bpath(sd, zf), A = solo ? 420 : 200, n = solo ? 180 : 100, s = sd ? 1 : -1;   /* (the Skyway on-ramp runs on well past where the drive hands over, so you never see it stop) */
       g.add(ribbon(path, 0, A, n, [[-2.1, 0], [2.1, 0]], mRamp, 20, sd ? 0.004 : 0.02));
       g.add(ribbon(path, 0, A, n, [[2.1, 0], [2.1, -1.0], [-2.1, -1.0], [-2.1, 0]], under));
       g.add(ribbon(path, 0, A, n, jersey(s * 1.85), conc, 6));                                  // outer wall
@@ -7784,19 +7820,24 @@ function buildBridge(mal = false) {      // mal: El Malecón, the island's seawa
   const beam = new THREE.Mesh(new THREE.BoxGeometry(EDGE + 0.2, 0.5, 0.5), steel); beam.position.set(EDGE / 2 + 0.4, 7.0, 0); gantry.add(beam);
   const signCv = [0, 1].map(() => { const c = document.createElement('canvas'); c.width = 512; c.height = 256; return c; });
   const signTex = signCv.map(c => { const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; });
-  const signMat = signTex.map(t => new THREE.MeshStandardMaterial({ map: t, roughness: .7, emissive: 0xffffff, emissiveMap: t, emissiveIntensity: 0.05 }));
+  const signMat = signTex.map(t => new THREE.MeshStandardMaterial({ map: t, roughness: .7, emissive: 0xffffff, emissiveMap: t, emissiveIntensity: 0.6 }));   /* lit from below, like the real ones: you read them from a way back */
   [0, 1].forEach(i => { const p = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1.6), signMat[i]); p.position.set(LANES[i], 5.9, 0.3); gantry.add(p); });
   function drawSigns(opts) {
     signCv.forEach((c, i) => {
       const g = c.getContext('2d'); g.fillStyle = '#1d4a33'; g.fillRect(0, 0, 512, 256);
       g.strokeStyle = '#efe6c8'; g.lineWidth = 8; g.strokeRect(14, 14, 484, 228);
       g.fillStyle = '#efe6c8'; g.font = 'bold 74px Georgia'; g.textAlign = 'center'; g.textBaseline = 'middle';
-      const label = self && self.garageFork ? ['SKYWAY', 'CASTILLO'][i] : (DEST[opts[i]] && DEST[opts[i]].label || '').toUpperCase(); g.fillText(label, 256, 100);
+      const label = self && self.garageFork ? ['SKYWAY', 'CEMETERY'][i] : (DEST[opts[i]] && DEST[opts[i]].label || '').toUpperCase(); g.fillText(label, 256, 100);
       g.save(); g.translate(256, 190); g.rotate(self && self.garageFork ? (i ? 0 : -Math.PI / 4) : i ? Math.PI / 4 : -Math.PI / 4); g.fillRect(-6, -22, 12, 44); g.beginPath(); g.moveTo(-22, -16); g.lineTo(0, -40); g.lineTo(22, -16); g.fill(); g.restore();
       signTex[i].needsUpdate = true;
     });
   }
-  let gz = 0, lastOpts = null;
+  let gz = 0, lastOpts = null, mergeOn = false, west0 = null;
+  const mergeEl = document.getElementById('mergeCue') || (() => { const e = document.createElement('div'); e.id = 'mergeCue'; document.body.appendChild(e); const c = document.createElement('style');
+    c.textContent = `#mergeCue { position: fixed; left: 50%; top: calc(64px + env(safe-area-inset-top, 0px)); z-index: 45; transform: translate(-50%, -10px); opacity: 0; transition: opacity .4s, transform .4s; pointer-events: none;
+        background: rgba(14,13,12,.78); border: 1px solid rgba(226,178,58,.7); padding: 6px 14px 7px; }
+      #mergeCue.on { opacity: 1; transform: translate(-50%, 0); }
+      #mergeCue b { color: #e2b23a; font: 600 11px 'Courier New', monospace; letter-spacing: .22em; text-transform: uppercase; } #mergeCue.mal b { color: #d8cdb2; }`; document.head.appendChild(c); return e; })();
   const placeGantry = (z) => { gz = z; gantry.position.set(0, h(z), z); };
   gantry.visible = false;   // the split sign went with the fork
   let malChosen = null;
@@ -7891,7 +7932,9 @@ function buildBridge(mal = false) {      // mal: El Malecón, the island's seawa
   const blinkers = [];
   for (const [si, s] of [[0, -1], [1, 1]]) for (const [z, y] of [[-2.12, 0.66], [2.24, 0.8]]) { const bl = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.1, 0.08), blinkMat[si]); bl.position.set(s * 0.8, y, z); blinkers.push(bl); }
   let blinkSide = 0, blinkUntil = 0;
-  function moveSlot(d) {
+  let lanePref = 'sky', autoMergeT = 0;   /* out of the garage: the car heads for the Skyway by itself (that's where the Chief sent you) unless you steer right */
+  function moveSlot(d, auto) {
+    if (!auto && self.garageFork && !drv.chosen) lanePref = d < 0 ? 'sky' : 'mal';
     const to = Math.max(0, Math.min(2, st.slot + d)); if (to === st.slot) return;
     st.slot = to; st.mine = performance.now() / 1000 + 8; blinkSide = d; blinkUntil = performance.now() / 1000 + 1.6;
   }
@@ -7996,7 +8039,7 @@ function buildBridge(mal = false) {      // mal: El Malecón, the island's seawa
   const driveRain = new THREE.LineSegments(driveRainG, new THREE.LineBasicMaterial({ color: 0xb4b8bc, transparent: true, opacity: .32, depthWrite: false })); driveRain.frustumCulled = false; group.add(driveRain);
 
   const rot = (x, z, a) => [x * Math.cos(a) + z * Math.sin(a), -x * Math.sin(a) + z * Math.cos(a)];
-  self = {
+  self = { dbg: () => ({ st, gz, fork }),
     group,
     name: mal ? 'El Malecón' : 'The Drive',
     drive: true,
@@ -8013,10 +8056,13 @@ function buildBridge(mal = false) {      // mal: El Malecón, the island's seawa
     moods: null,
     onEnter() {
       if (!mal) { const west = !trip || ['precinct', 'warehouse', 'fort'].includes(trip.to), look = west ? Math.PI * 1.5 : Math.PI / 2;   /* westbound: Old Town ahead; eastbound: Isla Luz and Osario ahead */
-        towerG.visible = west; const skip = west ? ['wtower'] : [];
+        towerG.visible = west; west0 = west; const skip = west ? ['wtower'] : [];
+        self._title = west && !!trip && trip.spawn === 'garage' && !Found.has('skywayTitle');   /* the first time across, out of the garage */
+        if (self._title) { Found.add('skywayTitle'); const bt = document.getElementById('bigTitle') || (() => { const e = document.createElement('div'); e.id = 'bigTitle'; e.innerHTML = '<div class="ttl"><i>The Fall of</i><b data-t="CAINE">CAINE</b></div>'; document.body.appendChild(e); return e; })();
+          clearTimeout(self._tt1); clearTimeout(self._tt2); bt.classList.remove('on'); self._tt1 = setTimeout(() => bt.classList.add('on'), 2600); self._tt2 = setTimeout(() => bt.classList.remove('on'), 9800); }
         if (self.skyline.look !== look || String(self.skyline.skip || []) !== String(skip)) { self.skyline.look = look; self.skyline.skip = skip; Skyline.rebuild(self); } }
       self.garageFork = mal && !!trip && trip.spawn === 'garage' && !trip.to;   /* straight out of the garage: Skyway or straight on is chosen here */
-      reset(); gantry.visible = self.garageFork; lastOpts = null;
+      reset(); gantry.visible = self.garageFork; lastOpts = null; lanePref = 'sky'; autoMergeT = 1.2; mergeEl._p = null; if (self.garageFork) { st.slot = 2; st.x = SLOTS[2]; }   /* out of the garage you're in the curb lane: to take the Skyway you merge left */
       for (const t of traffic) if (t.c.g.parent !== group) group.add(t.c.g);
       self._laneT = 0; self._dist = 0;
       if (self._handoff) { traffic.forEach((t, i) => { t.z = self._handoff[i]; }); self._handoff = null; } mcam.snap = true;   /* start dead on the chase shot (the garage's crane lands exactly there) */
@@ -8032,7 +8078,7 @@ function buildBridge(mal = false) {      // mal: El Malecón, the island's seawa
       const hn = document.getElementById('hint'); hn.textContent = matchMedia('(pointer: coarse)').matches ? 'Double-tap to floor it' : 'Hold Space to floor it'; hn.style.opacity = 1;   /* the one tip the road needs */
       clearTimeout(self._ht); self._ht = setTimeout(() => hn.style.opacity = 0, 7000);
     },
-    onExit() { MCam.hide(); gasEl.classList.remove('show'); gasOff(); setSiren(false); camera.far = 100; camera.updateProjectionMatrix(); scene.add(man); man.rotation.set(0, 0, 0); armL.sh.rotation.z = 0.08; armR.sh.rotation.z = -0.08; canvas.style.filter = ''; keys.clear(); },
+    onExit() { clearTimeout(self._tt1); clearTimeout(self._tt2); const bt = document.getElementById('bigTitle'); if (bt) bt.classList.remove('on'); mergeOn = false; mergeEl.classList.remove('on'); MCam.hide(); gasEl.classList.remove('show'); gasOff(); setSiren(false); camera.far = 100; camera.updateProjectionMatrix(); scene.add(man); man.rotation.set(0, 0, 0); armL.sh.rotation.z = 0.08; armR.sh.rotation.z = -0.08; canvas.style.filter = ''; keys.clear(); },
     onClick(e) {     // tap a side to move that way; tap twice quickly to put your foot down (again to keep it there)
       const t = performance.now() / 1000, dbl = t - lastTap < 0.33 && Math.abs(e.clientX - lastX) < 120; lastTap = dbl ? 0 : t; lastX = e.clientX;
       if (dbl) { boostUntil = Math.min(Math.max(boostUntil, t) + 4, t + 8); gasEl.classList.remove('kick'); void gasEl.offsetWidth; gasEl.classList.add('kick'); document.getElementById('hint').style.opacity = 0; }
@@ -8057,7 +8103,7 @@ function buildBridge(mal = false) {      // mal: El Malecón, the island's seawa
         st.camHead += (st.heading - st.camHead) * Math.min(1, st.dt * 2);
         const idle = !gas && !keys.has('u'); mcam.idle = idle ? mcam.idle + st.dt : 0;
         const want = mcam.mode === 'auto' ? (st.t < 5 ? 'B' : mcam.idle > 1.5 ? 'A' : 'D') : mcam.mode;
-        const SHOTS = { A: [-9, -1, 2.6, 8, -4, 3.4], B: [-28, 16, 14, 8, -12, 4], C: [-1.7, 2.6, 1.35, 6, -14, 2.4], D: [-5, 13, 5.5, 6, -14, 2] };
+        const SHOTS = { A: [-9, -1, 2.6, 8, -4, 3.4], B: [-28, 16, 14, 8, -12, 4], C: [-1.7, 2.6, 1.35, 6, -14, 2.4], D: [0, 15, 10, 0, -26, 0.5] };   /* D: the drive — up and centred behind, high enough to read the signs ahead and see the houses go by */
         const [px, pz, py, lx2, lz2, ly] = SHOTS[want], [ox, oz] = rot(px, pz, st.camHead), [lx, lz] = rot(lx2, lz2, st.camHead);
         mcam.tp.set(st.x + ox, st.y + py, st.z + oz); mcam.tl.set(st.x + lx, st.y + ly, st.z + lz);
         const k = mcam.snap ? 1 : 1 - Math.exp(-st.dt * (want === mcam.last ? 6 : 1.1)); mcam.snap = false; mcam.last = want;
@@ -8068,8 +8114,13 @@ function buildBridge(mal = false) {      // mal: El Malecón, the island's seawa
         const [ox, oz] = rot(9, 20 + pull, st.camHead), [lx, lz] = rot(-1, -30, st.camHead);   // off the right-hand rail, so the stays and pylons never come between us and the car
         outPos.set(st.x + ox, st.y + 15 + pull * 0.3, st.z + oz); outLook.set(st.x + lx, st.y, st.z + lz);
         /* the opening: a wide establishing shot — the car small on the deck, the far shore (Old Town westbound, Osario eastbound) filling the frame — then the drone settles in behind */
-        const u = THREE.MathUtils.clamp((st.t - 3.5) / 5, 0, 1), w = u * u * (3 - 2 * u);
-        if (w < 1) { const [wx, wz] = rot(-34, 6, st.camHead), [vx, vz] = rot(14, -300, st.camHead);
+        const T = self._title, u = THREE.MathUtils.clamp((st.t - (T ? 11 : 3.5)) / (T ? 6 : 5), 0, 1), w = u * u * (3 - 2 * u);
+        if (w < 1 && T) {   /* the first crossing: way out over the water south of the span, the whole bridge running across the frame,
+                               Old Town ahead on the left, the Light on its rock out in the middle of the bay — and the title comes up */
+          const drift = st.t * 1.2, [wx, wz] = rot(-120 + drift, 40 - drift * 2, st.camHead), [vx, vz] = rot(60, -110, st.camHead);
+          outPos.set(THREE.MathUtils.lerp(st.x + wx, outPos.x, w), THREE.MathUtils.lerp(st.y + 26, outPos.y, w), THREE.MathUtils.lerp(st.z + wz, outPos.z, w));
+          outLook.set(THREE.MathUtils.lerp(st.x + vx, outLook.x, w), THREE.MathUtils.lerp(st.y + 10, outLook.y, w), THREE.MathUtils.lerp(st.z + vz, outLook.z, w));
+        } else if (w < 1) { const [wx, wz] = rot(-34, 6, st.camHead), [vx, vz] = rot(14, -300, st.camHead);
           outPos.set(THREE.MathUtils.lerp(st.x + wx, outPos.x, w), THREE.MathUtils.lerp(st.y + 5, outPos.y, w), THREE.MathUtils.lerp(st.z + wz, outPos.z, w));
           outLook.set(THREE.MathUtils.lerp(st.x + vx, outLook.x, w), THREE.MathUtils.lerp(st.y + 12, outLook.y, w), THREE.MathUtils.lerp(st.z + vz, outLook.z, w)); }
       } else {
@@ -8080,8 +8131,15 @@ function buildBridge(mal = false) {      // mal: El Malecón, the island's seawa
     },
     update(dt, now) {
       self._dist = (self._dist || 0) + Math.max(0, st.v) * dt;
+      if (!mal && west0 !== null) towerG.visible = west0 && !(self._title && st.t < 16.5);   /* (it's placed for the chase camera: out of the wide title shot) */
       if (towerG.visible) { const left = Math.max(0, 600 - self._dist); towerG.position.set(st.x + 140 + left * 0.08, WL + 1.5, st.z - 100 - left * 0.78); towerBlink(now); }
       if (self.garageFork && !drv.chosen && gantry.visible && st.z - gz < 26) chooseDest(st.slot === 0 ? 0 : 1);   /* under the overhead sign: left lane, the Skyway; otherwise straight on */
+      /* the merge: coming up on the sign, a card tells you the left lane is the Skyway, and which way to steer; it ticks when you're in it */
+      { const d = st.z - gz, on = self.garageFork && !drv.chosen && gantry.visible && d > 26 && d < 190;
+        if (on !== mergeOn) { mergeOn = on; mergeEl.classList.toggle('on', on); }
+        if (on && lanePref === 'sky' && st.slot > 0 && d < 175 && (autoMergeT -= dt) <= 0) { moveSlot(-1, true); autoMergeT = 1.5; }   /* signal, ease over a lane, signal again */
+        if (on && mergeEl._p !== lanePref) { mergeEl._p = lanePref; mergeEl.classList.toggle('mal', lanePref === 'mal');
+          mergeEl.innerHTML = lanePref === 'sky' ? '<b>Skyway → Precinct</b>' : '<b>Malecón → Cemetery</b>'; } }
       if (driveRain.visible) { const ra = driveRainG.attributes.position.array; for (let q = 1; q < ra.length; q += 3) { ra[q] -= dt * 18; if (ra[q] < -2) ra[q] += 22; } driveRainG.attributes.position.needsUpdate = true; driveRain.position.set(camera.position.x, 0, camera.position.z); }
       st.dt = dt; st.t += dt;
       if (drv.opts !== lastOpts) { lastOpts = drv.opts; drawSigns(drv.opts); }
@@ -8150,7 +8208,8 @@ function buildBridge(mal = false) {      // mal: El Malecón, the island's seawa
         for (const w of t.c.wheels) w.rotation.x -= t.v * dt / 0.36;
       }
       // recycle the causeway and the pylons
-      for (const sg of segs) if (sg.userData.zc + sg.position.z - 20 > st.z + 50) { sg.position.z -= P; sg.userData.ours.visible = !fork || sg.userData.zc + sg.position.z > fork.zf; }
+      const keepBehind = !mal && st.t < (self._title ? 18 : 9) ? 230 : 50;   /* while the wide opening's on, keep the deck behind the car too */
+      for (const sg of segs) if (sg.userData.zc + sg.position.z - 20 > st.z + keepBehind) { sg.position.z -= P; sg.userData.ours.visible = !fork || sg.userData.zc + sg.position.z > fork.zf; }
       for (const p of pylons) if (p.userData.zp + p.position.z > st.z + 170) p.position.z -= 2 * P;
       if (!fork && gz > st.z + 12) placeGantry(nextFork(st.z - 150) + 8);
       for (const o of boats) {
@@ -8174,8 +8233,8 @@ function buildBridge(mal = false) {      // mal: El Malecón, the island's seawa
       }
       head.rotation.y = st.heading * 1.5 + Math.sin(now * 0.4) * 0.05;
       // world follows
-      waterU.uT.value = now; water.position.set(st.x, WL, st.z); if (mal) land.position.set(EDGE + 3.4 + 200, -0.02, st.z);
-      if (self._sky) self._sky.grp.position.set(st.x, camera.position.y - 2.4, st.z);   // the city stays on the horizon, wherever the camera is
+      waterU.uT.value = now; water.position.set(st.x, WL, st.z); if (mal && !(fork && st.z < fork.zf)) land.position.set(EDGE + 3.4 + 200, -0.02, st.z);   /* (up on the ramp the shore stays put instead of sliding along with you) */
+      if (self._sky) self._sky.grp.position.set(camera.position.x, camera.position.y - 2.4, camera.position.z);   // the city stays on the horizon, centred on the lens (not the car), so it never slides when the camera swings wide
       sun.position.set(st.x, st.y, st.z).add(M.sunOff); sun.target.position.set(st.x, st.y, st.z - 10);
     },
   };
@@ -8817,6 +8876,17 @@ const Intro = (() => {
     #intro .ttl b::after { content: attr(data-t); position: absolute; left: 0; right: 0; top: 0; z-index: -1; color: rgba(0,0,0,.55); text-shadow: none; filter: blur(7px); transform: translate(-.12em, -.16em) scale(1.04); }   /* the letters' shadow on the wall behind, up and left of them */
     #intro .ttl i { display: block; text-align: left; padding-left: .5em; margin-bottom: -.42em; position: relative; z-index: 1; font: 400 clamp(26px, 4vw, 44px) 'Great Vibes', cursive; text-shadow: 0 .1em .5em #000; }   /* tucked down onto CAINE's top-left corner */
     #intro .ttl b { display: block; position: relative; margin-top: .04em; text-shadow: -0.75px 0.70px 0 rgb(114,112,106),-1.50px 1.40px 0 rgb(111,109,103),-2.25px 2.10px 0 rgb(107,105,99),-3.00px 2.80px 0 rgb(104,102,96),-3.75px 3.50px 0 rgb(101,99,93),-4.50px 4.20px 0 rgb(97,95,89),-5.25px 4.90px 0 rgb(94,92,86),-6.00px 5.60px 0 rgb(90,88,82),-6.75px 6.30px 0 rgb(87,85,79),-7.50px 7.00px 0 rgb(84,82,76),-8.25px 7.70px 0 rgb(80,78,72),-9.00px 8.40px 0 rgb(77,75,69),-9.75px 9.10px 0 rgb(73,71,65),-10.50px 9.80px 0 rgb(70,68,62),-11.25px 10.50px 0 rgb(67,65,59),-12.00px 11.20px 0 rgb(63,61,55),-12.75px 11.90px 0 rgb(60,58,52),-13.50px 12.60px 0 rgb(56,54,48),-14.25px 13.30px 0 rgb(53,51,45),-15.00px 14.00px 0 rgb(50,48,42),-15.75px 14.70px 0 rgb(46,44,38),-16.50px 15.40px 0 rgb(43,41,35), -22px 26px 28px rgba(0,0,0,.75) !important; font: 400 clamp(84px, 15vw, 170px) 'Bebas Neue', Impact, sans-serif; letter-spacing: .04em; text-shadow: 2px 2px 0 #8d8c90, 4px 4px 0 #5a595d, 6px 8px 22px rgba(0,0,0,.8); }
+    /* the title again, over the Skyway, the first time you cross: same lettering, no button */
+    #bigTitle { position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center; pointer-events: none; opacity: 0; transition: opacity 1.6s ease; font-size: clamp(64px, 11vw, 150px); color: #e8e2d2; }
+    #bigTitle.on { opacity: 1; }
+    #bigTitle .ttl i { color: #efe8d6; font-size: clamp(30px, 4.6vw, 58px) !important; }
+    #bigTitle .ttl { filter: drop-shadow(0 0 18px rgba(0,0,0,.9)); opacity: 0; transform-origin: 40% 70%; transform: perspective(700px) rotateY(-26deg) rotateX(9deg) rotate(-3deg) translateY(10px); transition: opacity 3s ease 1.2s, transform 3s ease 1.2s; line-height: .86; user-select: none; }
+    #bigTitle.on .ttl { opacity: 1; transform: perspective(700px) rotateY(-26deg) rotateX(9deg) rotate(-3deg); }   /* the whole title on one turned plane: script and CAINE together */
+    #bigTitle .ttl { position: relative; display: inline-block; text-align: center; }
+    #bigTitle .ttl::before { content: ''; position: absolute; left: 50%; top: 55%; width: 190%; height: 230%; transform: translate(-50%, -50%); z-index: -2; pointer-events: none; background: radial-gradient(ellipse at 52% 48%, rgba(205,200,186,.26), rgba(205,200,186,.1) 38%, rgba(0,0,0,0) 68%); }   /* the spotlight on the wall behind the letters */
+    #bigTitle .ttl b::after { content: attr(data-t); position: absolute; left: 0; right: 0; top: 0; z-index: -1; color: rgba(0,0,0,.55); text-shadow: none; filter: blur(7px); transform: translate(-.12em, -.16em) scale(1.04); }   /* the letters' shadow on the wall behind, up and left of them */
+    #bigTitle .ttl i { display: block; text-align: left; padding-left: .5em; margin-bottom: -.42em; position: relative; z-index: 1; font: 400 clamp(26px, 4vw, 44px) 'Great Vibes', cursive; text-shadow: 0 .1em .5em #000; }   /* tucked down onto CAINE's top-left corner */
+    #bigTitle .ttl b { display: block; position: relative; margin-top: .04em; text-shadow: -0.75px 0.70px 0 rgb(114,112,106),-1.50px 1.40px 0 rgb(111,109,103),-2.25px 2.10px 0 rgb(107,105,99),-3.00px 2.80px 0 rgb(104,102,96),-3.75px 3.50px 0 rgb(101,99,93),-4.50px 4.20px 0 rgb(97,95,89),-5.25px 4.90px 0 rgb(94,92,86),-6.00px 5.60px 0 rgb(90,88,82),-6.75px 6.30px 0 rgb(87,85,79),-7.50px 7.00px 0 rgb(84,82,76),-8.25px 7.70px 0 rgb(80,78,72),-9.00px 8.40px 0 rgb(77,75,69),-9.75px 9.10px 0 rgb(73,71,65),-10.50px 9.80px 0 rgb(70,68,62),-11.25px 10.50px 0 rgb(67,65,59),-12.00px 11.20px 0 rgb(63,61,55),-12.75px 11.90px 0 rgb(60,58,52),-13.50px 12.60px 0 rgb(56,54,48),-14.25px 13.30px 0 rgb(53,51,45),-15.00px 14.00px 0 rgb(50,48,42),-15.75px 14.70px 0 rgb(46,44,38),-16.50px 15.40px 0 rgb(43,41,35), -22px 26px 28px rgba(0,0,0,.75) !important; font: 400 clamp(84px, 15vw, 170px) 'Bebas Neue', Impact, sans-serif; letter-spacing: .04em; text-shadow: 2px 2px 0 #8d8c90, 4px 4px 0 #5a595d, 6px 8px 22px rgba(0,0,0,.8); }
     #intro button { margin-top: 4.5vh; pointer-events: auto; background: rgba(0,0,0,.72); color: #e2b23a; border: 1px solid #e2b23a; font: 22px 'Bebas Neue', Impact, sans-serif; letter-spacing: .5em; padding: 14px 30px 12px 40px; cursor: pointer;
       opacity: 0; transition: opacity 2s ease 3.6s, background .3s; }
     #intro.on button { opacity: 1; animation: introPulse 3.2s ease-in-out 5.6s infinite; }
@@ -9838,50 +9908,82 @@ const KEEPER = (() => {
   };
 })();
 const pick2 = (a) => a[Math.random() * a.length | 0];
-/* CAM 2: the yard's one camera, bolted over the alley mouth. Grainy tape, a timestamp, two shapes too dark to make out:
-   one running, one after him. Played on the little monitor in Walt's booth (drawn in 2D: a VHS frame, not the scene) */
+/* THE TAPE: Walt's deck records the yard's three cameras. Played on the booth monitor as a VHS dub, one channel after another.
+   Each channel is the real scene — Warehouse 7's floor, the yard, the alley — rendered from where a security camera would hang,
+   with three shapes too dark to make out: two at the desk who hear somebody, the somebody running, the two going after him */
 const Footage = (() => {
   let el = null, raf = 0;
+  const FW = 320, FH = 240, rt = new THREE.WebGLRenderTarget(FW, FH); rt.texture.colorSpace = THREE.SRGBColorSpace;
+  const lens = new THREE.PerspectiveCamera(62, FW / FH, 0.1, 120), px = new Uint8Array(FW * FH * 4);
+  const foot = new THREE.Scene(); foot.background = new THREE.Color(0x050506); foot.fog = new THREE.FogExp2(0x08090a, 0.035); foot.add(new THREE.AmbientLight(0x9aa4b0, 0.9));
+  const shade = { coat: 0x0b0b0c, pants: 0x0a0a0a, skin: 0x161412, shirt: 0x141414, badge: false };
+  let cast = null; const castOf = () => cast || (cast = [makePerson({ ...shade, hat: 'fedora' }), makePerson({ ...shade, hat: 'cap' }), makePerson({ ...shade, hat: 'none' })]);
+  /* a run (or a stand) for a figure: legs, arms, lean */
+  function pose(R, ph, run, reach) {
+    const a = Math.sin(ph); R.legL.hip.rotation.x = run ? a * 0.85 : 0; R.legR.hip.rotation.x = run ? -a * 0.85 : 0;
+    R.legL.knee.rotation.x = run ? Math.max(0, -a) * 1.2 + 0.15 : 0; R.legR.knee.rotation.x = run ? Math.max(0, a) * 1.2 + 0.15 : 0;
+    R.armL.sh.rotation.x = run ? -a * 0.8 : reach ? -0.95 : 0; R.armR.sh.rotation.x = run ? a * 0.8 : reach ? -0.85 : 0; R.armL.el.rotation.x = run ? -0.9 : reach ? -0.5 : 0; R.armR.el.rotation.x = run ? -0.9 : reach ? -0.6 : 0;
+    R.chest.rotation.x = run ? 0.28 : reach ? 0.35 : 0; R.hips.position.y = (R.hips.userData.y0 ??= R.hips.position.y) + (run ? Math.abs(Math.cos(ph)) * 0.06 : 0); }
+  /* along a path of [t, x, z] keys: where, which way, running or not */
+  function along(path, t) { if (t <= path[0][0]) return { x: path[0][1], z: path[0][2], run: false, h: null };
+    for (let i = 1; i < path.length; i++) { const [t1, x1, z1] = path[i], [t0, x0, z0] = path[i - 1]; if (t <= t1) { const k = (t - t0) / (t1 - t0); return { x: x0 + (x1 - x0) * k, z: z0 + (z1 - z0) * k, run: Math.hypot(x1 - x0, z1 - z0) > 0.3, h: Math.atan2(x1 - x0, z1 - z0) }; } }
+    const l = path[path.length - 1]; return { x: l[1], z: l[2], run: false, h: null, gone: true }; }
+  /* the three channels: the scene, where the camera hangs, and what the figures do */
+  const CH = [
+    { key: 'warehouse', name: 'CH1  WAREHOUSE 7  INT', dur: 8.5, cam: [3.6, 5.6, 8.4], look: [-3.2, 0.6, 4.0],
+      who: [ { f: 0, path: [[5.0, -3.35, 3.95], [5.3, -3.6, 3.6], [8.0, -12.4, 1.0]], face: 0, reach: true, turn: 4.1 },
+             { f: 1, path: [[5.4, -2.25, 3.9], [5.7, -2.6, 3.5], [8.4, -12.4, 1.0]], face: 0, reach: true, turn: 4.3 } ] },
+    { key: 'docks', name: 'CH2  YARD  WH-7 DOOR', dur: 7, cam: [-5, 5.2, -8.4], look: [-12.5, 0.3, 1.5],
+      who: [ { f: 2, path: [[0.3, 6, -7.6], [2.2, -4, -7.2], [4.3, -15, 2.5]] },
+             { f: 0, path: [[1.5, -8, -8.5], [1.8, -8, -7.6], [5.1, -15, 2.5]] },
+             { f: 1, path: [[1.9, -8, -8.5], [2.2, -8, -7.6], [5.6, -15, 2.2]] } ] },
+    { key: 'alley', name: 'CH3  ALLEY  CORDAGE END', dur: 7.5, cam: [1.0, 3.6, 5.2], look: [0, 0.6, -16],
+      who: [ { f: 2, path: [[0.3, 0.2, -27], [5.8, -0.3, 5.5]] },
+             { f: 0, path: [[1.4, -0.3, -27.5], [6.9, 0.4, 5.2]] },
+             { f: 1, path: [[1.8, 0.4, -27.5], [7.4, -0.5, 5.2]] } ] },
+  ];
+  function stage(ch) {   /* put the channel's scene in front of the lens (the live scene stays where it is; others are borrowed) */
+    const live = ch.key === currentKey, sc = live ? S : (built[ch.key] || (built[ch.key] = BUILDERS[ch.key]())), grp = sc.group;
+    if (!live) foot.add(grp); const figs = castOf(); for (const w of ch.who) grp.add(figs[w.f].root);
+    lens.position.set(...ch.cam); grp.updateMatrixWorld(true); lens.position.applyMatrix4(grp.matrixWorld); lens.lookAt(new THREE.Vector3(...ch.look).applyMatrix4(grp.matrixWorld));
+    return { live, grp }; }
+  function unstage(st) { for (const f of castOf()) f.root.removeFromParent(); if (!st.live) st.grp.removeFromParent(); }
   function play(onDone) {
     if (el) return; el = document.createElement('div'); el.id = 'footage';
     el.innerHTML = '<canvas width="640" height="480"></canvas><p>tap to stop the tape</p>';
-    const st = document.createElement('style'); st.textContent = `#footage { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,.94); display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; }
+    const css = document.createElement('style'); css.textContent = `#footage { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,.94); display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; }
       #footage canvas { width: min(92vw, 760px); aspect-ratio: 4/3; image-rendering: pixelated; border: 10px solid #1a1a1a; border-radius: 14px; box-shadow: 0 0 0 2px #333, 0 0 60px rgba(160,200,160,.12); }
-      #footage p { margin-top: 14px; color: #8a8270; font: 600 11px 'Courier New', monospace; letter-spacing: .3em; text-transform: uppercase; }`; el.appendChild(st);
+      #footage p { margin-top: 14px; color: #8a8270; font: 600 11px 'Courier New', monospace; letter-spacing: .3em; text-transform: uppercase; }`; el.appendChild(css);
     document.body.appendChild(el); held.clear(); route = [];
-    const cv = el.querySelector('canvas'), g = cv.getContext('2d'), W = 640, H = 480, t0 = performance.now(), DUR = 11.5;
-    const end = () => { if (!el) return; cancelAnimationFrame(raf); el.remove(); el = null; onDone && onDone(); };
+    const cv = el.querySelector('canvas'), g = cv.getContext('2d'), W = 640, H = 480, small = document.createElement('canvas'); small.width = FW; small.height = FH; const sg = small.getContext('2d'), img = sg.createImageData(FW, FH);
+    let t0 = performance.now();
+    let chI = -1, stg = null, chT0 = 0; const TOTAL = CH.reduce((a, c) => a + c.dur, 0);
+    const end = () => { if (!el) return; cancelAnimationFrame(raf); if (stg) unstage(stg); stg = null; el.remove(); el = null; onDone && onDone(); };
     el.addEventListener('pointerdown', e => { e.stopPropagation(); end(); });
-    /* the alley in perspective from up on the wall: walls converging to the far end, the dumpster, one lamp */
-    const VX = 330, VY = 150, far = (k) => ({ l: VX - 40 * k, r: VX + 40 * k, y: VY + 22 * k });
-    const man = (x, y, sc, ph, lean) => { g.save(); g.translate(x, y); g.scale(sc, sc); g.rotate(lean); g.fillStyle = '#050505';
-      g.beginPath(); g.ellipse(0, -62, 9, 11, 0, 0, 7); g.fill(); g.fillRect(-14, -54, 28, 6);   /* head, hat brim */
-      g.beginPath(); g.moveTo(-12, -50); g.lineTo(12, -50); g.lineTo(10, -14); g.lineTo(-10, -14); g.fill();
-      const a = Math.sin(ph) * 0.9; for (const s of [-1, 1]) { g.save(); g.translate(0, -16); g.rotate(a * s); g.fillRect(-4, 0, 8, 30); g.restore(); g.save(); g.translate(0, -46); g.rotate(-a * s * 0.8); g.fillRect(-3, 0, 6, 26); g.restore(); }
-      g.restore(); };
     function frame() {
-      const t = (performance.now() - t0) / 1000; if (t > DUR + 1.5) return end();
-      g.fillStyle = '#2c302c'; g.fillRect(0, 0, W, H);
-      /* floor and walls */
-      g.fillStyle = '#3a3e3a'; g.beginPath(); g.moveTo(40, H); g.lineTo(VX - 40, VY + 22); g.lineTo(VX + 40, VY + 22); g.lineTo(610, H); g.fill();
-      g.fillStyle = '#232623'; g.beginPath(); g.moveTo(0, 0); g.lineTo(VX - 40, VY - 60); g.lineTo(VX - 40, VY + 22); g.lineTo(40, H); g.lineTo(0, H); g.fill();
-      g.fillStyle = '#1c1f1c'; g.beginPath(); g.moveTo(W, 0); g.lineTo(VX + 40, VY - 60); g.lineTo(VX + 40, VY + 22); g.lineTo(610, H); g.lineTo(W, H); g.fill();
-      g.fillStyle = '#4a4e48'; g.fillRect(VX - 40, VY - 60, 80, 82);   /* the far end, the docks lights */
-      g.fillStyle = '#151715'; g.beginPath(); g.moveTo(455, 300); g.lineTo(540, 330); g.lineTo(540, 410); g.lineTo(455, 370); g.fill();   /* the dumpster */
-      const lg = g.createRadialGradient(250, 120, 4, 250, 120, 150); lg.addColorStop(0, 'rgba(220,225,210,.35)'); lg.addColorStop(1, 'rgba(220,225,210,0)'); g.fillStyle = lg; g.fillRect(0, 0, W, H);
-      /* the chase: the first one comes up out of the dark toward the camera, the second a beat behind; both gone under the lens */
-      const run = (tt) => { const k = Math.max(0, Math.min(1, tt / 4.2)); const ease = k * k; return { x: VX + (k * k) * 90 * Math.sin(tt * 0.7), y: VY + 22 + ease * (H + 90 - VY), sc: 0.25 + ease * 2.6 }; };
-      for (const [delay, ph, wob] of [[2.2, 0, 0.05], [3.4, 1.3, -0.08]]) { const tt = t - delay; if (tt < 0 || tt > 4.6) continue; const p = run(tt); man(p.x + (delay > 3 ? -30 : 20) * p.sc, p.y, p.sc, tt * 14 + ph, wob + 0.12 * Math.sin(tt * 7)); }
-      if (t > 6.4 && t < 7.2) { g.fillStyle = 'rgba(0,0,0,.85)'; g.fillRect(0, 0, W, H); }   /* the tape jumps */
-      /* tape: noise, scanlines, rolling bar, tracking tear, timestamp */
-      const id = g.getImageData(0, 0, W, H), dd = id.data; for (let i = 0; i < dd.length; i += 4) { const n = (Math.random() - 0.5) * 46, v = (dd[i] + dd[i + 1] + dd[i + 2]) / 3 * 0.9 + n; dd[i] = v * 0.92; dd[i + 1] = v; dd[i + 2] = v * 0.9; } g.putImageData(id, 0, 0);
+      const t = (performance.now() - t0) / 1000; if (t > TOTAL + 1.6) return end();
+      let acc = 0, ci = CH.length; for (let i = 0; i < CH.length; i++) { if (t < acc + CH[i].dur) { ci = i; break; } acc += CH[i].dur; }
+      if (ci !== chI) { if (stg) unstage(stg); stg = null; chI = ci; chT0 = acc; if (ci < CH.length) { try { stg = stage(CH[ci]); } catch (e) { console.warn('tape', e && e.message); } } }
+      const ct = t - chT0, ch = CH[ci];
+      if (ch && stg) {
+        const figs = castOf();
+        for (const w of ch.who) { const R = figs[w.f], p = along(w.path, ct); R.root.visible = !p.gone; R.root.position.set(p.x, 0, p.z);
+          if (p.h !== null) R.root.rotation.y = p.h; else if (w.face !== undefined) R.root.rotation.y = w.face + (w.turn && ct > w.turn ? -1.9 * Math.min(1, (ct - w.turn) * 3) : 0);
+          pose(R, ct * 13 + w.f, p.run, w.reach && !p.run && !(w.turn && ct > w.turn)); if (w.turn && ct > w.turn && !p.run) R.head.rotation.y = -0.8; else R.head.rotation.y = 0; }
+        const keep = renderer.getRenderTarget(), ex = renderer.toneMappingExposure; renderer.setRenderTarget(rt); renderer.render(stg.live ? scene : foot, lens); renderer.setRenderTarget(keep); renderer.toneMappingExposure = ex;
+        renderer.readRenderTargetPixels(rt, 0, 0, FW, FH, px);
+        const d = img.data; for (let y = 0; y < FH; y++) for (let x = 0; x < FW; x++) { const i = ((FH - 1 - y) * FW + x) * 4, o = (y * FW + x) * 4, n = (Math.random() - 0.5) * 34;
+          const v = Math.min(255, (px[i] * 0.3 + px[i + 1] * 0.55 + px[i + 2] * 0.15) * 1.9 + 10 + n); d[o] = v * 0.92; d[o + 1] = v; d[o + 2] = v * 0.9; d[o + 3] = 255; }
+        sg.putImageData(img, 0, 0); g.imageSmoothingEnabled = true; g.drawImage(small, 0, 0, W, H);
+      } else { g.fillStyle = '#000'; g.fillRect(0, 0, W, H); }
+      if (ch && ct < 0.45) { const id = g.getImageData(0, 0, W, H), dd = id.data; for (let i = 0; i < dd.length; i += 4) { const v = Math.random() * 255; dd[i] = dd[i + 1] = dd[i + 2] = v; } g.putImageData(id, 0, 0); }   /* channel change: a burst of snow */
       g.fillStyle = 'rgba(0,0,0,.28)'; for (let y = 0; y < H; y += 3) g.fillRect(0, y, W, 1);
       const rb = (t * 90) % (H + 120) - 60; g.fillStyle = 'rgba(255,255,255,.05)'; g.fillRect(0, rb, W, 40);
       if (Math.random() < 0.08) { const ty = Math.random() * H; const strip = g.getImageData(0, ty, W, 8); g.putImageData(strip, 8 + Math.random() * 20, ty); }
-      const sec = 7 + Math.floor(t), stamp = 'TUE 11-21  00:14:' + String(sec).padStart(2, '0');
-      g.font = "bold 22px 'Courier New', monospace"; g.fillStyle = '#e8e8d8'; g.fillText('CAM 2  ALLEY', 24, 40); g.fillText(stamp, W - 300, H - 26);
-      if (Math.floor(t * 2) % 2) { g.fillStyle = '#e03a2a'; g.beginPath(); g.arc(28, H - 34, 7, 0, 7); g.fill(); g.fillStyle = '#e8e8d8'; g.fillText('REC', 42, H - 26); }
-      if (t > DUR) { g.fillStyle = '#000'; g.fillRect(0, 0, W, H); g.fillStyle = '#e8e8d8'; g.textAlign = 'center'; g.fillText('-- END OF TAPE --', W / 2, H / 2); g.textAlign = 'start'; }
+      g.font = "bold 22px 'Courier New', monospace"; g.fillStyle = '#e8e8d8';
+      if (ch) { const sec = 4 + Math.floor(t), stamp = 'TUE 11-21  00:1' + (3 + Math.floor(sec / 60)) + ':' + String(sec % 60).padStart(2, '0'); g.fillText(ch.name, 24, 40); g.fillText(stamp, W - 300, H - 26);
+        if (Math.floor(t * 2) % 2) { g.fillStyle = '#e03a2a'; g.beginPath(); g.arc(28, H - 34, 7, 0, 7); g.fill(); g.fillStyle = '#e8e8d8'; g.fillText('PLAY', 42, H - 26); } }
+      else { g.textAlign = 'center'; g.fillText('-- END OF TAPE --', W / 2, H / 2); g.textAlign = 'start'; }
       raf = requestAnimationFrame(frame); }
     frame();
   }
@@ -9907,8 +10009,8 @@ const GUARD = (() => {   // Walt, nights on the gate at the Old Town docks
     who: 'Walt · Night guard',
     start: () => met ? { line: pick2(["Still here, Detective. Gate's locked at two.", "Nobody's come through since you. I'd know. Ain't much else to look at."]), replies: [{ t: 'Who was here Tuesday night?', go: 'tues' }, { t: 'Bernard.', go: 'bernard' }, { t: 'Show me that tape again.', go: 'roll', if: () => Clues.has('footage') }, { t: 'Any cameras on this yard?', go: 'cam', if: () => !Clues.has('footage') }] }
       : { line: "Yard's closed, mister. Oh, it's you, Detective. The badge'll do. What brings the precinct down to the water this late?", replies: [{ t: 'Who was here Tuesday night?', go: 'tues' }, { t: 'You know a man named Bernard?', go: 'bernard' }, { t: 'Any cameras on this yard?', go: 'cam' }], do: () => { met = true; } },
-    cam: { line: "One. Company bolted it over the alley mouth after the copper walked off. Nobody's ever asked to see the tape. Tuesday's still in the deck — want me to roll it?", replies: [{ t: 'Roll it.', go: 'roll' }, { t: 'Later.' }] },
-    roll: { line: "Picture's lousy. Light over there's been out since spring. Here.", replies: [{ t: '(Watch the tape)', do: () => setTimeout(() => Footage.play(() => Clues.found('footage', 'CAM 2 · two men running the alley · 12:14a · too dark to make out', ['CAM 2 · ALLEY TAPE', 'TUE 12:14a · one chasing one · faces: none'])), 250) }] },
+    cam: { line: "Three. Company put 'em up after the copper walked off — one inside Seven, one on the yard, one over the alley out back. All three go to one deck. Nobody's ever asked to see the tape. Tuesday's still in it — want me to roll it?", replies: [{ t: 'Roll it.', go: 'roll' }, { t: 'Later.' }] },
+    roll: { line: "Picture's lousy. Light over there's been out since spring. Here.", replies: [{ t: '(Watch the tape)', do: () => setTimeout(() => Footage.play(() => Clues.found('footage', 'Three channels · two at the desk, a third runs, they go after him down the alley · too dark to make out', ['THE TAPE · 3 CAMS', 'TUE 12:13a · two at the desk, one runs, both chase · faces: none'])), 250) }] },
     tues: { line: "Crew knocked off at six. Then a truck, round midnight. No lights, didn't stop at my window. Plates were covered. I wrote it in the book and the book went missing.", replies: [{ t: 'Who took the book?', go: 'book' }] },
     book: { line: "Foreman came by for it the next morning. Said the company wanted it. I been on this gate eleven years, Detective. The company never wanted a book before." },
     bernard: { line: "Bernard works the forklifts. Worked. Foreman says he quit Wednesday. Bernard don't quit. Man's got four kids in a walk-up on Cordage Street, three blocks from here." },
