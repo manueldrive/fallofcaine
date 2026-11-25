@@ -106,6 +106,11 @@
   #dlg { position: fixed; left: 0; right: 0; bottom: 0; z-index: 9; padding: 80px max(6%, 22px) calc(26px + env(safe-area-inset-bottom, 0px)); background: linear-gradient(to top, #000 0%, rgba(0,0,0,.9) 45%, rgba(0,0,0,.7) 70%, transparent 100%); opacity: 0; transform: translateY(20px); transition: opacity .35s, transform .35s; pointer-events: none; font-family: 'Special Elite', 'Courier New', monospace; }
   body.talking #lbTop { transform: none; } body.talking #dlgCatch { display: block; } body.talking #dlg { opacity: 1; transform: none; pointer-events: auto; }
   body.talking #bottomBar, body.talking #hint, body.talking #propBtn { opacity: 0 !important; pointer-events: none !important; }
+  /* a line that waits on you doing something (look through his eyes, look up): the talk stays open, the world comes back into focus, and only the one control it needs shows */
+  body.talking.dlgFree #dlgCatch { display: none; } body.talking.dlgFree #scene { filter: none; }
+  body.talking.dlgFree #bottomBar { opacity: 1 !important; pointer-events: none !important; z-index: 12; } body.talking.dlgFree #topRight { z-index: 12; } body.talking.dlgFree #camToggle { pointer-events: auto; }
+  body.talking.dlgFree #logo, body.talking.dlgFree #musicBtn, body.talking.dlgFree #phoneBtn, body.talking.dlgFree #menuBtn { opacity: 0 !important; pointer-events: none !important; }
+  #dlg .tap.wait { animation: none; opacity: 1; color: #f4d27a; font-size: 12px; letter-spacing: .12em; right: auto; left: max(6%, 22px); }
   /* portraits: the illustrated face carries the conversation; the 3D scene dims and softens behind it */
   #scene { transition: filter .5s ease; } body.talking #scene { filter: brightness(.74) saturate(.85) blur(.6px); }
   #grain { transition: opacity .5s; } body.talking #grain { opacity: .025 !important; }   /* the grain fights the softened scene, so it nearly goes */
@@ -169,6 +174,7 @@
   @keyframes copflash { 50% { background: #4a0604; } }
   #gas.kick .spd { animation: kick .5s ease-out; }
   @keyframes kick { 0% { transform: scale(1.35); color: #f3d27a; } 100% { transform: scale(1); } }
+  #hint:empty { display: none; }   /* (no stray default label: only shows when something sets a tip) */
   #hint { position: fixed; bottom: calc(78px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%); width: max-content; max-width: calc(100% - 32px); box-sizing: border-box; text-align: center; color: #ddd; background: rgba(0,0,0,.65); padding: 7px 14px; font-size: 13px; letter-spacing: .15em;
     text-transform: uppercase; pointer-events: none; transition: opacity 1.5s; }
   #fade { position: fixed; inset: 0; background: #000; pointer-events: none; opacity: 1; transition: opacity .6s; }
@@ -182,7 +188,7 @@
 <canvas id="grain" width="200" height="200"></canvas>
 <div id="vignette"></div>
 <div id="fade"></div>
-<div id="hint">Walk</div>
+<div id="hint"></div>
 <div id="devToast"></div>
 <div id="phoneFlash"></div>
 <div id="dlgCatch"></div><div id="lbTop"></div><div id="dlgShade"></div><div id="dlgFace"></div><div id="dlg"><div class="who"></div><div class="line"></div><ul class="replies"></ul><div class="tap">tap ▸</div></div>
@@ -3033,7 +3039,7 @@ function buildSkybridge() {
     group, grade: NOIR,
     name: 'The Walkway',
     exposure: 1.3,
-    pace: 0.62,   // he slows down up here
+    pace: 0.9,   // an unhurried walk up here (not the brisk pace), but not a crawl
     fog: new THREE.FogExp2(0x060607, 0.012),
     skyline: { paint: 'map', sky: 'evening', face: Math.PI * 1.5, noGround: true, radius: 78, at: [785, 645], look: Math.PI * 1.5 },   // inside the camera's 100 m reach (further, and its middle gets clipped into a dark dome)
     bounds: { minX: -HX, maxX: HX, minZ: -HW, maxZ: HW },
@@ -3156,6 +3162,128 @@ function resetPose() {
    GARAGE EXIT — you drive the roadster yourself: down the ramp through the dark lower deck, out under the EXIT sign onto
    the wet street. Straight on, the on-ramp climbs to the Skyway; right, the cross street runs to El Malecón and the Castillo.
    ========================================================= */
+/* the car's hands and feet, shared by every drive (garage, street, Malecón, Skyway) so she feels the same everywhere */
+const DRIVE = { TOP: 22, BOOST: 34, ACC: 6, ACC_BOOST: 9, BRAKE: 12, REV: 3, COAST: 0.7,
+  steer: (v) => 1.9 * Math.min(1, Math.abs(v) / 2.6) / (1 + Math.max(0, Math.abs(v) - 6) / 8) * Math.sign(v || 1) };   /* full lock by walking pace, gentler as the speed comes up */
+/* the Ammonite Club's murals: hand-engraved fossil plates in fine white line on charcoal, set in the pale stucco.
+   Tower flanks: a big ammonite cut through to its chambers, a drawer of mixed shells, a belemnite, a triceratops skull, and Coquina City in the corner.
+   Podium flanks: a frieze — trilobite, fern, fish, nautilus. Drawn once into canvases */
+const MURAL = (() => {
+  const ink = (a) => `rgba(236,231,218,${a})`;
+  function base(W, H, seed0) {
+    const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d'); let seed = seed0; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    const hatch = (x, y, w, h, step, ang, col, lw = 0.7) => { g.save(); g.beginPath(); g.rect(x, y, w, h); g.clip(); g.strokeStyle = col; g.lineWidth = lw; g.translate(x + w / 2, y + h / 2); g.rotate(ang); const R = Math.hypot(w, h); for (let i = -R; i < R; i += step) { g.beginPath(); g.moveTo(i, -R); g.lineTo(i, R); g.stroke(); } g.restore(); };
+    const plate = (x, y, w, h, light) => { g.fillStyle = light ? '#767672' : '#2b2b2b'; g.fillRect(x, y, w, h); hatch(x, y, w, h, 2, light ? 0.9 : -0.6, light ? 'rgba(255,255,255,.16)' : 'rgba(255,255,255,.06)', 0.6); hatch(x, y, w, h, 2.6, light ? -0.7 : 0.8, light ? 'rgba(0,0,0,.08)' : 'rgba(255,255,255,.03)', 0.5); g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = 1.5; g.strokeRect(x + 1, y + 1, w - 2, h - 2); };
+    g.fillStyle = '#d8d3c6'; g.fillRect(0, 0, W, H); return { c, g, rnd, hatch, plate };
+  }
+  /* engraved line helpers: a curve as many thin strokes (shading by density) */
+  function ammonite(g, rnd, cx, cy, R, lw = 0.7) {
+    const b = 0.13, r0 = 7, r = (t) => r0 * Math.exp(b * t), T = Math.log(R / r0) / b;
+    for (let t = T; t > 0; t -= 0.014) { const rr = r(t), ri = r(t - 2 * Math.PI) || 0, sh = 0.55 + 0.45 * Math.cos(t - 0.8); g.strokeStyle = ink((0.18 + 0.6 * sh).toFixed(2)); g.lineWidth = lw; g.beginPath(); g.moveTo(cx + ri * Math.cos(t), cy + ri * Math.sin(t)); g.lineTo(cx + rr * Math.cos(t), cy + rr * Math.sin(t)); g.stroke(); }
+    g.strokeStyle = ink(1); g.lineWidth = 2.2; g.beginPath(); for (let t = 0; t <= T; t += 0.02) { const rr = r(t), x = cx + rr * Math.cos(t), y = cy + rr * Math.sin(t); t ? g.lineTo(x, y) : g.moveTo(x, y); } g.stroke();
+    { const ro = r(T), ri = r(T - 2 * Math.PI); g.lineWidth = 2.6; g.beginPath(); g.moveTo(cx + ri * Math.cos(T), cy + ri * Math.sin(T)); g.quadraticCurveTo(cx + (ri + ro) / 2 * Math.cos(T + 0.12), cy + (ri + ro) / 2 * Math.sin(T + 0.12), cx + ro * Math.cos(T), cy + ro * Math.sin(T)); g.stroke(); }
+    g.lineWidth = 1.4; for (let t = 1.2; t < T - 0.8; t += 0.5) { const ro = r(t), ri = r(t - 2 * Math.PI); if (ri < 5) continue; g.beginPath(); for (let k = 0; k <= 16; k++) { const f = k / 16, rr = ri + (ro - ri) * f, w = Math.sin(f * Math.PI * 4) * 0.045; g.lineTo(cx + rr * Math.cos(t + w), cy + rr * Math.sin(t + w)); } g.stroke(); }
+    for (let i = 0; i < 2600; i++) { const t = rnd() * T, rr = r(t) * (0.8 + rnd() * 0.18); g.fillStyle = ink((0.3 + rnd() * 0.45).toFixed(2)); g.fillRect(cx + rr * Math.cos(t), cy + rr * Math.sin(t), 1.1, 1.1); }
+  }
+  /* a drawer of shells, each its own kind: ribbed ammonite, smooth nautilus, a gastropod's cone, a scallop's fan */
+  function shell(g, rnd, x, y, s, kind) {
+    g.save(); g.translate(x, y); g.rotate(rnd() * 6.28 * (kind === 2 || kind === 3 ? 0.15 : 1)); g.fillStyle = '#f1ede1'; g.strokeStyle = '#333'; g.lineWidth = 0.8;
+    if (kind === 0 || kind === 1) { g.beginPath(); g.arc(0, 0, 17 * s, 0, 7); g.fill(); g.beginPath(); for (let t = 0; t < 14; t += 0.1) { const rr = 1.1 * Math.exp(0.21 * t) * s; if (rr > 16.5 * s) break; g.lineTo(rr * Math.cos(t), rr * Math.sin(t)); } g.stroke();
+      if (kind === 0) for (let t = 6; t < 14; t += 0.22) { const ro = 1.1 * Math.exp(0.21 * t) * s, ri = ro * Math.exp(-0.21 * 6.28); if (ro > 16.5 * s) break; g.beginPath(); g.moveTo(ri * Math.cos(t), ri * Math.sin(t)); g.lineTo(ro * Math.cos(t), ro * Math.sin(t)); g.stroke(); } }
+    else if (kind === 2) { g.beginPath(); g.moveTo(0, -20 * s); g.quadraticCurveTo(12 * s, -2 * s, 9 * s, 16 * s); g.quadraticCurveTo(0, 20 * s, -9 * s, 16 * s); g.quadraticCurveTo(-12 * s, -2 * s, 0, -20 * s); g.fill(); for (let k = 1; k < 6; k++) { const yy = -20 * s + k * 7 * s; g.beginPath(); g.moveTo(-k * 1.9 * s, yy); g.quadraticCurveTo(0, yy + 4 * s, k * 1.9 * s, yy - 1); g.stroke(); } }
+    else { g.beginPath(); g.moveTo(0, 14 * s); g.lineTo(-17 * s, -6 * s); g.quadraticCurveTo(0, -20 * s, 17 * s, -6 * s); g.closePath(); g.fill(); for (let k = -5; k <= 5; k++) { g.beginPath(); g.moveTo(0, 14 * s); g.lineTo(k * 3.2 * s, -12 * s - Math.cos(k / 5) * 4 * s); g.stroke(); } g.fillRect(-5 * s, 12 * s, 10 * s, 4 * s); }
+    g.restore();
+  }
+  function belemnite(g, bx, by0, by1) {
+    g.fillStyle = '#efeadc'; g.beginPath(); g.moveTo(bx - 18, by0); g.lineTo(bx + 18, by0); g.lineTo(bx + 13, by1 - 36); g.quadraticCurveTo(bx, by1 + 6, bx - 13, by1 - 36); g.closePath(); g.fill();
+    g.strokeStyle = 'rgba(40,40,40,.45)'; g.lineWidth = 0.7; for (let y = by0 + 4; y < by1 - 26; y += 3) { g.beginPath(); g.moveTo(bx - 17, y); g.quadraticCurveTo(bx, y + 3, bx + 17, y); g.stroke(); }
+    g.strokeStyle = 'rgba(40,40,40,.7)'; g.lineWidth = 1; g.beginPath(); g.moveTo(bx, by0 + 6); g.lineTo(bx, by1 - 30); g.stroke();
+    g.fillStyle = '#efeadc'; for (const sd of [-1, 1]) { g.beginPath(); g.moveTo(bx + sd * 18, by0 + 16); g.lineTo(bx + sd * 58, by0 + 2); g.lineTo(bx + sd * 20, by0 + 28); g.fill(); }
+  }
+  /* triceratops skull, side on, facing right: the frill and its scalloped edge, two brow horns, the nose horn, the beak */
+  /* triceratops skull, side on, facing right (after the museum mount): the solid fan of frill with its one window, two long brow horns bowing forward,
+     a stub of a nose horn, dark eye and nostril, the cheek's point, a hooked beak over a jaw that hangs a little open */
+  function triceratops(g, x, y, s) {
+    g.save(); g.translate(x, y); g.scale(s, s);
+    const bone = '#ece7d9', line = 'rgba(40,40,40,.4)', hole = 'rgba(22,22,22,.9)';
+    const hatchIn = (path, step, ang, a = 0.4) => { g.save(); g.clip(path); g.strokeStyle = `rgba(40,40,40,${a})`; g.lineWidth = 0.7; g.rotate(ang); for (let i = -420; i < 420; i += step) { g.beginPath(); g.moveTo(i, -420); g.lineTo(i, 420); g.stroke(); } g.restore(); };
+    /* frill */
+    const F = new Path2D('M15,-62 C-10,-160 -140,-222 -218,-190 C-282,-162 -282,-58 -200,0 C-150,36 -70,48 -10,40 Z');
+    g.fillStyle = bone; g.fill(F);
+    g.save(); g.clip(F); g.strokeStyle = line; g.lineWidth = 0.7; for (let a = 0; a < 6.3; a += 0.035) { g.beginPath(); g.moveTo(-10, -10); g.lineTo(-10 + 330 * Math.cos(a), -10 + 330 * Math.sin(a)); g.stroke(); }
+    g.fillStyle = 'rgba(40,40,40,.1)'; g.beginPath(); g.ellipse(-140, -10, 150, 45, -0.3, 0, 7); g.fill(); g.restore();   /* (the lower frill in shadow) */
+    g.strokeStyle = 'rgba(40,40,40,.6)'; g.lineWidth = 1.4; g.stroke(F);
+    g.fillStyle = hole; g.beginPath(); g.ellipse(-165, -120, 36, 20, -0.75, 0, 7); g.fill();   /* the frill's window */
+    /* lower jaw (behind the face) */
+    const J = new Path2D('M30,52 C80,46 130,48 166,52 C176,58 180,70 170,80 C130,92 80,96 40,88 C20,82 18,62 30,52 Z');
+    g.fillStyle = '#ddd7c6'; g.fill(J); hatchIn(J, 2.4, 0.5, 0.5);
+    g.strokeStyle = 'rgba(30,30,30,.7)'; g.lineWidth = 0.9; for (let tx = 70; tx < 150; tx += 6) { g.beginPath(); g.moveTo(tx, 50); g.lineTo(tx + 2, 58); g.stroke(); }   /* tooth row */
+    /* face */
+    const S = new Path2D('M-40,10 C-45,-25 -38,-50 -25,-58 C0,-75 45,-72 80,-52 C100,-50 112,-52 122,-44 C150,-30 175,-5 188,22 C196,38 194,52 184,58 C176,48 166,44 152,44 C120,42 90,44 62,46 C50,60 38,80 24,94 C14,74 4,58 -8,46 C-22,38 -36,26 -40,10 Z');
+    g.fillStyle = bone; g.fill(S); hatchIn(S, 2.6, 0.35, 0.36);
+    g.save(); g.clip(S); g.fillStyle = 'rgba(40,40,40,.2)'; g.beginPath(); g.ellipse(40, 46, 120, 26, 0, 0, 7); g.fill(); g.restore();   /* shadow along the cheek */
+    g.strokeStyle = 'rgba(40,40,40,.6)'; g.lineWidth = 1.4; g.stroke(S);
+    g.fillStyle = hole; g.beginPath(); g.ellipse(30, -18, 18, 14, -0.3, 0, 7); g.fill();   /* eye socket */
+    g.beginPath(); g.ellipse(138, 2, 22, 15, 0.5, 0, 7); g.fill();   /* nostril */
+    g.fillStyle = 'rgba(22,22,22,.55)'; g.beginPath(); g.ellipse(-8, 22, 14, 10, 0.2, 0, 7); g.fill();   /* the hollow behind the cheek */
+    g.fillStyle = '#d6cfbc'; g.beginPath(); g.moveTo(168, 0); g.quadraticCurveTo(205, 20, 196, 66); g.quadraticCurveTo(186, 54, 172, 48); g.closePath(); g.fill();   /* the hooked beak */
+    /* horns: each a tapering, bowed cone with its grain running along it */
+    const horn = (bx, by, cx, cy, tx, ty, w) => { const P = new Path2D(); P.moveTo(bx - w, by + w * 0.3); P.quadraticCurveTo(cx - w * 0.5, cy, tx, ty); P.quadraticCurveTo(cx + w * 0.6, cy + w * 0.5, bx + w, by + w * 0.5); P.closePath();
+      g.fillStyle = '#f2eee2'; g.fill(P); g.save(); g.clip(P); g.strokeStyle = 'rgba(40,40,40,.4)'; g.lineWidth = 0.7;
+      for (let o = -1; o <= 1; o += 0.25) { g.beginPath(); g.moveTo(bx + o * w, by + w * 0.4); g.quadraticCurveTo(cx + o * w * 0.5, cy, tx, ty); g.stroke(); } g.restore();
+      g.strokeStyle = 'rgba(40,40,40,.6)'; g.lineWidth = 1.2; g.stroke(P); };
+    horn(4, -56, 30, -170, 104, -222, 21);   /* far brow horn (behind) */
+    horn(30, -54, 64, -160, 140, -206, 23);  /* near brow horn */
+    horn(114, -44, 116, -64, 130, -82, 10);   /* nose horn */
+    g.restore();
+  }
+  /* Coquina City from the case map: Old Town's shore on the left, Isla Luz on the right, the Light on its rock, the Skyway across */
+  function cityInset(g, x, y, w, h) {
+    g.fillStyle = '#1b1b1b'; g.fillRect(x, y, w, h); g.strokeStyle = 'rgba(255,255,255,.6)'; g.lineWidth = 1.2; g.strokeRect(x + 1, y + 1, w - 2, h - 2);
+    const X0 = 330, X1 = 1080, Y0 = 70, Y1 = 840, k = Math.min((w - 16) / (X1 - X0), (h - 16) / (Y1 - Y0)), ox = x + (w - (X1 - X0) * k) / 2 - X0 * k, oy = y + (h - (Y1 - Y0) * k) / 2 - Y0 * k;
+    g.save(); g.beginPath(); g.rect(x + 3, y + 3, w - 6, h - 6); g.clip(); g.translate(ox, oy); g.scale(k, k);
+    g.fillStyle = '#e9e4d6';
+    g.fill(new Path2D('M0,95 C120,80 260,112 380,95 C430,88 470,104 490,140 C506,200 480,250 500,320 C515,390 490,440 505,520 C515,590 482,640 472,700 C464,760 480,800 470,820 L0,820 Z'));
+    g.fill(new Path2D('M760,122 C800,96 900,88 990,108 C1040,120 1062,150 1052,200 C1040,320 1062,430 1046,540 C1036,640 1052,720 1002,790 C962,812 880,802 820,782 C782,768 758,732 770,694 C752,692 734,674 736,648 C738,620 758,606 774,598 C770,570 762,540 770,502 C780,422 755,352 765,282 C770,222 734,182 746,150 Z'));
+    g.beginPath(); g.arc(632, 262, 9, 0, 7); g.fill();   /* the Light's rock */
+    g.strokeStyle = '#e9e4d6'; g.lineWidth = 5; g.beginPath(); g.moveTo(462, 690); g.lineTo(792, 704); g.stroke();   /* the Skyway */
+    g.fillStyle = '#1b1b1b'; g.beginPath(); g.arc(770, 612, 11, 0, 7); g.fill();   /* the club */
+    g.restore();
+  }
+  function tower() {
+    const W = 716, H = 1024, { c, g, rnd, plate } = base(W, H, 7), M = 26, LW = 190, TOP = M, MAINW = W - M * 2 - LW - 10, MAINH = H * 0.62;
+    plate(M, TOP, LW, MAINH * 0.62, true); plate(M, TOP + MAINH * 0.62 + 10, LW, MAINH * 0.38 - 10); plate(M + LW + 10, TOP, MAINW, MAINH);
+    const BY = TOP + MAINH + 10, BH = H - TOP - MAINH - 10 - M * 2.6; plate(M, BY, W - M * 2 - 220, BH); 
+    ammonite(g, rnd, M + LW + 10 + MAINW * 0.47, TOP + MAINH * 0.53, Math.min(MAINW, MAINH) * 0.44);
+    for (let row = 0; row < 6; row++) for (let col = 0; col < 3; col++) shell(g, rnd, M + 34 + col * 62, TOP + 40 + row * (MAINH * 0.62 - 60) / 5.6, 0.75 + rnd() * 0.4, (row * 3 + col * 2 + Math.floor(rnd() * 2)) % 4);
+    belemnite(g, M + LW / 2, TOP + MAINH * 0.62 + 30, TOP + MAINH - 22);
+    triceratops(g, M + 254, BY + BH * 0.7, BH / 352);
+    cityInset(g, W - M - 210, BY, 210, BH); g.fillStyle = 'rgba(236,231,218,.8)'; g.font = "bold 11px 'Courier New', monospace"; g.fillText('COQUINA CITY', W - M - 200, BY + BH - 10);
+    const gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, 'rgba(0,0,0,.18)'); gr.addColorStop(0.2, 'rgba(0,0,0,0)'); gr.addColorStop(0.85, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,.22)'); g.fillStyle = gr; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#2e2e2e'; g.font = "bold 14px 'Courier New', monospace"; g.fillText('AMMONITE · C.C. 1931', M, H - M);
+    return c;
+  }
+  /* the podium frieze, along its flanks: four plates — trilobite, fern, fish, nautilus (the lower third is the wall below the street line) */
+  function podium() {
+    const W = 1024, H = 478, { c, g, rnd, plate } = base(W, H, 11), y0 = 26, ph = H * 0.66 - 40, pw = (W - 26 * 2 - 3 * 14) / 4;
+    const xs = [0, 1, 2, 3].map(i => 26 + i * (pw + 14)); xs.forEach((x, i) => plate(x, y0, pw, ph, i % 2 === 1));
+    { /* trilobite */ const cx = xs[0] + pw / 2, cy = y0 + ph / 2; g.fillStyle = '#ece7d9'; g.beginPath(); g.ellipse(cx, cy - ph * 0.28, pw * 0.3, ph * 0.13, 0, Math.PI, 0); g.fill();
+      for (let k = 0; k < 11; k++) { const yy = cy - ph * 0.26 + k * ph * 0.05, ww = pw * 0.3 * (1 - k * 0.06); g.fillRect(cx - ww, yy, ww * 2, ph * 0.035); }
+      g.fillStyle = 'rgba(40,40,40,.6)'; g.fillRect(cx - pw * 0.05, cy - ph * 0.3, pw * 0.1, ph * 0.56); }
+    { /* fern */ const cx = xs[1] + pw / 2, y1 = y0 + ph - 20, y2 = y0 + 20; g.strokeStyle = '#ece7d9'; g.lineWidth = 2; g.beginPath(); g.moveTo(cx, y1); g.quadraticCurveTo(cx + 12, (y1 + y2) / 2, cx - 4, y2); g.stroke(); g.lineWidth = 0.9;
+      for (let f = 0.05; f < 0.95; f += 0.035) { const yy = y1 + (y2 - y1) * f, len = pw * 0.36 * Math.sin(Math.PI * (1 - f) * 0.9 + 0.2); for (const sd of [-1, 1]) { g.beginPath(); g.moveTo(cx + 6 * (1 - f), yy); g.quadraticCurveTo(cx + sd * len * 0.6, yy - 8, cx + sd * len, yy - 14); g.stroke(); } } }
+    { /* fish */ const cx = xs[2] + pw / 2, cy = y0 + ph / 2, L = pw * 0.8; g.strokeStyle = '#ece7d9'; g.lineWidth = 1.6; g.beginPath(); g.moveTo(cx - L / 2, cy); g.quadraticCurveTo(cx, cy - ph * 0.22, cx + L / 2 - 20, cy); g.quadraticCurveTo(cx, cy + ph * 0.22, cx - L / 2, cy); g.stroke();
+      g.beginPath(); g.moveTo(cx + L / 2 - 22, cy); g.lineTo(cx + L / 2, cy - 22); g.lineTo(cx + L / 2, cy + 22); g.closePath(); g.stroke(); g.lineWidth = 0.8;
+      for (let i = -L / 2 + 26; i < L / 2 - 30; i += 6) { const hh = ph * 0.2 * Math.sqrt(Math.max(0, 1 - (i / (L / 2)) ** 2)); g.beginPath(); g.moveTo(cx + i - 4, cy - hh); g.lineTo(cx + i, cy); g.lineTo(cx + i - 4, cy + hh); g.stroke(); }
+      g.beginPath(); g.arc(cx - L / 2 + 16, cy - 4, 4, 0, 7); g.stroke(); }
+    ammonite(g, rnd, xs[3] + pw / 2, y0 + ph / 2, Math.min(pw, ph) * 0.4, 0.6);
+    return c;
+  }
+  const tex = (c) => { const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; };
+  let T1 = null, T2 = null;
+  return { tower: () => T1 || (T1 = tex(tower())), podium: () => T2 || (T2 = tex(podium())) };
+})();
+const ammoniteMural = () => MURAL.tower();
 function buildGarageOut() {
   const group = new THREE.Group(), add = makeAdder(group);
   const cv = (w, h, draw) => { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; };
@@ -3218,7 +3346,7 @@ function buildGarageOut() {
     const neon = (txt, w, h, col, glow, font) => cv(w, h, (g, W, H) => { g.fillStyle = '#0e0c10'; g.fillRect(0, 0, W, H); g.fillStyle = col; g.shadowColor = glow; g.shadowBlur = 18; g.font = font; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(txt, W / 2, H / 2 + 4); });
     const sign = (tex, w, h, x, y, z, ry = Math.PI) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false })); m.position.set(x, y, z); m.rotation.y = ry; casinoG.add(m); return m; };
     /* the podium: two storeys of glass doors and gaming-floor glow, a gold band, a streamlined rounded corner at each end */
-    box(HW, 14, HD, HX, 3, HZ + HD / 2, stuM);   /* (down past the seawall to the water) */
+    { const pt = MURAL.podium(), pm = new THREE.MeshStandardMaterial({ map: pt, emissive: 0xffffff, emissiveMap: pt, emissiveIntensity: 0.28, roughness: .9 }); box(HW, 14, HD, HX, 3, HZ + HD / 2, [pm, pm, stuM, stuM, stuM, stuM]); }   /* (down past the seawall to the water; the frieze runs along both flanks) */
     { const t = cv(1024, 256, (g, W, H) => { g.fillStyle = '#d9d1bf'; g.fillRect(0, 0, W, H); const gr = g.createLinearGradient(0, 120, 0, H); gr.addColorStop(0, '#ffcf7a'); gr.addColorStop(1, '#ff8fb0');
         for (let i = 0; i < 16; i++) { const x = 20 + i * 62; g.fillStyle = gr; g.fillRect(x, 120, 50, H - 130); g.fillStyle = 'rgba(30,20,20,.55)'; g.fillRect(x + 24, 120, 3, H - 130); }
         g.fillStyle = '#b8913a'; g.fillRect(0, 96, W, 14); for (let i = 0; i < 16; i++) { g.fillStyle = '#23252c'; g.fillRect(28 + i * 62, 22, 34, 50); if (i % 2) { g.fillStyle = '#ffd890'; g.fillRect(31 + i * 62, 25, 28, 44); } } });
@@ -3238,7 +3366,9 @@ function buildGarageOut() {
       const bx = HX - HW / 2 + 4; box(1.9, 9.4, 0.35, bx, 15.5, HZ - 0.9, darkM); sign(bt, 1.8, 9.0, bx, 15.5, HZ - 1.09); sign(bt, 1.8, 9.0, bx, 15.5, HZ - 0.71, 0);
       const pl = new THREE.PointLight(0xff4f9a, 7, 18, 1.5); pl.position.set(bx, 15, HZ - 2.5); casinoG.add(pl); }
     /* the tower: rounded-off slab with ribbon windows, a stepped crown, AMMONITE in gold across the top */
-    lit(22, 20, 14, HX, 20, HZ + 15, win(11, 8, 11)); lit(16, 10, 11, HX, 35, HZ + 15, win(8, 4, 5));
+    { const tw = lit(22, 20, 14, HX, 20, HZ + 15, win(11, 8, 11)); const mt = ammoniteMural(), mm = new THREE.MeshStandardMaterial({ map: mt, emissive: 0xffffff, emissiveMap: mt, emissiveIntensity: 0.32, roughness: .9 }); tw.material[0] = mm; tw.material[1] = mm;   /* both tower flanks carry the mural, washed by floodlights from the podium roof */
+      for (const sx of [-1, 1]) for (const dz of [-4, 4]) { const fl = new THREE.SpotLight(0xfff0d8, 60, 30, 0.5, 0.6, 1.4); fl.position.set(HX + sx * 14, 10.6, HZ + 15 + dz); fl.target.position.set(HX + sx * 11, 24, HZ + 15 + dz * 0.6); casinoG.add(fl, fl.target); } }
+    lit(16, 10, 11, HX, 35, HZ + 15, win(8, 4, 5));
     { const cr = add(new THREE.Mesh(new THREE.CylinderGeometry(3.2, 4.6, 6, 8), goldM)); cr.position.set(HX, 43, HZ + 15); const sp = add(new THREE.Mesh(new THREE.ConeGeometry(0.5, 7, 8), goldM)); sp.position.set(HX, 49.5, HZ + 15); }
     sign(neon('AMMONITE', 1024, 160, '#ffd36a', '#ff9a20', "bold 128px 'Bebas Neue', Impact, sans-serif"), 15, 2.4, HX, 38.6, HZ + 9.43);
     /* the club's mark: a coiled ammonite shell in gold neon on the tower face, its chambers ticked off along the whorl */
@@ -3375,15 +3505,19 @@ function buildGarageOut() {
       // input: keys, or the thumb on a phone (up = gas, sideways = steer)
       let thr = (held.has('u') ? 1 : 0) - (held.has('d') ? 1 : 0), str = (held.has('l') ? 1 : 0) - (held.has('r') ? 1 : 0);
       if (joy.on) { thr = THREE.MathUtils.clamp(-joy.y * 1.4, -1, 1); str = THREE.MathUtils.clamp(-joy.x * 1.3, -1, 1); }
-      if (leaving) { thr = 1; str = 0; autoT += dt; yaw += (Math.PI / 2 - yaw) * Math.min(1, dt * 2.5); cz += (ZC - 6.2 - cz) * Math.min(1, dt * 1.6); }   /* the Malecón's curb lane, where the drive picks up: the Skyway's a merge left from there */   /* settle into the lane, heading west */
-      const MAX = cz < -4.6 ? 5.5 : leaving ? 17 : 12;
-      if (thr > 0) v = Math.min(MAX, v + 6 * thr * dt); else if (thr < 0) v = v > 0.2 ? v - 12 * dt : Math.max(-3, v - 4 * dt); else v *= Math.pow(0.35, dt);
+      if (leaving) autoT += dt;   /* (out on the street it's still you driving: no hands taken off the wheel) */   /* the Malecón's curb lane, where the drive picks up: the Skyway's a merge left from there */   /* settle into the lane, heading west */
+      const MAX = cz < -4.6 ? 5.5 : DRIVE.TOP;
+      if (thr > 0) v = Math.min(MAX, v + DRIVE.ACC * thr * dt); else if (thr < 0) v = v > 0.2 ? v - DRIVE.BRAKE * dt : Math.max(-DRIVE.REV, v - 4 * dt); else v *= Math.pow(DRIVE.COAST, dt);
       if (v > MAX) v = Math.max(MAX, v - 10 * dt);
       const ok = (x, z, yw = yaw) => { const fx = -Math.sin(yw), fz = -Math.cos(yw); return road(x + fx * 2.1, z + fz * 2.1) && road(x - fx * 2.1, z - fz * 2.1) && road(x + fz * 0.85, z - fx * 0.85) && road(x - fz * 0.85, z + fx * 0.85); };
       /* steering: quick and forgiving (an arcade wheel, not a sim): full lock comes in by walking pace, and you can still wrench her round when nosed up against something */
-      { const turn = str * 1.9 * dt * (Math.abs(v) > 0.3 ? THREE.MathUtils.clamp(v / 2.6, -1, 1) : (thr ? 0.7 * Math.sign(thr || 1) : 0)); if (ok(cx, cz, yaw + turn)) yaw += turn; }
+      { const turn = str * dt * (Math.abs(v) > 0.3 ? DRIVE.steer(v) : (thr ? 1.33 * Math.sign(thr || 1) : 0)); if (ok(cx, cz, yaw + turn)) yaw += turn; }
+      /* out on the Malecón: the same light hand as on the drive — let go and she settles into the nearest lane (either side of the line) */
+      if (cz > 0.3 && Math.abs(str) < 0.1 && Math.abs(v) > 1.5 && Math.cos(yaw - Math.PI / 2) > 0.8) {
+        const tz = [6.2, 2.2, -2.2, -6.2].map(l => ZC - l).reduce((b, z) => Math.abs(z - cz) < Math.abs(b - cz) ? z : b, ZC - 6.2);
+        const tyaw = Math.PI / 2 + THREE.MathUtils.clamp(-(cz - tz) * 0.07, -0.16, 0.16) * Math.sign(v); if (ok(cx, cz, yaw + (tyaw - yaw) * Math.min(1, dt * 2.2))) yaw += (tyaw - yaw) * Math.min(1, dt * 2.2); }
       /* a learner's hand on the wheel: hands off the keys and rolling roughly the right way, she drifts back onto the obvious line (out of the space, along the aisle, down the ramp, out the door, right) */
-      if (R && !leaving && v > 0.6 && Math.abs(str) < 0.1 && cz < 16) {
+      if (R && !leaving && v > 0.6 && Math.abs(str) < 0.1 && cz < 0.6) {
         let best = 1e9, tx = 0, tz = 0;
         for (let i = 0; i < GUIDE.length - 1; i++) { const [ax, az] = GUIDE[i], [bx, bz] = GUIDE[i + 1], dx = bx - ax, dz = bz - az, L = dx * dx + dz * dz;
           const t = THREE.MathUtils.clamp(((cx - ax) * dx + (cz - az) * dz) / L, 0, 1), d = Math.hypot(cx - ax - t * dx, cz - az - t * dz);
@@ -3407,7 +3541,7 @@ function buildGarageOut() {
       /* where you've gone: right along the cross street, onto the Malecón */
       if (!leaving && cx < -7 && cz > 0.2 && v > 0.5 && Math.cos(yaw - Math.PI / 2) > 0) go();   // (heading west at all: she straightens up into the lane herself)   /* where to (the Skyway or the fort) is decided out on the Malecón */
       if (lent) { const tau = Math.max(0, cx - XH) / Math.max(v, 4); for (const L of lent) { L.gx = XH + L.t.z0 - L.t.dir * L.t.v * tau; L.t.c.g.position.set(L.gx, 0, ZC - L.t.x); } }   /* each car placed so that it's exactly where the drive starts it the moment we reach XH */
-      if (leaving && cx <= XH) { leaving = 'gone'; if (lent) MK.handoff(lent.map(L => L.gx - cx)); trip = { spawn: 'garage', to: null, legs: ['malecon'], i: 0 }; loadScene('malecon', { spawn: 'garage', instant: true });   /* no fade: by now this street and the drive scene are the same picture */ }
+      if (leaving && cx <= XH) { leaving = 'gone'; if (lent) MK.handoff(lent.map(L => L.gx - cx)); trip = { spawn: 'garage', to: null, legs: ['malecon'], i: 0, car: { x: ZC - cz, h: yaw - Math.PI / 2, v } }; loadScene('malecon', { spawn: 'garage', instant: true });   /* (and the car carries on exactly as you had her: lane, angle, speed) */   /* no fade: by now this street and the drive scene are the same picture */ }
       // chase camera: behind and above; low under the garage's ceiling
       /* out the door, the reveal: the camera pulls back and up off the car to take in the street, the bay and the city across the water */
       const y = car.g.position.y, roof = cz < -11.5, door = !roof && cz < -2, W = THREE.MathUtils.smoothstep(cz, -1.5, 4);
@@ -3937,7 +4071,7 @@ const Clues = (() => {
   const NAMES = { crowbar: 'Crowbar', footprints: 'Footprints', blood: 'Blood spatter', footage: 'Security footage' };
   const has = (id) => Found.has('clue-' + id);
   function found(id, sub, note) { const first = !has(id); Found.add('clue-' + id); const n = ['crowbar', 'footprints', 'blood', 'footage'].filter(has).length;
-    toast((first ? 'Clue · ' : '') + NAMES[id] + (first ? '  (' + n + ' of 4)' : ''), sub); if (first && note && typeof Board !== 'undefined') Board.addNote(note[0], note[1]); try { navigator.vibrate && navigator.vibrate(30); } catch (e) {} return first; }
+    toast((first ? 'Clue · ' : '') + NAMES[id], first ? 'Ticked off in your Notes · ' + n + ' of 4' : sub); if (first && note && typeof Board !== 'undefined') Board.addNote(note[0], note[1]); if (first) PhoneUI.flagNote(); try { navigator.vibrate && navigator.vibrate(30); } catch (e) {} return first; }
   return { toast, found, has, NAMES };
 })();
 function makeCrowbar() {
@@ -5278,7 +5412,7 @@ function buildHotel({ beam = true } = {}) {
   return {
     group,
     name: 'Hotel Osario', dinoBits,
-    props: [{ id: 'bellhop', talk: 'bellhop', mesh: bell.head, label: 'Talk to the bellhop', reach: 1.9, onEnd: () => Guide.heard() }],
+    props: [{ id: 'bellhop', talk: 'bellhop', mesh: bell.head, label: 'Talk to the bellhop', reach: 1.9, onEnd: () => Guide.heard(), when: () => !(BELLHOP.stage >= 2 && Guide.step === 'bridge') }]   /* (once he's pointed you to the car, the prompt steps aside so the walkway is the one thing on screen) */,
     exposure: 1.3,
     fog: new THREE.FogExp2(0x1a120a, 0.012),
     bounds: { minX: -WX, maxX: WX, minZ: -WZ, maxZ: WZ },
@@ -5348,7 +5482,7 @@ function buildHotel({ beam = true } = {}) {
    round the room; rain runs down the glass; a cigarette burns in the ashtray; a line of hall light under the door.
    Cutaway like the office: back wall (z = RZ) and left wall (x = RX), open toward the camera.
    ========================================================= */
-const HatState = { on: (() => { try { return localStorage.getItem('caineHat') === 'on' || !(!location.hash || location.hash.startsWith('#intro')); } catch (e) { return true; } })(),   // a fresh morning: the hat's on the bed
+const HatState = { on: (() => { try { return localStorage.getItem('caineHat') === 'on' || !(!location.hash || location.hash.startsWith('#intro')); } catch (e) { return true; } })(),   // a fresh morning: the hat's on the desk
   take(h) { this.on = true; try { localStorage.setItem('caineHat', 'on'); } catch (e) {} if (h) h.visible = false; CaineModel.wantHat = true; CaineModel.setHat && CaineModel.setHat(true); CaineModel.origHat && CaineModel.origHat(); } };
 function buildRoom212() {
   const group = new THREE.Group(), add = makeAdder(group);
@@ -5474,7 +5608,16 @@ function buildRoom212() {
     // the fedora, crown down on the blanket
     const hat = new THREE.Group(); const hm = mat({ color: 0x141210, roughness: .55 }); const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.016, 24), hm); hat.add(brim);
     const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.105, 0.125, 0.14, 18), hm); crown.position.y = 0.07; hat.add(crown); const band = new THREE.Mesh(new THREE.CylinderGeometry(0.127, 0.127, 0.03, 18), mat({ color: 0x3a2a18 })); band.position.y = 0.02; hat.add(band);
-    hat.traverse(o => { if (o.isMesh) o.castShadow = o.receiveShadow = true; }); hat.position.set(BX1 - 0.55, 0.64, BZ1 - 0.3); hat.rotation.set(0.12, 0.6, 0.06); group.add(hat); group.userData.hat = hat; hat.visible = !HatState.on;
+    hat.traverse(o => { if (o.isMesh) o.castShadow = o.receiveShadow = true; }); /* an armchair in the corner by the window */
+    { const AC = { x: -2.25, z: -2.05 }, ac = new THREE.Group(), velvet = mat({ color: 0x55392e, roughness: .95 }), part = (w, h, d, x, y, z, m = velvet) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); b.castShadow = b.receiveShadow = true; ac.add(b); };
+      part(0.64, 0.3, 0.6, 0, 0.21, 0); part(0.56, 0.1, 0.52, 0, 0.41, 0.02); part(0.64, 0.62, 0.15, 0, 0.62, -0.25); part(0.11, 0.24, 0.6, -0.27, 0.48, 0); part(0.11, 0.24, 0.6, 0.27, 0.48, 0);
+      for (const [x, z] of [[-0.26, -0.24], [0.26, -0.24], [-0.26, 0.24], [0.26, 0.24]]) part(0.05, 0.06, 0.05, x, 0.03, z, woodD);
+      ac.position.set(AC.x, 0, AC.z); ac.rotation.y = 0.75; group.add(ac); group.userData.armchair = AC;
+      }
+    /* ...no: on the writing desk by the window, on top of the case file — easy to spot, and fetching it shows you the notebook beside it */
+    hat.position.set(0.98, 0.855, -2.36); hat.rotation.set(0.04, 1.1, 0.03);
+    { const hl = new THREE.SpotLight(0xffe2b0, 7, 3.2, 0.32, 0.7, 1.2); hl.position.set(0.7, 2.6, -1.3); hl.target.position.set(0.98, 0.85, -2.36); group.add(hl, hl.target); group.userData.hatLight = hl; }   /* a soft top light, so a black hat reads against the dark desk (it goes when he takes it) */
+    group.add(hat); group.userData.hat = hat; hat.visible = !HatState.on;
     // the suitcase at the foot of the bed, half unpacked
     box(0.75, 0.2, 0.48, mat({ color: 0x4a3020, roughness: .6 }), BX1 + 0.55, 0.1, 0.55).rotation.y = 0.18;
     const lid = box(0.75, 0.04, 0.48, mat({ color: 0x4a3020, roughness: .6 }), BX1 + 0.55, 0.42, 0.24); lid.rotation.set(-1.25, 0.18, 0);
@@ -5577,6 +5720,9 @@ function buildRoom212() {
   const neonKey = new THREE.SpotLight(0xffb440, 130, 11, 0.5, 0.35, 1.3);
   neonKey.position.set(-1.9, 3.4, RZ - 1.2); neonKey.target.position.set(0.1, 0, -0.6);
   neonKey.castShadow = true; neonKey.shadow.mapSize.set(2048, 2048); neonKey.shadow.bias = -0.0004; neonKey.shadow.camera.near = 0.3; group.add(neonKey, neonKey.target);
+  // a cruiser down in the street once the Chief's text is read: red and blue through the blinds, washing over the armchair where the hat waits (it draws you to the window)
+  const cop = new THREE.SpotLight(0xff2a20, 0, 6, 0.7, 0.5, 1.0); cop.position.set(-0.3, 2.0, RZ + 0.15); cop.target.position.set(0.98, 0.85, -2.36); group.add(cop, cop.target);
+  const copWin = new THREE.SpotLight(0x3a60ff, 0, 6, 0.8, 0.5, 1.0); copWin.position.set(-0.4, 1.7, RZ + 0.15); copWin.target.position.set(0.9, 0.6, -2.0); group.add(copWin, copWin.target); let copK = 0;
   // a low blue-black fill so the shadows are night, not void
   const hemi = new THREE.HemisphereLight(0x4a5468, 0x1a100a, 1.1); group.add(hemi);
   const fill = new THREE.PointLight(0x8090b0, 3.0, 9, 1.4); fill.position.set(2.6, 2.6, 2.8); group.add(fill);
@@ -5612,6 +5758,7 @@ function buildRoom212() {
       if (circBlock(x, z, (DK.x0 + DK.x1) / 2 - 0.1, DK.z1 + 0.42, 0.24, r)) return true;    // chair
       if (rectBlock(x, z, RX, RX + 0.52, 1.8, 2.9, r)) return true;                          // dresser
       if (rectBlock(x, z, WIN.x0, WIN.x1, RZ, RZ + 0.25, r)) return true;                    // radiator
+      if (circBlock(x, z, -2.25, -2.05, 0.38, r)) return true;                               // armchair by the window (the hat's on it)
       return false;
     },
     groundY() { return 0; },
@@ -5619,7 +5766,7 @@ function buildRoom212() {
     spawns: { hotel: { x: doorX, z: doorZ, heading: 0 }, wake: { x: -2.05, z: 1.6, heading: 0 } },
     clock,
     portals: [{ x: doorX, z: doorZ, to: 'hotel', spawn: 'room212', label: 'The gallery' }],
-    props: [{ id: 'notebook', mesh: group.userData.nb, label: 'Read notebook' }, { id: 'hat', mesh: group.userData.hat, label: 'Put on your hat', reach: 1.6, act: () => HatState.take(group.userData.hat), when: () => !HatState.on && Guide.step !== 'msg' && !PhoneUI.isOpen }],   /* (not until the Chief's text is read and the phone's down) */
+    props: [{ id: 'notebook', mesh: group.userData.nb, label: 'Read notebook' }, { id: 'hat', mesh: group.userData.hat, label: 'Put on your hat', reach: 1.6, act: () => HatState.take(group.userData.hat), when: () => !HatState.on && Guide.step !== 'msg' && !PhoneUI.isOpen && !Intro.active }],   /* (not until the Chief's text is read and the phone's down) */
     patrol: [
       { p: [BX1 + 0.5, -0.5], wait: 3, face: Math.PI * 0.8 },     // stand in the stripes, looking out
       { p: [-0.6, RZ + 0.75], wait: 3.5, face: Math.PI },          // at the window, through the blinds
@@ -5643,6 +5790,10 @@ function buildRoom212() {
       let k = 0.94 + Math.sin(now * 31) * 0.02 + Math.sin(now * 7.3) * 0.03; if (ndl.off > 0) { ndl.off -= dt; k *= (Math.sin(now * 90) > 0.2 ? 0.25 : 1); }
       neonKey.intensity = 130 * k; signFace.color.setRGB(1 * k, 0.72 * k, 0.38 * k); halo.material.opacity = 0.55 * k;
       lamp.intensity = 5 * (0.97 + Math.sin(now * 11) * 0.015);
+      { const want = !HatState.on && typeof Guide !== 'undefined' && Guide.step && Guide.step !== 'msg' ? 1 : 0; copK += (want - copK) * Math.min(1, dt * 1.5);
+        const ph = (now * 1.6) % 1, red = ph < 0.5 ? Math.max(0, Math.sin(ph * 2 * Math.PI * 2)) : 0, blu = ph >= 0.5 ? Math.max(0, Math.sin((ph - 0.5) * 2 * Math.PI * 2)) : 0;
+        cop.intensity = 22 * red * copK; copWin.intensity = 26 * blu * copK; }
+      if (group.userData.hatLight) group.userData.hatLight.intensity = HatState.on ? 0 : 7;
       const rt = group.userData.rainT; if (rt) rt.offset.y = (now * 0.035) % 1;
       const a = dg.attributes.position.array; for (let i = 0; i < DN; i++) { a[i * 3 + 1] += Math.sin(now * 0.4 + dv[i]) * dt * 0.02 - dt * 0.004; a[i * 3] += Math.cos(now * 0.3 + dv[i]) * dt * 0.012; if (a[i * 3 + 1] < 0.2) a[i * 3 + 1] = 2.5; } dg.attributes.position.needsUpdate = true;
       ember.material.color.setRGB(1, 0.35 + Math.sin(now * 2.1) * 0.1, 0.1);
@@ -7926,7 +8077,13 @@ function buildBridge(mal = false) {      // mal: El Malecón, the island's seawa
   let car = convertible, police = false, siren = false;
   function useCar(c) { car = c; convertible.g.visible = c === convertible; cruiser.g.visible = c === cruiser; car.g.add(headlight, headlight.target); for (const b of blinkers) car.g.add(b); police = c === cruiser; setSiren(false); gasEl.classList.toggle('cop', police); }
   const st = { x: SLOTS[0], y: 0, z: 0, heading: 0, v: 18, slot: 0, mine: 0, camHead: 0, dt: 0.016, t: 0 };
-  const VMAX = 44.7, CRUISE = 18;                                 // 100 mph flat out, 40 mph cruising
+  const VMAX = 44.7, CRUISE = 18;
+  let hornAC = null, hornLast = 0;
+  function honk(d) { const now = performance.now(); if (now - hornLast < 450) return; hornLast = now;
+    try { const c = hornAC || (hornAC = new (window.AudioContext || window.webkitAudioContext)()); if (c.state === 'suspended') c.resume(); const t0 = c.currentTime + 0.01, vol = 0.1 * Math.max(0.3, 1 - d / 45), long = Math.random() < 0.4;
+      const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1300; const g = c.createGain(); g.gain.value = 0; lp.connect(g).connect(c.destination);
+      for (const [a, b] of long ? [[0, 0.75]] : [[0, 0.18], [0.27, 0.2]]) { g.gain.setValueAtTime(0, t0 + a); g.gain.linearRampToValueAtTime(vol, t0 + a + 0.02); g.gain.setValueAtTime(vol, t0 + b + a - 0.03); g.gain.linearRampToValueAtTime(0, t0 + a + b); }
+      for (const f of [392, 494]) { const o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f * (0.95 + Math.random() * 0.1); o.connect(lp); o.start(t0); o.stop(t0 + 0.9); } } catch (e) {} }                                 // 100 mph flat out, 40 mph cruising
   // blinkers: amber lamps at the four corners of our car, flashing on the side we're moving toward
   const blinkMat = [-1, 1].map(() => new THREE.MeshStandardMaterial({ color: 0x8a6420, emissive: 0xffa020, emissiveIntensity: 0, roughness: .4 }));
   const blinkers = [];
@@ -7941,7 +8098,10 @@ function buildBridge(mal = false) {      // mal: El Malecón, the island's seawa
   const traffic = [];
   const START_TRAFFIC = [[LANES[0], -45, -1, 12], [LANES[1], -45, -1, 12], [LANES[0], -130, -1, 12], [LANES[1], -95, -1, 12], [LANES[1], -150, -1, 12], [LANES[0], -210, -1, 12], [LANES[1], -210, -1, 12],
     [ONC[0], -30, 1, 17], [ONC[0], -100, 1, 17], [ONC[0], -170, 1, 17], [ONC[1], -60, 1, 14], [ONC[1], -140, 1, 14], [ONC[1], 10, 1, 14]];
-  for (const [x, z, dir, v] of START_TRAFFIC) { const c = makeCar({ color: pick(CAR_COLORS) }); c.g.rotation.order = 'YXZ'; group.add(c.g); traffic.push({ c, x, ex: x, z, dir, v, z0: z, hidden: false }); }
+  const flashM = new THREE.MeshBasicMaterial({ color: 0xfff4d8, transparent: true, opacity: 0.75, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }), flashG = new THREE.CircleGeometry(0.26, 16);
+  for (const [x, z, dir, v] of START_TRAFFIC) { const c = makeCar({ color: pick(CAR_COLORS) }); c.g.rotation.order = 'YXZ'; group.add(c.g);
+    const glow = new THREE.Group(); for (const sx of [-0.7, 0.7]) { const m = new THREE.Mesh(flashG, flashM); m.position.set(sx, 0.9, -2.08); m.rotation.y = Math.PI; m.scale.set(1.4, 0.8, 1); glow.add(m); } glow.visible = false; c.g.add(glow);   /* the brights, flashed at you */
+    traffic.push({ c, x, ex: x, z, dir, v, z0: z, hidden: false, glow }); }
   function trafficPose(t) {         // where a car actually is: on the main deck, or out on a branch past the fork
     if (fork && !fork.solo && t.dir < 0 && t.z < fork.zf) { const [x, y, , hd] = bpath(t.x < 4.2 ? 0 : 1, fork.zf)(fork.zf - t.z); return [x, y, hd, 0]; }
     return [t.ex, h(t.z), t.dir < 0 ? 0 : Math.PI, grade(t.z) * (t.dir < 0 ? 1 : -1)];
@@ -8019,7 +8179,7 @@ function buildBridge(mal = false) {      // mal: El Malecón, the island's seawa
   // --- input
   const keys = new Set(); let self;
   const KEYMAP = { ArrowUp: 'u', KeyW: 'u', ArrowDown: 'd', KeyS: 'd', ArrowLeft: 'l', KeyA: 'l', ArrowRight: 'r', KeyD: 'r' };
-  addEventListener('keydown', e => { if (S !== self || !KEYMAP[e.code]) return; e.preventDefault(); keys.add(KEYMAP[e.code]); if (!fork && !e.repeat && (KEYMAP[e.code] === 'l' || KEYMAP[e.code] === 'r')) moveSlot(KEYMAP[e.code] === 'l' ? -1 : 1); });
+  addEventListener('keydown', e => { if (S !== self || !KEYMAP[e.code]) return; e.preventDefault(); keys.add(KEYMAP[e.code]);  });
   addEventListener('keyup', e => { if (KEYMAP[e.code]) keys.delete(KEYMAP[e.code]); });
 
   function reset() {
@@ -8039,7 +8199,7 @@ function buildBridge(mal = false) {      // mal: El Malecón, the island's seawa
   const driveRain = new THREE.LineSegments(driveRainG, new THREE.LineBasicMaterial({ color: 0xb4b8bc, transparent: true, opacity: .32, depthWrite: false })); driveRain.frustumCulled = false; group.add(driveRain);
 
   const rot = (x, z, a) => [x * Math.cos(a) + z * Math.sin(a), -x * Math.sin(a) + z * Math.cos(a)];
-  self = { dbg: () => ({ st, gz, fork }),
+  self = { dbg: () => ({ st, gz, fork }), joyDrive: true,
     group,
     name: mal ? 'El Malecón' : 'The Drive',
     drive: true,
@@ -8058,11 +8218,13 @@ function buildBridge(mal = false) {      // mal: El Malecón, the island's seawa
       if (!mal) { const west = !trip || ['precinct', 'warehouse', 'fort'].includes(trip.to), look = west ? Math.PI * 1.5 : Math.PI / 2;   /* westbound: Old Town ahead; eastbound: Isla Luz and Osario ahead */
         towerG.visible = west; west0 = west; const skip = west ? ['wtower'] : [];
         self._title = west && !!trip && trip.spawn === 'garage' && !Found.has('skywayTitle');   /* the first time across, out of the garage */
-        if (self._title) { Found.add('skywayTitle'); const bt = document.getElementById('bigTitle') || (() => { const e = document.createElement('div'); e.id = 'bigTitle'; e.innerHTML = '<div class="ttl"><i>The Fall of</i><b data-t="CAINE">CAINE</b></div>'; document.body.appendChild(e); return e; })();
-          clearTimeout(self._tt1); clearTimeout(self._tt2); bt.classList.remove('on'); self._tt1 = setTimeout(() => bt.classList.add('on'), 2600); self._tt2 = setTimeout(() => bt.classList.remove('on'), 9800); }
+        if (self._title) { Found.add('skywayTitle'); const bt = showBigTitle(null), up = bt.classList.contains('on'); self._fromSky = up;   /* (came up the ramp into the sky shot: the title's already up) */
+          clearTimeout(self._tt1); clearTimeout(self._tt2); if (!up) self._tt1 = setTimeout(() => bt.classList.add('on'), 2600); self._tt2 = setTimeout(() => bt.classList.remove('on'), up ? 3000 : 9800); }
         if (self.skyline.look !== look || String(self.skyline.skip || []) !== String(skip)) { self.skyline.look = look; self.skyline.skip = skip; Skyline.rebuild(self); } }
-      self.garageFork = mal && !!trip && trip.spawn === 'garage' && !trip.to;   /* straight out of the garage: Skyway or straight on is chosen here */
-      reset(); gantry.visible = self.garageFork; lastOpts = null; lanePref = 'sky'; autoMergeT = 1.2; mergeEl._p = null; if (self.garageFork) { st.slot = 2; st.x = SLOTS[2]; }   /* out of the garage you're in the curb lane: to take the Skyway you merge left */
+      self.garageFork = mal && !!trip && trip.spawn === 'garage' && !trip.to;
+      self._titleRamp = self.garageFork && !Found.has('skywayTitle'); self._titleUp = false;   /* straight out of the garage: Skyway or straight on is chosen here */
+      reset(); gantry.visible = self.garageFork; lastOpts = null; lanePref = 'sky'; autoMergeT = 1.2; mergeEl._p = null; if (self.garageFork) { st.slot = 2; st.x = SLOTS[2]; }
+      if (trip && trip.car) { st.x = trip.car.x; st.heading = THREE.MathUtils.clamp(Math.atan2(Math.sin(trip.car.h), Math.cos(trip.car.h)), -0.6, 0.6); st.v = trip.car.v; trip.car = null; }   /* out of the garage you're in the curb lane: to take the Skyway you merge left */
       for (const t of traffic) if (t.c.g.parent !== group) group.add(t.c.g);
       self._laneT = 0; self._dist = 0;
       if (self._handoff) { traffic.forEach((t, i) => { t.z = self._handoff[i]; }); self._handoff = null; } mcam.snap = true;   /* start dead on the chase shot (the garage's crane lands exactly there) */
@@ -8075,16 +8237,16 @@ function buildBridge(mal = false) {      // mal: El Malecón, the island's seawa
       for (const A of [armL, armR]) { A.sh.rotation.x = -0.95; A.el.rotation.x = -0.6; }
       armL.sh.rotation.z = 0.32; armR.sh.rotation.z = -0.1;
       applyMood(M); gasEl.classList.add('show'); gasOff();
-      const hn = document.getElementById('hint'); hn.textContent = matchMedia('(pointer: coarse)').matches ? 'Double-tap to floor it' : 'Hold Space to floor it'; hn.style.opacity = 1;   /* the one tip the road needs */
+      const hn = document.getElementById('hint'); hn.textContent = matchMedia('(pointer: coarse)').matches ? 'Drag up for gas, sideways to steer · double-tap to floor it' : '↑ gas · ← → steer · hold Space to floor it'; hn.style.opacity = 1;   /* the one tip the road needs (same hands as the garage) */
       clearTimeout(self._ht); self._ht = setTimeout(() => hn.style.opacity = 0, 7000);
     },
-    onExit() { clearTimeout(self._tt1); clearTimeout(self._tt2); const bt = document.getElementById('bigTitle'); if (bt) bt.classList.remove('on'); mergeOn = false; mergeEl.classList.remove('on'); MCam.hide(); gasEl.classList.remove('show'); gasOff(); setSiren(false); camera.far = 100; camera.updateProjectionMatrix(); scene.add(man); man.rotation.set(0, 0, 0); armL.sh.rotation.z = 0.08; armR.sh.rotation.z = -0.08; canvas.style.filter = ''; keys.clear(); },
+    onExit() { clearTimeout(self._tt1); clearTimeout(self._tt2); const bt = document.getElementById('bigTitle'); if (bt && !self._titleUp) bt.classList.remove('on'); self._titleUp = false;   /* (leaving the ramp under the sky shot, the title rides across into the Skyway) */ mergeOn = false; mergeEl.classList.remove('on'); MCam.hide(); gasEl.classList.remove('show'); gasOff(); setSiren(false); camera.far = 100; camera.updateProjectionMatrix(); scene.add(man); man.rotation.set(0, 0, 0); armL.sh.rotation.z = 0.08; armR.sh.rotation.z = -0.08; canvas.style.filter = ''; keys.clear(); },
     onClick(e) {     // tap a side to move that way; tap twice quickly to put your foot down (again to keep it there)
       const t = performance.now() / 1000, dbl = t - lastTap < 0.33 && Math.abs(e.clientX - lastX) < 120; lastTap = dbl ? 0 : t; lastX = e.clientX;
       if (dbl) { boostUntil = Math.min(Math.max(boostUntil, t) + 4, t + 8); gasEl.classList.remove('kick'); void gasEl.offsetWidth; gasEl.classList.add('kick'); document.getElementById('hint').style.opacity = 0; }
       if (fork) return;
       if (dbl) return;                                       // the first tap already moved us
-      if (e.clientX < innerWidth * 0.45) moveSlot(-1); else if (e.clientX > innerWidth * 0.55) moveSlot(1); else return;
+      return;   /* (single taps don't hop lanes any more: you steer) */
       document.getElementById('hint').style.opacity = 0;
     },
     // picked a destination: split the road at the sign ahead (or the next clear stretch), and take that side
@@ -8108,6 +8270,11 @@ function buildBridge(mal = false) {      // mal: El Malecón, the island's seawa
         mcam.tp.set(st.x + ox, st.y + py, st.z + oz); mcam.tl.set(st.x + lx, st.y + ly, st.z + lz);
         const k = mcam.snap ? 1 : 1 - Math.exp(-st.dt * (want === mcam.last ? 6 : 1.1)); mcam.snap = false; mcam.last = want;
         mcam.p.lerp(mcam.tp, k); mcam.l.lerp(mcam.tl, k); outPos.copy(mcam.p); outLook.copy(mcam.l); MCam.show(want);
+        /* the first time up the Skyway ramp: the camera pulls back, swings out to the side and tilts up into the night — the title comes up in the dark sky —
+           and the drive hands over while we're looking at nothing but sky */
+        if (self._titleRamp && fork && fork.solo) { const k2 = ss(35, 122, fork.a), e = k2 * k2 * (3 - 2 * k2), [sx, sz] = rot(-45, 35, st.camHead), [lx, lz] = rot(0, -150, st.camHead);
+          outPos.lerp(new THREE.Vector3(st.x + sx, st.y + 30, st.z + sz), e); outLook.lerp(new THREE.Vector3(st.x + lx, st.y + 210, st.z + lz), e);
+          if (fork.a > 88 && !self._titleUp) { self._titleUp = true; showBigTitle(true); } }
       } else if (mode === 'over') {     // a drone following the car, high and behind, like the aerial shots of the Skyway
         st.camHead += (st.heading - st.camHead) * Math.min(1, st.dt * 2);
         const pull = Math.max(0, st.v - 18) * 0.3;   // the drone falls back a little as you open it up
@@ -8117,9 +8284,11 @@ function buildBridge(mal = false) {      // mal: El Malecón, the island's seawa
         const T = self._title, u = THREE.MathUtils.clamp((st.t - (T ? 11 : 3.5)) / (T ? 6 : 5), 0, 1), w = u * u * (3 - 2 * u);
         if (w < 1 && T) {   /* the first crossing: way out over the water south of the span, the whole bridge running across the frame,
                                Old Town ahead on the left, the Light on its rock out in the middle of the bay — and the title comes up */
-          const drift = st.t * 1.2, [wx, wz] = rot(-120 + drift, 40 - drift * 2, st.camHead), [vx, vz] = rot(60, -110, st.camHead);
-          outPos.set(THREE.MathUtils.lerp(st.x + wx, outPos.x, w), THREE.MathUtils.lerp(st.y + 26, outPos.y, w), THREE.MathUtils.lerp(st.z + wz, outPos.z, w));
-          outLook.set(THREE.MathUtils.lerp(st.x + vx, outLook.x, w), THREE.MathUtils.lerp(st.y + 10, outLook.y, w), THREE.MathUtils.lerp(st.z + vz, outLook.z, w));
+          const drift = st.t * 1.2; let [wx, wz] = rot(-120 + drift, 40 - drift * 2, st.camHead), [vx, vz] = rot(60, -110, st.camHead), wy = 26, vy = 10;
+          if (self._fromSky) { const k = 1 - ss(0.6, 4.6, st.t), [sx, sz] = rot(-45, 35, st.camHead), [lx, lz] = rot(0, -150, st.camHead);   /* down out of the sky into the wide */
+            wx += (sx - wx) * k; wz += (sz - wz) * k; wy += (30 - wy) * k; vx += (lx - vx) * k; vz += (lz - vz) * k; vy += (210 - vy) * k; }
+          outPos.set(THREE.MathUtils.lerp(st.x + wx, outPos.x, w), THREE.MathUtils.lerp(st.y + wy, outPos.y, w), THREE.MathUtils.lerp(st.z + wz, outPos.z, w));
+          outLook.set(THREE.MathUtils.lerp(st.x + vx, outLook.x, w), THREE.MathUtils.lerp(st.y + vy, outLook.y, w), THREE.MathUtils.lerp(st.z + vz, outLook.z, w));
         } else if (w < 1) { const [wx, wz] = rot(-34, 6, st.camHead), [vx, vz] = rot(14, -300, st.camHead);
           outPos.set(THREE.MathUtils.lerp(st.x + wx, outPos.x, w), THREE.MathUtils.lerp(st.y + 5, outPos.y, w), THREE.MathUtils.lerp(st.z + wz, outPos.z, w));
           outLook.set(THREE.MathUtils.lerp(st.x + vx, outLook.x, w), THREE.MathUtils.lerp(st.y + 12, outLook.y, w), THREE.MathUtils.lerp(st.z + vz, outLook.z, w)); }
@@ -8137,7 +8306,6 @@ function buildBridge(mal = false) {      // mal: El Malecón, the island's seawa
       /* the merge: coming up on the sign, a card tells you the left lane is the Skyway, and which way to steer; it ticks when you're in it */
       { const d = st.z - gz, on = self.garageFork && !drv.chosen && gantry.visible && d > 26 && d < 190;
         if (on !== mergeOn) { mergeOn = on; mergeEl.classList.toggle('on', on); }
-        if (on && lanePref === 'sky' && st.slot > 0 && d < 175 && (autoMergeT -= dt) <= 0) { moveSlot(-1, true); autoMergeT = 1.5; }   /* signal, ease over a lane, signal again */
         if (on && mergeEl._p !== lanePref) { mergeEl._p = lanePref; mergeEl.classList.toggle('mal', lanePref === 'mal');
           mergeEl.innerHTML = lanePref === 'sky' ? '<b>Skyway → Precinct</b>' : '<b>Malecón → Cemetery</b>'; } }
       if (driveRain.visible) { const ra = driveRainG.attributes.position.array; for (let q = 1; q < ra.length; q += 3) { ra[q] -= dt * 18; if (ra[q] < -2) ra[q] += 22; } driveRainG.attributes.position.needsUpdate = true; driveRain.position.set(camera.position.x, 0, camera.position.z); }
@@ -8146,47 +8314,67 @@ function buildBridge(mal = false) {      // mal: El Malecón, the island's seawa
       for (const t of traffic) t.z += t.dir * t.v * (t.slow ? 0.7 : 1) * dt * Math.cos(fork && !fork.solo && t.dir < 0 && t.z < fork.zf ? Math.atan((fork.zf - t.z) / R) : 0);
       const onBranch = fork && st.z < fork.zf;
       {
-        const T = performance.now() / 1000, floor = boosting();
-        let want = keys.has('d') ? 0 : floor ? VMAX : CRUISE;
-        const px = SLOTS[st.slot], look = 22 + st.v * 1.6;
-        const inPath = (x) => (t) => !t.hidden && t.dir < 0 && Math.abs(t.ex - x) < CAR_W && st.z - t.z > 0 && st.z - t.z < look;
-        const ahead = traffic.filter(inPath(px)).sort((a, b) => b.z - a.z)[0];
-        if (ahead) {
-          // left to itself (you haven't steered lately), it pulls out to pass if a neighbouring spot is clear
-          let moved = false;
-          if (!fork && !(self.garageFork && !drv.chosen) && T > st.mine && Math.abs(st.x - px) < 0.4) for (const d of st.slot === 1 ? [-1, 1] : [st.slot ? -1 : 1, st.slot ? -2 : 2]) {
-            const ns = st.slot + d; if (ns < 0 || ns > 2) continue; const nx = SLOTS[ns];
-            if (!siren && !traffic.some(t => !t.hidden && t.dir < 0 && Math.abs(t.ex - nx) < CAR_W && t.z > st.z - look && t.z < st.z + 8)) { st.slot = ns; blinkSide = Math.sign(d); blinkUntil = T + 1.6; moved = true; break; }
+        /* ONE CAR, EVERYWHERE: the same hands as in the garage. Up is gas, down brakes (then reverses), left/right steer — keys, or the thumb on a phone.
+           A light hand on the wheel when you let go: she settles into the middle of whichever lane she's nearest (ours or theirs) and straightens up. */
+        const T = performance.now() / 1000;
+        let thr = (keys.has('u') ? 1 : 0) - (keys.has('d') ? 1 : 0), str = (keys.has('l') ? 1 : 0) - (keys.has('r') ? 1 : 0);
+        if (joy.on) { thr = THREE.MathUtils.clamp(-joy.y * 1.4, -1, 1); str = THREE.MathUtils.clamp(-joy.x * 1.3, -1, 1); }
+        const boost = gas || T < boostUntil; if (boost) thr = Math.max(thr, 1);
+        const top = boost ? DRIVE.BOOST : DRIVE.TOP;
+        if (thr > 0) st.v = Math.min(Math.max(top, st.v), st.v + (boost ? DRIVE.ACC_BOOST : DRIVE.ACC) * thr * dt);
+        else if (thr < 0) st.v = st.v > 0.2 ? st.v - DRIVE.BRAKE * dt : Math.max(-DRIVE.REV, st.v - 4 * dt);
+        else st.v *= Math.pow(DRIVE.COAST, dt);
+        if (st.v > top) st.v = Math.max(top, st.v - 8 * dt);
+        if (!onBranch) {
+          st.heading += str * DRIVE.steer(st.v) * dt;
+          if (Math.abs(str) > 0.3 && self.garageFork && !drv.chosen) lanePref = str > 0 ? 'sky' : 'mal';   /* steering decides the split: left for the Skyway, right for the cemetery */
+          if (Math.abs(str) < 0.1 && Math.abs(st.v) > 1.5) {
+            const lanes = mal ? [6.2, 2.2, -2.2, -6.2] : [6.2, 2.2];
+            let tgt = lanes.reduce((b, lx) => Math.abs(lx - st.x) < Math.abs(b - st.x) ? lx : b, lanes[0]);
+            if (mergeOn && lanePref === 'sky' && st.x > 0) tgt = 2.2;   /* heading for the bridge: she eases over into the Skyway lane by herself */
+            const wantH = THREE.MathUtils.clamp(-(tgt - st.x) * 0.07, -0.16, 0.16) * Math.sign(st.v);
+            st.heading += (wantH - st.heading) * Math.min(1, dt * 2.2);
           }
-          const gap = st.z - ahead.z;
-          if (!moved && gap < st.v * 1.1 + 9) want = Math.min(want, ahead.v * (gap < 8 ? 0.8 : 1));
+          st.heading = THREE.MathUtils.clamp(st.heading, -0.6, 0.6);
         }
-        const rate = want > st.v ? (floor ? 9 : 3) : (want < st.v - 6 ? 16 : 4);
-        st.v += Math.sign(want - st.v) * Math.min(Math.abs(want - st.v), rate * dt);
-        if (!onBranch) { const tgt = THREE.MathUtils.clamp(-0.12 * (SLOTS[st.slot] - st.x), -0.1, 0.1) * Math.min(1, 26 / Math.max(st.v, 1)) * 1.6; st.heading += (tgt - st.heading) * Math.min(1, dt * 3); if (Math.abs(SLOTS[st.slot] - st.x) < 0.5) st.x += (SLOTS[st.slot] - st.x) * Math.min(1, dt * 2.5); }   // settle dead centre, so a split really fits
-        // blinkers
+        st.slot = st.x < 4.2 ? 0 : 2;   /* (which side of the split you're on, for the sign) */
+        if (Math.abs(st.heading) > 0.07 && Math.abs(st.v) > 3) { blinkSide = st.heading > 0 ? -1 : 1; blinkUntil = T + 0.5; }
         const on = T < blinkUntil && Math.floor(T * 3.2) % 2 === 0;
         blinkMat[0].emissiveIntensity = on && blinkSide < 0 ? 3 : 0; blinkMat[1].emissiveIntensity = on && blinkSide > 0 ? 3 : 0;
       }
       if (onBranch) {        // follow the ramp, easing out whatever lane offset we came in with
         fork.a = fork.zf - st.z; if (fork.off === null) fork.off = st.x - LANES[fork.side];
-        const [x, , , hd] = bpath(fork.side, fork.zf)(fork.a);
-        st.heading = hd; st.z += -Math.cos(hd) * st.v * dt; st.x = x + fork.off * Math.exp(-fork.a / 10);
+        const [x, , , hd] = bpath(fork.side, fork.zf)(fork.a), sr = (keys.has('l') ? 1 : 0) - (keys.has('r') ? 1 : 0) + (joy.on ? -joy.x * 1.3 : 0);
+        fork.steer = THREE.MathUtils.clamp((fork.steer || 0) - THREE.MathUtils.clamp(sr, -1, 1) * 2.2 * dt, -1.3, 1.3);   /* you can still wander across the ramp */
+        st.heading = hd; st.z += -Math.cos(hd) * st.v * dt; st.x = x + fork.off * Math.exp(-fork.a / 10) + fork.steer;
       } else {
         st.x += -Math.sin(st.heading) * st.v * dt; st.z += -Math.cos(st.heading) * st.v * dt;
-        if (st.x < 1.1) { st.x = 1.1; st.heading *= 0.5; } if (st.x > EDGE - 1.1) { st.x = EDGE - 1.1; st.heading *= 0.5; st.v *= 0.99; }
+        const minX = mal ? -EDGE + 1.1 : 1.1;   /* the Malecón's open: cross the line into the oncoming lanes if you like. The Skyway has its median wall */
+        if (st.x < minX) { st.x = minX; st.heading *= 0.5; st.v *= 0.99; } if (st.x > EDGE - 1.1) { st.x = EDGE - 1.1; st.heading *= 0.5; st.v *= 0.99; }
       }
       const yNow = onBranch ? bpath(fork.side, fork.zf)(fork.zf - st.z)[1] : h(st.z);
       const pitch = Math.atan((onBranch ? (bpath(fork.side, fork.zf)(fork.zf - st.z + 0.5)[1] - bpath(fork.side, fork.zf)(Math.max(0, fork.zf - st.z - 0.5))[1]) : grade(st.z)));
       st.y = yNow;
       const mph = Math.round(st.v * 2.237); if (mph !== mphShown) { mphShown = mph; mphEl.textContent = mph; }
-      // traffic: bump, recycle, pose
-      for (const t of traffic) {
-        if (t.hidden) continue;
-        if (onBranch || t.dir > 0 || Math.abs(t.ex - st.x) >= CAR_W - 0.08) continue;
-        const dz = st.z - t.z;
-        if (dz > 3.6 && dz < 4.6) { st.v = Math.min(st.v, t.v * 0.9); st.z = t.z + 4.6; }                                   // nose to tail: tuck in behind
-        else if (Math.abs(dz) <= 3.6) { st.x = t.ex + Math.sign(st.x - t.ex || 1) * CAR_W; st.v *= 0.97; st.slot = SLOTS.reduce((bi, sx, k) => Math.abs(sx - st.x) < Math.abs(SLOTS[bi] - st.x) ? k : bi, 0); }   // side by side: scrape off
+      // traffic: anyone you put yourself in front of brakes for you — leans on the horn, flashes the brights — and contact is a bump, not a slide
+      { const T = performance.now() / 1000;
+        for (const t of traffic) {
+          if (t.hidden) continue; t.v0 ??= t.v;
+          const dx = Math.abs(t.ex - st.x), dz = st.z - t.z, fwd = dz * t.dir;   /* fwd > 0: we're in front of it, in its direction of travel */
+          let want = t.v0;
+          if (!onBranch && dx < CAR_W + 0.5 && fwd > 0 && fwd < (t.dir > 0 ? 95 : 45)) {   /* oncoming drivers see you coming from further off */
+            const gap = fwd - 4.8;
+            want = t.dir < 0 ? Math.min(t.v0, Math.max(0, st.v) * THREE.MathUtils.clamp(gap / 12, 0, 1)) : t.v0 * THREE.MathUtils.clamp((gap - 8) / 60, 0, 1);
+            if (fwd < (t.dir > 0 ? 60 : 30) && (t.dir > 0 || want < t.v0 * 0.7) && T > (t.honkT || 0)) { t.honkT = T + 2 + Math.random() * 1.5; honk(fwd); t.flashT = T + 1.1; }
+          }
+          for (const o of traffic) { if (o === t || o.hidden || o.dir !== t.dir || Math.abs(o.ex - t.ex) > 1.2) continue; const g = (o.z - t.z) * t.dir; if (g > 0 && g < 14) want = Math.min(want, o.v * THREE.MathUtils.clamp((g - 5.5) / 6, 0, 1)); }   /* and they queue behind each other */
+          t.v += (want - t.v) * Math.min(1, dt * (want < t.v ? (t.dir > 0 ? 6 : 3.5) : 0.7));
+          if (t.glow) t.glow.visible = T < (t.flashT || 0) && Math.floor(T * 9) % 2 === 0;
+          if (onBranch || dx >= CAR_W - 0.08 || Math.abs(dz) >= 4.6) continue;
+          if (dx > CAR_W - 0.75) { st.x = t.ex + Math.sign(st.x - t.ex || 1) * (CAR_W - 0.08); st.v *= 0.97; }                  // side by side: scrape off
+          else if (t.dir < 0 && dz > 0) { st.z = t.z + 4.6; st.v = Math.min(st.v, t.v * 0.9); if (T > (t.honkT || 0)) { honk(8); t.honkT = T + 3; } }   // up his tailpipe: you're held at his pace, and he lets you know about it
+          else { st.z = t.z + Math.sign(dz || 1) * 4.6; st.v = -0.2 * st.v; t.v = 0; t.flashT = T + 0.8; if (T > (t.honkT || 0) - 1.5) { honk(2); t.honkT = T + 2.5; } }   // nose to nose: a thump, both stop
+        }
       }
       for (const t of traffic) {
         const behind = t.z - st.z > 40, tooFar = st.z - t.z > 330;
@@ -8555,7 +8743,7 @@ function driveChoice(dt) {
   }
   drv.t += dt;
   if (drv.chosen && drv.chosen !== 'gone') { drv.left -= dt; if (S.arrived ? S.arrived() || drv.left < -90 : drv.left <= 0) { const to = drv.chosen; drv.chosen = 'gone'; whereTo.classList.remove('show');
-      if (trip && trip.i < trip.legs.length - 1) { trip.i++; loadScene(trip.legs[trip.i], { spawn: trip.spawn }); return; }
+      if (trip && trip.i < trip.legs.length - 1) { trip.i++; loadScene(trip.legs[trip.i], { spawn: trip.spawn, instant: !!(S._titleUp) }); return; }   /* (no fade under the sky shot: it's one move) */
       trip = null; DEST[to].go(); } }
 }
 
@@ -8646,7 +8834,7 @@ canvas.addEventListener('pointerdown', e => {
 canvas.addEventListener('pointermove', e => {
   if (e.pointerId !== joy.id) return;
   const dx = e.clientX - joy.x0, dy = e.clientY - joy.y0, d = Math.hypot(dx, dy);
-  if (!joy.on && d > 12 && !(S && S.drive)) { joy.on = true; joyEl.style.left = joy.x0 + 'px'; joyEl.style.top = joy.y0 + 'px'; joyEl.classList.add('on'); document.getElementById('hint').style.opacity = 0; }
+  if (!joy.on && d > 12 && !(S && S.drive && !S.joyDrive)) { joy.on = true; joyEl.style.left = joy.x0 + 'px'; joyEl.style.top = joy.y0 + 'px'; joyEl.classList.add('on'); document.getElementById('hint').style.opacity = 0; }
   if (!joy.on) return;
   const k = Math.min(1, d / 50), a = Math.atan2(dy, dx); joy.far = d > 85; joyEl.classList.toggle('far', joy.far);
   joy.x = Math.cos(a) * k; joy.y = Math.sin(a) * k;
@@ -8659,7 +8847,6 @@ const joyEnd = e => {
   joy.on = false; joy.id = null; joy.x = joy.y = 0; joyEl.classList.remove('on'); knob.style.transform = '';
 };
 canvas.addEventListener('pointerup', joyEnd); canvas.addEventListener('pointercancel', joyEnd);
-if (matchMedia('(pointer: coarse)').matches) document.getElementById('hint').textContent = 'Walk';
 const ctrl = { yaw: null, t: 0 };
 function keyWalk(dt) {
   if (typeof FreeCam !== 'undefined' && FreeCam.on) return;
@@ -8877,7 +9064,7 @@ const Intro = (() => {
     #intro .ttl i { display: block; text-align: left; padding-left: .5em; margin-bottom: -.42em; position: relative; z-index: 1; font: 400 clamp(26px, 4vw, 44px) 'Great Vibes', cursive; text-shadow: 0 .1em .5em #000; }   /* tucked down onto CAINE's top-left corner */
     #intro .ttl b { display: block; position: relative; margin-top: .04em; text-shadow: -0.75px 0.70px 0 rgb(114,112,106),-1.50px 1.40px 0 rgb(111,109,103),-2.25px 2.10px 0 rgb(107,105,99),-3.00px 2.80px 0 rgb(104,102,96),-3.75px 3.50px 0 rgb(101,99,93),-4.50px 4.20px 0 rgb(97,95,89),-5.25px 4.90px 0 rgb(94,92,86),-6.00px 5.60px 0 rgb(90,88,82),-6.75px 6.30px 0 rgb(87,85,79),-7.50px 7.00px 0 rgb(84,82,76),-8.25px 7.70px 0 rgb(80,78,72),-9.00px 8.40px 0 rgb(77,75,69),-9.75px 9.10px 0 rgb(73,71,65),-10.50px 9.80px 0 rgb(70,68,62),-11.25px 10.50px 0 rgb(67,65,59),-12.00px 11.20px 0 rgb(63,61,55),-12.75px 11.90px 0 rgb(60,58,52),-13.50px 12.60px 0 rgb(56,54,48),-14.25px 13.30px 0 rgb(53,51,45),-15.00px 14.00px 0 rgb(50,48,42),-15.75px 14.70px 0 rgb(46,44,38),-16.50px 15.40px 0 rgb(43,41,35), -22px 26px 28px rgba(0,0,0,.75) !important; font: 400 clamp(84px, 15vw, 170px) 'Bebas Neue', Impact, sans-serif; letter-spacing: .04em; text-shadow: 2px 2px 0 #8d8c90, 4px 4px 0 #5a595d, 6px 8px 22px rgba(0,0,0,.8); }
     /* the title again, over the Skyway, the first time you cross: same lettering, no button */
-    #bigTitle { position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center; pointer-events: none; opacity: 0; transition: opacity 1.6s ease; font-size: clamp(64px, 11vw, 150px); color: #e8e2d2; }
+    #bigTitle { position: fixed; inset: 0 0 38% 0; z-index: 40; display: flex; align-items: center; justify-content: center; pointer-events: none; opacity: 0; transition: opacity 1.6s ease; font-size: clamp(64px, 11vw, 150px); color: #e8e2d2; }
     #bigTitle.on { opacity: 1; }
     #bigTitle .ttl i { color: #efe8d6; font-size: clamp(30px, 4.6vw, 58px) !important; }
     #bigTitle .ttl { filter: drop-shadow(0 0 18px rgba(0,0,0,.9)); opacity: 0; transform-origin: 40% 70%; transform: perspective(700px) rotateY(-26deg) rotateX(9deg) rotate(-3deg) translateY(10px); transition: opacity 3s ease 1.2s, transform 3s ease 1.2s; line-height: .86; user-select: none; }
@@ -8911,6 +9098,10 @@ const Intro = (() => {
     #guide small { display: block; margin-top: 6px; font: italic 14px Georgia, serif; letter-spacing: .01em; text-transform: none; color: #c4b89c; }
     body.guiding #bottomBar.calm { opacity: 1; }   /* the button being pointed at stays lit */
     body.phoneOnly #musicBtn, body.phoneOnly #camToggle { opacity: .25; pointer-events: none; }
+    /* UI RULE: one thing emphasised at a time. With the phone up, the phone is the thing: the HUD round it steps back, and nothing outside it nudges */
+    body.phoneUp #musicBtn, body.phoneUp #camToggle, body.phoneUp #logo, body.phoneUp #hudLogo { opacity: 0 !important; pointer-events: none; transition: opacity .3s; }
+    body.phoneUp #phoneBtn { opacity: .5; border-color: #666 !important; color: #ddd !important; animation: none !important; box-shadow: none !important; }
+    body.phoneUp #phoneBtn::after { display: none !important; }
     .nudge { animation: nudgeRing 1.8s ease-out infinite; border-color: #e2b23a !important; }
     @keyframes nudgeRing { 0% { box-shadow: 0 0 0 0 rgba(226,178,58,.55); } 100% { box-shadow: 0 0 0 12px rgba(226,178,58,0); } }
     #textNote { position: fixed; left: 50%; top: 14px; z-index: 45; width: min(400px, calc(100vw - 24px)); transform: translate(-50%, -140%); transition: transform .55s cubic-bezier(.2,.9,.25,1.15);
@@ -8962,11 +9153,13 @@ const Intro = (() => {
     const black = document.createElement('div'); black.id = 'abyss'; black.style.cssText = 'position:fixed;inset:0;z-index:42;background:#000;opacity:0;pointer-events:none;transition:opacity 1.6s ease-in 1.7s'; document.body.appendChild(black);
     requestAnimationFrame(() => requestAnimationFrame(() => { black.style.opacity = 1; }));
     musicEl.play().then(() => { if (introQuiet) { musicEl.pause(); musicEl.currentTime = 0; } }).catch(() => {});   // unlock the music on this tap (phones), but keep it quiet for now
-    timers.push(setTimeout(verse, 3600));                                            // in the black: Genesis 4:7, and the theme comes in
-    timers.push(setTimeout(() => { pagerChirp(); }, 12400));   // then his phone goes off in the dark: the little two-tone pager chirp (old textAlert() kept below, unused)
-    timers.push(setTimeout(() => { loadScene('room212', { instant: true, spawn: 'wake' }); }, 13700));   // eyes open on the chime   // ...and he's awake
+    const VERSE = false, gap = VERSE ? 0 : 6000;   /* the Genesis verse is off for now (not tied in yet): the dark is shorter without it */
+    timers.push(setTimeout(() => verse(VERSE), 3600));                                            // in the black: Genesis 4:7, and the theme comes in
+    timers.push(setTimeout(() => { pagerChirp(); }, 12400 - gap));   // then his phone goes off in the dark: the little two-tone pager chirp (old textAlert() kept below, unused)
+    timers.push(setTimeout(() => { loadScene('room212', { instant: true, spawn: 'wake' }); }, 13700 - gap));   // eyes open on the chime   // ...and he's awake
   }
-  function verse() {
+  function verse(show = true) {
+    if (!show) { introQuiet = false; started = true; musicEl.currentTime = 0; if (musicOn) musicEl.play().catch(() => {}); return; }   /* (just the theme coming in) */
     const v = document.createElement('div'); v.id = 'verse';
     v.innerHTML = '<p>If you do well, will you not be accepted? And if you do not do well, sin is crouching at the door. Its desire is contrary to you, but you must rule over it.</p><span>GENESIS 4:7 · ESV</span>';
     document.body.appendChild(v); requestAnimationFrame(() => requestAnimationFrame(() => v.classList.add('on')));
@@ -9058,8 +9251,8 @@ const Guide = (() => {
   const nudge = (id, on) => { const b = document.getElementById(id); if (b) b.classList.toggle('nudge', on); };
   const go = (st) => { step = st; seen = 0; lookT = 0; document.body.classList.toggle('phoneOnly', st === 'msg'); document.body.classList.toggle('guiding', st === 'msg' || st === 'look');
     if (st === 'msg') { say('New message', touch ? 'tap your phone, then Messages' : 'click your phone (or press P), then Messages'); nudge('phoneBtn', true); }
-    if (st === 'hat') { nudge('phoneBtn', false); say('Grab your hat', 'on the bed'); }
-    if (st === 'walk') { nudge('phoneBtn', false); say('Head for the door', touch ? 'drag anywhere to walk · or tap where to go' : 'WASD or arrow keys · or click where to go'); }
+    if (st === 'hat') { nudge('phoneBtn', false); say('Grab your hat', touch ? 'on the desk · drag to walk there' : 'on the desk · WASD or arrows to walk'); }   /* the walking lesson: walk to the hat */
+    if (st === 'walk') { nudge('phoneBtn', false); say('Head for the door', touch ? 'or tap where to go' : 'or click where to go'); }
     if (st === 'bellhop') { say('Talk to the bellhop', 'by the front desk'); }
     if (st === 'look') { say('Look up at her', (touch ? 'tap the eye' : 'click the eye or press C') + ' to see through his eyes · drag to look up at the skeleton'); nudge('camToggle', true); }
     if (st === 'bridge') { nudge('camToggle', false); say('Take the walkway to your car', 'the green doors past the grand stair'); }
@@ -9069,7 +9262,8 @@ const Guide = (() => {
   function update(dt) {
     if (!step || !S) return;
     if (step === 'msg') { const m = PhoneUI.threads.find(t => t.from === 'CHIEF R.'); if (PhoneUI.isOpen) el.classList.remove('on'); else if (m && !m.unread) go(HatState.on ? 'walk' : 'hat'); else el.classList.add('on'); }
-    else if (step === 'hat') { el.classList.toggle('on', !PhoneUI.isOpen); if (HatState.on) go('walk'); }
+    else if (step === 'hat') { const h = S.group.userData.hat; let near = false; if (h && currentKey === 'room212') { h.getWorldPosition(_d); near = Math.hypot(_d.x - pos.x, _d.z - pos.z) < 1.5; }   /* within reach, the pick-up prompt takes over */
+      el.classList.toggle('on', !PhoneUI.isOpen && !near); if (HatState.on) go('walk'); }
     else if (step === 'walk') { if (PhoneUI.isOpen) el.classList.remove('on'); else el.classList.add('on'); if (currentKey === 'hotel') go('bellhop'); }
     else if (step === 'bellhop') { el.classList.toggle('on', currentKey === 'hotel' && !Dialogue.isOpen && !PhoneUI.isOpen);   // (wander back upstairs and it waits for you)
       /* (no forced talk: you go up to Eddie yourself. The doors stay shut till you have — see blocks()) */
@@ -9082,13 +9276,15 @@ const Guide = (() => {
     }
     else if (step === 'bridge') { if (currentKey === 'skybridge') { say('', ''); go(null); } else if (camMode === 'street') el.classList.remove('on'); else el.classList.add('on'); }
   }
-  return { get step() { return step; }, get locked() { return step === 'msg'; }, get onlyHat() { return step === 'hat'; }, start() { go('msg'); }, skip() { step = null; document.body.classList.remove('phoneOnly', 'guiding'); el.classList.remove('on'); nudge('phoneBtn', false); nudge('camToggle', false); }, update, heard() { if (step === 'bellhop' && BELLHOP.stage === 1) go('look'); },
+  return { get step() { return step; }, get locked() { return step === 'msg'; }, get onlyHat() { return step === 'hat'; }, start() { go('msg'); }, skip() { step = null; document.body.classList.remove('phoneOnly', 'guiding'); el.classList.remove('on'); nudge('phoneBtn', false); nudge('camToggle', false); }, update, heard() { if (step === 'bellhop' && BELLHOP.stage === 1) go('look'); else if ((step === 'bellhop' || step === 'look') && BELLHOP.stage >= 2) { nudge('camToggle', false); if (camMode === 'street') btnO.onclick(); go('bridge'); } },   /* (the look now happens inside the talk; walk off mid-talk and the old look step still catches it) */
     /* no leaving the lobby until Eddie's said his piece and you've looked up at her (the lift back to 212 still works) */
-    blocks(pt) { if (currentKey !== 'hotel' || !['walk', 'bellhop', 'look', 'after'].includes(step) || pt.to === 'room212') return false;
+    blocks(pt) {
+      if (currentKey === 'room212' && !HatState.on && pt.to !== 'room212') { const now = performance.now(); if (now - blockT > 1500) { blockT = now; say('Grab your hat first', 'on the desk by the window'); el.classList.add('on'); setTimeout(() => { if (!step) el.classList.remove('on'); }, 3000); } return true; }   /* he doesn't go out without it */
+      if (currentKey !== 'hotel' || !['walk', 'bellhop', 'look', 'after'].includes(step) || pt.to === 'room212') return false;
       const now = performance.now(); if (now - blockT > 1500) { blockT = now; if (step === 'look') say('Look up at her first', (touch ? 'tap the eye' : 'click the eye or press C') + ' · then the bellhop will point you on'); else if (step === 'after') say('Hear him out', 'the bellhop has something to tell you'); else say('Talk to the bellhop first', 'by the front desk'); el.classList.add('on'); }
       return true; },
     /* POV during the look step opens already facing the skeleton, tilted up at her */
-    aimDino() { if (step !== 'look' || currentKey !== 'hotel' || !S || !S.dinoBits || !S.dinoBits.length) return; let x = 0, y = 0, z = 0; for (const b of S.dinoBits) { x += b.x; y += b.y; z += b.z; } const n = S.dinoBits.length; x /= n; y /= n; z /= n;
+    aimDino(force) { if ((step !== 'look' && !force) || currentKey !== 'hotel' || !S || !S.dinoBits || !S.dinoBits.length) return; let x = 0, y = 0, z = 0; for (const b of S.dinoBits) { x += b.x; y += b.y; z += b.z; } const n = S.dinoBits.length; x /= n; y /= n; z /= n;
       heading = Math.atan2(x - pos.x, z - pos.z); povPitch = THREE.MathUtils.clamp(Math.atan2(y - (pos.y + 1.66), Math.hypot(x - pos.x, z - pos.z)), -1.0, 0.75); manualUntil = performance.now() / 1000 + 6; }, _go(st) { go(st); } };
 })();
 setInterval(() => document.getElementById('phoneBtn').classList.toggle('unread', PhoneUI.unread > 0 && !document.body.classList.contains('intro')), 400);   // a gold dot on the phone while a message waits
@@ -9202,7 +9398,7 @@ const aim = { pitch: 0, fov: 32 };   // camera app: where Caine points the lens,
 const photos = [];
 try { (JSON.parse(localStorage.getItem('caineRoll') || '[]')).forEach(p => { const im = new Image(); const c = document.createElement('canvas'); c.width = 240; c.height = 180; const e = { id: p.id || 'p' + [...(p.src || '')].reduce((h, ch, i) => i % 7 ? h : (h * 31 + ch.charCodeAt(0)) >>> 0, 7).toString(36), cv: c, where: p.where, when: p.when, sent: !!p.sent, pinned: !!p.pinned, ver: 0 }; im.onload = () => { c.getContext('2d').drawImage(im, 0, 0); e.ver++; }; im.src = p.src; photos.push(e); }); } catch (e) {}
 function saveRoll() { try { localStorage.setItem('caineRoll', JSON.stringify(photos.slice(0, 24).map(p => ({ id: p.id, src: p.cv.toDataURL('image/jpeg', 0.7), where: p.where, when: p.when, sent: p.sent, pinned: p.pinned })))); } catch (e) {} }
-const ph = { app: 'home', pSel: 0, sel: 1, filed: 0, filedNow: false, unread: 0, snapT: -9, list: 0, scroll: 0, open: null, mapX: 300, mapY: 230 };
+const ph = { noteNew: false, app: 'home', pSel: 0, sel: 1, filed: 0, filedNow: false, unread: 0, snapT: -9, list: 0, scroll: 0, open: null, mapX: 300, mapY: 230 };
 const MONO = '"Courier New", monospace', CREAM = '#ece6d2', INK = '#1c2230';
 const THREADS = [];   // his phone starts empty: the Chief's text is the first thing on it
 if (location.hash && !location.hash.startsWith('#intro')) THREADS.push({ from: 'CHIEF R.', time: '6:58a', body: ['Caine. Precinct.', 'Now.', "Don't make me send Rush."] });   // (jumping straight into a scene: it's already been read)
@@ -9212,6 +9408,13 @@ const NOTES = [
   { title: 'Bravano ledger', when: 'Wed 2:02a', lines: ['9.4   Rosenberg   50', '9.11  Sommers     20', '9.15  F. Greer    40', '10.2  Rossi       35', '10.26 Kaplan      20', '11.6  L. Tate     --'] },
   { title: 'Thoughts', when: 'Wed 3:05a', lines: ['Rain again. Coquina never', 'washes clean. It just', 'gets wet.', '', 'Chief wants it closed by', 'Friday. Why so quick?'] },
 ];
+/* THE CASE NOTE: the Chief's briefing opens a page in Caine's Notes, and every clue gets ticked off on it —
+   that's how Notes is introduced, and it's the case's progress (no counter on screen) */
+const CASE_LIST = [['crowbar', 'warehouse floor', 'crowbar by the crates'], ['footprints', 'alley out back', 'prints, two sets'], ['blood', 'doorway, Cordage St', 'blood on hall wall'], ['footage', 'talk to the guard', "Walt's tape, 3 cams"]];
+const CaseNote = { title: 'WAREHOUSE 7', get when() { return CASE_LIST.filter(([id]) => Clues.has(id)).length + ' of 4'; },
+  get lines() { const n = CASE_LIST.filter(([id]) => Clues.has(id)).length;
+    return ['Body at W-7. No name.', ...CASE_LIST.map(([id, where, got]) => (Clues.has(id) ? '[x] ' + got : '[ ] ' + where)), n < 4 ? n + ' of 4 · keep looking' : 'All 4 · take it to Chief']; } };   /* (fits the screen without scrolling) */
+if (Found.has('briefed')) NOTES.unshift(CaseNote);
 const PINS = [
   { x: 210, y: 210, label: 'Doorway', note: 'Where it started' },
   { x: 300, y: 230, label: 'Alley', note: 'Casing, matchbook', you: true },
@@ -9282,6 +9485,7 @@ function icon(g, name, x, y, on) {
   if (name === 'Map') { g.beginPath(); g.moveTo(cx - 20, cy - 12); g.lineTo(cx - 7, cy - 16); g.lineTo(cx + 7, cy - 12); g.lineTo(cx + 20, cy - 16); g.lineTo(cx + 20, cy + 14); g.lineTo(cx + 7, cy + 18); g.lineTo(cx - 7, cy + 14); g.lineTo(cx - 20, cy + 18); g.closePath(); g.stroke(); }
   if (name === 'Snake') { g.beginPath(); g.moveTo(cx - 18, cy + 12); g.lineTo(cx + 10, cy + 12); g.lineTo(cx + 10, cy); g.lineTo(cx - 10, cy); g.lineTo(cx - 10, cy - 12); g.lineTo(cx + 16, cy - 12); g.stroke(); g.fillRect(cx + 14, cy - 15, 6, 6); }
   g.font = '15px ' + MONO; g.textAlign = 'center'; g.fillText(name, cx, y + 72);
+  if (name === 'Notes' && ph.noteNew) { g.fillStyle = ACCENT; g.beginPath(); g.arc(cx + 22, cy - 15, 9, 0, 7); g.fill(); g.fillStyle = '#111'; g.font = 'bold 13px Arial'; g.fillText('!', cx + 22, cy - 10); }
   if (name === 'Messages' && ph.unread) { g.fillStyle = ACCENT; g.beginPath(); g.arc(cx + 22, cy - 15, 9, 0, 7); g.fill(); g.fillStyle = '#111'; g.font = 'bold 13px Arial'; g.fillText(ph.unread, cx + 22, cy - 10); }
   if (name === 'Photos' && photos.length) { g.fillStyle = CREAM; g.font = 'bold 11px ' + MONO; g.fillText(photos.length, cx + 26, cy - 14); }
 }
@@ -9293,15 +9497,18 @@ function drawHudTo(g, W, t) {
   const a = ph.app;
   if (a === 'home') {
     g.fillStyle = '#1e2a40'; g.fillRect(0, 0, W, 240); const gr = g.createLinearGradient(0, 0, 0, 240); gr.addColorStop(0, 'rgba(60,80,120,.5)'); gr.addColorStop(1, 'rgba(0,0,0,.4)'); g.fillStyle = gr; g.fillRect(0, 0, W, 240);
-    bar(); APPS.forEach((n, i) => icon(g, n, (W - 300) / 2 + 4 + (i % 3) * 100, 32 + Math.floor(i / 3) * 96, i === ph.sel)); foot('trackball to move · click to open');
+    bar(); APPS.forEach((n, i) => icon(g, n, (W - 300) / 2 + 4 + (i % 3) * 100, 32 + Math.floor(i / 3) * 96, i === ph.sel)); const gd = typeof Guide !== 'undefined' && Guide.step === 'msg';
+    if (gd && APPS[ph.sel] === 'Messages') { const i = ph.sel, x = (W - 300) / 2 + 4 + (i % 3) * 100, y = 32 + Math.floor(i / 3) * 96; g.strokeStyle = `rgba(226,178,58,${(0.55 + 0.45 * Math.sin(t * 4)).toFixed(2)})`; g.lineWidth = 3; g.strokeRect(x - 5, y - 5, 90, 86); }
+    foot(gd ? 'open Messages' : 'trackball to move · click to open');
   } else if (a === 'msgs' || a === 'notes') {
     paper(); bar(a === 'msgs' ? 'MESSAGES' : 'NOTES');
     const items = a === 'msgs' ? THREADS.map(m => [m.from, m.time, m.body[0], m.unread]) : NOTES.map(n => [n.title, n.when, n.lines[0], false]);
     items.forEach(([h, tm, sub, un], i) => { const y = 24 + i * 48; if (i === ph.list) { g.fillStyle = INK; g.fillRect(0, y, W, 46); }
       const fg = i === ph.list ? CREAM : '#111'; g.fillStyle = fg; g.textAlign = 'left'; g.font = 'bold 15px ' + MONO; g.fillText(h, 12, y + 19); g.textAlign = 'right'; g.font = '12px ' + MONO; g.fillText(tm, W - 10, y + 18);
       g.textAlign = 'left'; g.font = '13px ' + MONO; g.fillStyle = i === ph.list ? '#b8b2a0' : '#555'; g.fillText(sub.length > 30 ? sub.slice(0, 29) + '…' : sub, 12, y + 37);
-      if (un) { g.fillStyle = ACCENT; g.fillRect(W - 18, y + 26, 8, 8); } g.fillStyle = '#c9c3b2'; g.fillRect(0, y + 46, W, 1); });
-    foot('▲▼ choose · click open · back');
+      if (un) { g.fillStyle = ACCENT; g.fillRect(W - 18, y + 26, 8, 8); } g.fillStyle = '#c9c3b2'; g.fillRect(0, y + 46, W, 1);
+      if (un && i === ph.list && a === 'msgs' && typeof Guide !== 'undefined' && Guide.step === 'msg') { g.strokeStyle = `rgba(226,178,58,${(0.55 + 0.45 * Math.sin(t * 4)).toFixed(2)})`; g.lineWidth = 3; g.strokeRect(1.5, y + 1.5, W - 3, 43); } });
+    foot(a === 'msgs' && typeof Guide !== 'undefined' && Guide.step === 'msg' ? 'open the Chief\'s message' : '▲▼ choose · click open · back');
   } else if (a === 'thread') {
     const m = THREADS[ph.open]; paper(); bar(m.from);
     let y = 44 - ph.scroll * 26; const typed = Math.floor((t - ph.openT) * 26);
@@ -9311,7 +9518,7 @@ function drawHudTo(g, W, t) {
       g.font = 'bold 15px ' + MONO; const w = Math.min(W - 40, g.measureText(line).width + 20); g.fillStyle = m.from === 'UNKNOWN' ? '#111' : '#d8d2c2'; g.fillRect(12, y - 16, w, 24);
       g.fillStyle = m.from === 'UNKNOWN' ? CREAM : '#111'; g.textAlign = 'left'; g.fillText(s, 22, y + 1); y += 32; });
     if (m.from === 'UNKNOWN' && typed > 34) { g.fillStyle = ACCENT; g.fillRect(12, 186, 136, 26); g.fillStyle = '#111'; g.font = 'bold 13px ' + MONO; g.fillText('TRACE NUMBER', 20, 204); }
-    foot('back to inbox');
+    { const gd = typeof Guide !== 'undefined' && Guide.step === 'msg' && m.from === 'CHIEF R.'; if (!gd) foot('back to inbox'); else if (typed > shown + 20) foot('done · press the red key to put it away ↘'); }   /* walkthrough: nothing while it types, then only the red key */
   } else if (a === 'note') {
     const n = NOTES[ph.open]; paper(); bar(n.when);
     g.fillStyle = '#111'; g.textAlign = 'left'; g.font = 'bold 16px ' + MONO; g.fillText(n.title, 12, 42); g.fillStyle = ACCENT; g.fillRect(12, 48, g.measureText(n.title).width, 3);
@@ -9387,7 +9594,7 @@ function drawHudTo(g, W, t) {
   function snap(over) { try { capture(over); } catch (e) { console.warn(e); } ph.snapT = pt; const f = document.getElementById('phoneFlash'); f.style.transition = 'none'; f.style.opacity = .9; requestAnimationFrame(() => { f.style.transition = 'opacity .5s'; f.style.opacity = 0; }); }
   let open = false, k = 0;
   const btn = document.getElementById('phoneBtn');
-  function setOpen(v) { if (v && typeof Dialogue !== 'undefined' && Dialogue.isOpen) Dialogue.close(); if (v && inHand) { inHand = null; document.getElementById('propBtn').classList.remove('held'); } open = v; btn.classList.toggle('on', v); if (v) { held.clear(); route = []; ph.app = 'home'; if (ph.unread) ph.sel = APPS.indexOf('Messages'); } }   // a waiting text: open with Messages already picked
+  function setOpen(v) { if (v && typeof Dialogue !== 'undefined' && Dialogue.isOpen) Dialogue.close(); if (v && inHand) { inHand = null; document.getElementById('propBtn').classList.remove('held'); } open = v; btn.classList.toggle('on', v); document.body.classList.toggle('phoneUp', v); if (v) { held.clear(); route = []; ph.app = 'home'; if (ph.unread) ph.sel = APPS.indexOf('Messages'); } }   // a waiting text: open with Messages already picked
   btn.addEventListener('click', () => setOpen(!open));
   // --- feel: a tiny click sound and a buzz where the device allows it
   let actx = null;
@@ -9759,6 +9966,9 @@ function drawHudTo(g, W, t) {
   return {
     screenRect, get isOpen() { return open || !!inHand || (typeof Dialogue !== 'undefined' && Dialogue.isOpen); },
     addText(m) { THREADS.unshift(m); ph.unread = THREADS.filter(t => t.unread).length; },
+    /* something new on the case page: a dot on Notes, the phone button nudges, and the phone opens with Notes picked */
+    flagNote() { if (!NOTES.includes(CaseNote)) NOTES.unshift(CaseNote); ph.noteNew = true; ph.sel = APPS.indexOf('Notes'); document.getElementById('phoneBtn').classList.add('nudge'); },
+    get noteNew() { return ph.noteNew; },
     get unread() { return ph.unread; },
     get threads() { return THREADS; },
     openThread(i) { setOpen(true); ph.list = i; ph.open = i; ph.scroll = 0; ph.openT = pt; ph.app = 'thread'; if (THREADS[i] && THREADS[i].unread) { THREADS[i].unread = false; ph.unread = THREADS.filter(t => t.unread).length; } },
@@ -9778,12 +9988,13 @@ function drawHudTo(g, W, t) {
       const vy = camApp() ? 0 : view.yaw, vp = camApp() ? 0 : view.pitch;
       phone.rotation.set(-0.06 + vp + (1 - k) * 0.5 + Math.sin(pt * 1.1) * 0.01, -0.12 + vy + Math.sin(pt * 0.7) * 0.015, (1 - k) * 0.2 + Math.sin(pt * 0.9) * 0.01);
       /* the Chief's text, once it's finished typing out (first time, in the walkthrough): the phone eases back so the keys show and the red key glows — put it away */
-      const thr = ph.app === 'thread' && THREADS[ph.open], endHint = !!(open && thr && thr.from === 'CHIEF R.' && typeof Guide !== 'undefined' && Guide.step === 'msg' && pt - ph.openT > thr.body.join(' ').length / 40 + 0.9);
+      const thr = ph.app === 'thread' && THREADS[ph.open], endHint = !!(open && thr && thr.from === 'CHIEF R.' && typeof Guide !== 'undefined' && Guide.step === 'msg' && pt - ph.openT > thr.body.join('').length / 26 + 0.8);   /* (in step with the footer's prompt: after the last letter's typed) */
       { const want = endHint ? 0.6 + 0.4 * Math.sin(pt * 3.5) : 0; endRing.material.opacity += (want - endRing.material.opacity) * Math.min(1, dt * 8); endRing.visible = endRing.material.opacity > 0.01; }
       eh += ((endHint ? 1 : 0) - eh) * Math.min(1, dt * 3);
+      if (ph.noteNew && open && (ph.app === 'notes' || ph.app === 'note')) { ph.noteNew = false; document.getElementById('phoneBtn').classList.remove('nudge'); }
       mz += ((ph.app !== 'home' && open ? 1 : 0) - mz) * Math.min(1, dt * 6);   /* any app, not just the map: held up close so the screen gets the room (the keypad's only for show) */
       if (mz > 0.001) {   // held up close: distance chosen so the screen fills ~94% of the width (or 62% of the height, whichever bites first)
-        const th = Math.tan(THREE.MathUtils.degToRad(pCam.fov / 2)), d = Math.max(SW / (0.94 * 2 * th * pCam.aspect), SH / (0.62 * 2 * th));
+        const th = Math.tan(THREE.MathUtils.degToRad(pCam.fov / 2)), d = Math.max(SW / ((pCam.aspect < 1 ? 0.84 : 0.94) * 2 * th * pCam.aspect), SH / (0.62 * 2 * th)) * (pCam.aspect < 1 ? 1.22 : 1.11);   /* held at the distance where the key row (red key included) already shows — no zooming out when it lights */
         const e = mz * mz * (3 - 2 * mz);
         /* when the red key's lit, slide the phone up just enough that the key row's on screen (no zooming out) */
         const ny = P(640, navY)[1], lift = Math.max(0, (scy - ny + 30 * PX) - 0.86 * d * th) * eh;
@@ -9833,7 +10044,7 @@ const Dialogue = (() => {
   // a two-shot while you talk: the camera eases round to frame both of you, over his shoulder
   let target = null, side = 0, shotK = 0; const A = new THREE.Vector3(), B = new THREE.Vector3(), C = new THREE.Vector3(), L = new THREE.Vector3(), shotQ = new THREE.Quaternion(), m4 = new THREE.Matrix4();
   function cam(dt) {
-    shotK += ((script && target ? 1 : 0) - shotK) * Math.min(1, dt * 2.5); if (shotK < 0.002 || !target) return;
+    waitTick(dt); shotK += ((script && target && camMode !== 'street' ? 1 : 0) - shotK) * Math.min(1, dt * 2.5); if (shotK < 0.002 || !target) return;
     target.getWorldPosition(B); A.set(pos.x, pos.y + 1.55, pos.z);
     const dx = B.x - A.x, dz = B.z - A.z, d = Math.hypot(dx, dz) || 1, nx = -dz / d, nz = dx / d;
     if (!side) { const ok = (sg) => { const x = (A.x + B.x) / 2 + nx * sg * 2.1 - dx / d * 0.9, z = (A.z + B.z) / 2 + nz * sg * 2.1 - dz / d * 0.9; return !(S.blocked && S.blocked(x, z)); };
@@ -9843,6 +10054,9 @@ const Dialogue = (() => {
     m4.lookAt(C, L, THREE.Object3D.DEFAULT_UP); shotQ.setFromRotationMatrix(m4);
     const e = shotK * shotK * (3 - 2 * shotK); camera.position.lerp(C, e); camera.quaternion.slerp(shotQ, e);
   }
+  /* a waiting line: keep him planted, and move on by itself once the thing's done */
+  function waitTick(dt) { if (!script || !node) return; if (document.body.classList.contains('dlgFree')) { route = []; vel = 0; held.clear(); }
+    if (node.wait && shown >= full.length && node.wait.until(dt)) { const g = node.wait.go; node.wait.done && node.wait.done(); say(g); } }
   function open(scr, opts = {}) {
     if (PhoneUI.isOpen) PhoneUI.close();
     script = scr; talkingWith = opts.with || null; onEnd = opts.onEnd || null; target = opts.target || null; side = 0;
@@ -9853,7 +10067,7 @@ const Dialogue = (() => {
   }
   function close() {
     if (!script) return; clearInterval(timer); script = null; node = null; const w = talkingWith; talkingWith = null;
-    document.body.classList.remove('talking', 'speaking'); box.classList.remove('done');
+    document.body.classList.remove('talking', 'speaking', 'dlgFree'); box.classList.remove('done'); tap.classList.remove('wait');
     onEnd && onEnd(w);
   }
   function say(id) {
@@ -9861,12 +10075,13 @@ const Dialogue = (() => {
     if (!n) return close();
     n.do && n.do(); node = n;
     whoEl.textContent = n.who || script.who || '';
-    full = n.line; shown = 0; lineEl.textContent = ''; ul.innerHTML = ''; ul.classList.remove('show'); tap.classList.remove('show'); box.classList.remove('done');
+    full = n.line; shown = 0; lineEl.textContent = ''; ul.innerHTML = ''; ul.classList.remove('show'); tap.classList.remove('show', 'wait'); box.classList.remove('done'); document.body.classList.toggle('dlgFree', !!n.free);
     document.body.classList.add('speaking');
     clearInterval(timer); timer = setInterval(() => { shown = Math.min(full.length, shown + 1); lineEl.textContent = full.slice(0, shown); if (shown >= full.length) finish(); }, 26);
   }
   function finish() {
     clearInterval(timer); shown = full.length; lineEl.textContent = full; box.classList.add('done'); document.body.classList.remove('speaking');
+    if (node.wait) { replies = []; tap.textContent = node.wait.hint(); tap.classList.add('show', 'wait'); document.body.classList.add('dlgFree'); node.wait.start && node.wait.start(); return; }
     replies = (node.replies || []).filter(r => !r.if || r.if());
     if (!replies.length) { tap.textContent = node.next ? 'tap ▸' : 'tap to close ▸'; tap.classList.add('show'); return; }
     ul.innerHTML = replies.map((r, i) => `<li data-i="${i}"><b>${i + 1}</b>${r.t}</li>`).join('');
@@ -9874,11 +10089,12 @@ const Dialogue = (() => {
     requestAnimationFrame(() => ul.classList.add('show'));
   }
   function pick(i) { const r = replies[i]; if (!r) return; r.do && r.do(); r.go ? say(r.go) : close(); }
-  function advance() { if (!script) return; if (shown < full.length) { finish(); return; } if (!replies.length) { node.next ? say(node.next) : close(); } }
+  function advance() { if (!script) return; if (shown < full.length) { finish(); return; } if (node.wait) return; if (!replies.length) { node.next ? say(node.next) : close(); } }
   catcher.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); advance(); });
   box.addEventListener('pointerdown', e => { if (e.target.closest('li')) return; e.stopPropagation(); advance(); });
   addEventListener('keydown', e => {
     if (!script) return;
+    if (e.code === 'KeyC' && document.body.classList.contains('dlgFree')) return;   // (the one control a waiting line needs)
     if (/^Digit[1-3]$/.test(e.code) || /^Numpad[1-3]$/.test(e.code)) { if (shown >= full.length) pick(+e.code.slice(-1) - 1); }
     else if (e.code === 'Enter' || e.code === 'Space' || e.code === 'KeyE') advance();
     else if (e.code === 'Escape') close();
@@ -9911,6 +10127,9 @@ const pick2 = (a) => a[Math.random() * a.length | 0];
 /* THE TAPE: Walt's deck records the yard's three cameras. Played on the booth monitor as a VHS dub, one channel after another.
    Each channel is the real scene — Warehouse 7's floor, the yard, the alley — rendered from where a security camera would hang,
    with three shapes too dark to make out: two at the desk who hear somebody, the somebody running, the two going after him */
+function showBigTitle(on) {   /* the title card over the Skyway: in the upper sky, against the dark */
+  const e = document.getElementById('bigTitle') || (() => { const d = document.createElement('div'); d.id = 'bigTitle'; d.innerHTML = '<div class="ttl"><i>The Fall of</i><b data-t="CAINE">CAINE</b></div>'; document.body.appendChild(d); return d; })();
+  if (on !== null) e.classList.toggle('on', on); return e; }
 const Footage = (() => {
   let el = null, raf = 0;
   const FW = 320, FH = 240, rt = new THREE.WebGLRenderTarget(FW, FH); rt.texture.colorSpace = THREE.SRGBColorSpace;
@@ -9992,7 +10211,7 @@ const Footage = (() => {
 /* CHIEF R.: waiting on the precinct steps to answer his own text in person. Placeholder lines until the script fills them in */
 const CHIEF = (() => {
   let briefed = false;
-  const brief = () => { if (briefed) return; briefed = true; Found.add('briefed'); Board.addNote('WAREHOUSE 7', 'the docks · a body · look for clues'); setTimeout(() => Clues.toast('New lead · Warehouse 7', 'the docks, Old Town · look for clues'), 400); };
+  const brief = () => { if (briefed) return; briefed = true; Found.add('briefed'); Board.addNote('WAREHOUSE 7', 'the docks · a body · look for clues'); PhoneUI.flagNote(); setTimeout(() => Clues.toast('New lead · Warehouse 7', 'Caine made a note of it · open your phone, then Notes'), 400); };
   return {
     who: 'Chief R.',
     start: () => (briefed || Found.has('briefed')) ? { line: pick2(["You're still standing here. The docks, Caine. Warehouse 7.", "Bring me something I can take upstairs. Not a feeling. Something.", "Crowbar, prints, blood, tape — I don't care which. Just bring it."]) + ' (' + ['crowbar', 'footprints', 'blood', 'footage'].filter(Clues.has).length + ' of 4)' }
@@ -10018,15 +10237,24 @@ const GUARD = (() => {   // Walt, nights on the gate at the Old Town docks
 })();
 const BELLHOP = (() => {   // Eddie, the bellhop: first the bones, then (once you've looked) the way to your car
   let stage = 0;
+  const touchUI = matchMedia('(pointer: coarse)').matches;
+  /* "look up at her": the talk waits while you switch to his eyes (the eye button's the only thing lit), then aims you at her */
+  const EYE_WAIT = { hint: () => touchUI ? 'tap the eye ↘ to see through his eyes' : 'click the eye ↘ or press C to see through his eyes', start: () => document.getElementById('camToggle').classList.add('nudge'),
+    until: () => camMode === 'street', done: () => { document.getElementById('camToggle').classList.remove('nudge'); Guide.aimDino(true); seen = 0; }, go: 'look' };
+  let seen = 0; const _f = new THREE.Vector3(), _d = new THREE.Vector3();
+  function dinoSeen(dt) { if (camMode !== 'street' || !S || !S.dinoBits) return false; camera.getWorldDirection(_f); let best = 9; for (const b of S.dinoBits) { _d.set(b.x, b.y, b.z).sub(camera.position).normalize(); best = Math.min(best, _f.angleTo(_d)); }
+    seen = best < 0.45 ? seen + dt : Math.max(0, seen - dt * 0.25); return seen > 2.5; }
   return {
     who: 'Eddie · Bellhop',
     get stage() { return stage; }, set stage(v) { stage = v; },
     start: () => stage === 0 ? { line: "Morning, Mr. Caine. Rough night? You look like you fell out of bed. Did you sleep in that suit?", replies: [{ t: 'Something like that.', go: 'dino' }, { t: "What's with the bones?", go: 'dino' }] }
-      : stage === 1 ? { line: "Go on, look up at her. I'll wait." }
+      : stage === 1 ? { line: "Go on, look up at her. I'll wait.", wait: EYE_WAIT }
       : { line: pick2(["Walkway's through the green doors past the grand stair, Mr. Caine.", "Car's in the municipal garage. Green doors, by the stair. Up and over."]) },
-    dino: { line: "Ain't she something? The old girl. Old man Osario dug her out of the coquina pits and built the whole hotel around her. Go on, look up at her. Nobody ever looks up.", do: () => { stage = 1; } },
+    dino: { line: "Ain't she something? The old girl. Old man Osario dug her out of the coquina pits and built the whole hotel around her. Go on, look up at her. Nobody ever looks up.", do: () => { stage = 1; }, wait: EYE_WAIT },
+    /* through his eyes now: Eddie keeps talking while you look her over */
+    look: { line: "Up there. Forty feet of her, nose to tail.", free: true, wait: { hint: () => touchUI ? 'drag to look her over' : 'drag to look her over', until: (dt) => dinoSeen(dt), go: 'after' } },
     after: { line: "Told ya. Gives me the creeps on the night shift. Those eyes follow you up the stairs.", replies: [{ t: "Where'd I leave my car?", go: 'car' }] },
-    car: { line: "Municipal garage, same as always. Walkway's through the green doors past the grand stair. Up the steps, across the street, and you're on the roof deck. Can't miss the sign.", do: () => { stage = 2; } },
+    car: { line: "Municipal garage, same as always. Walkway's through the green doors past the grand stair. Up the steps, across the street, and you're on the roof deck. Can't miss the sign.", do: () => { stage = 2; }, replies: [{ t: 'Thanks, Eddie.', do: () => { if (camMode === 'street') btnO.onclick(); } }] },
   };
 })();
 const VERA = (() => {
