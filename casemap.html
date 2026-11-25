@@ -167,7 +167,7 @@ function lineMat(a = 0.9) { const m = new THREE.ShaderMaterial({ uniforms: { ...
 /* ---------------- geography (same layout as the review map: 1 map unit = 0.5 m here) ---------------- */
 const W = (mx, my) => [(mx - 600) / 2, (my - 410) / 2];
 const MAINLAND = 'M0,95 C120,80 260,112 380,95 C430,88 470,104 490,140 C506,200 480,250 500,320 C515,390 490,440 505,520 C515,590 482,640 472,700 C464,760 480,800 470,820 L0,820 Z';
-const ISLAND = 'M760,122 C800,96 900,88 990,108 C1040,120 1062,150 1052,200 C1040,320 1062,430 1046,540 C1036,640 1052,720 1002,790 C962,812 880,802 820,782 C782,768 758,732 770,692 C785,622 760,562 770,502 C780,422 755,352 765,282 C770,222 734,182 746,150 Z';
+const ISLAND = 'M760,122 C800,96 900,88 990,108 C1040,120 1062,150 1052,200 C1040,320 1062,430 1046,540 C1036,640 1052,720 1002,790 C962,812 880,802 820,782 C782,768 758,732 770,694 C752,692 734,674 736,648 C738,620 758,606 774,598 C770,570 762,540 770,502 C780,422 755,352 765,282 C770,222 734,182 746,150 Z';
 function samplePath(d, n = 220) { const p = document.createElementNS('http://www.w3.org/2000/svg', 'path'); p.setAttribute('d', d); const L = p.getTotalLength(), pts = []; for (let i = 0; i < n; i++) { const q = p.getPointAtLength(i / n * L); pts.push(W(q.x, q.y)); } return pts; }
 const inPoly = (pts, x, z) => { let c = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) { const [xi, zi] = pts[i], [xj, zj] = pts[j]; if ((zi > z) !== (zj > z) && x < (xj - xi) * (z - zi) / (zj - zi) + xi) c = !c; } return c; };
 const mainPts = samplePath(MAINLAND), islePts = samplePath(ISLAND);
@@ -189,6 +189,7 @@ for (const pts of [mainPts, islePts]) { const g = new THREE.ExtrudeGeometry(land
 // water
 { const m = new THREE.ShaderMaterial({ uniforms: { ...U, uInk: { value: INK } }, vertexShader: LVERT, fragmentShader: WFRAG, extensions: { derivatives: true } }); allMats.push(m); const w = new THREE.Mesh(new THREE.PlaneGeometry(2400, 2400), m); w.rotation.x = -Math.PI / 2; w.position.y = 0.3; scene.add(w); }
 
+const ALLEY = W(416, 626), WTOWER = W(432, 606), CATH = W(304, 300), FORT = W(468, 168), HOTEL = W(756, 645), GARAGE = W(808, 645), ISLET = W(632, 262);   // the landmarks' spots (see the stops below)
 // Old Town: low blocks on a grid, a few taller ones, tile-roof hips
 { const gs = []; let s = 3; const r = () => (s = (s * 16807) % 2147483647) / 2147483647;
   for (let mx = 118; mx < 500; mx += 40) for (let my = 128; my < 700; my += 34) {
@@ -196,7 +197,9 @@ for (const pts of [mainPts, islePts]) { const g = new THREE.ExtrudeGeometry(land
     if (mx > 268 && mx < 340 && my > 270 && my < 340) continue;   // the plaza
     if (Math.abs(x + 119) < 12 && Math.abs(z - 18) < 10) continue; // the Coronado's block
     if (Math.abs(x + 74) < 10 && Math.abs(z - 48) < 9) continue;   // the precinct
-    if (Math.abs(x + 98) < 6 && Math.abs(z - 34) < 8) continue;    // the alley's block
+    if (Math.abs(x - ALLEY[0]) < 7 && Math.abs(z - ALLEY[1]) < 9) continue;   // the alley's block (down by the docks now)
+    if (Math.hypot(x - WTOWER[0], z - WTOWER[1]) < 6) continue;      // the water tower's lot
+    if (Math.hypot(x - FORT[0], z - FORT[1]) < 24) continue;        // Castillo Coquina's point
     const n = 2 + Math.floor(r() * 3);
     for (let k = 0; k < n; k++) { const w = 4 + r() * 6, d = 4 + r() * 5, h = 2.5 + r() * 4 + (r() < .08 ? 5 : 0); gs.push(boxG(w, h, d, x - 5 + r() * 10, LAND_H, z - 3 + r() * 6)); }
   }
@@ -205,7 +208,7 @@ for (const pts of [mainPts, islePts]) { const g = new THREE.ExtrudeGeometry(land
 { const gs = [], bar = []; let s = 9; const r = () => (s = (s * 16807) % 2147483647) / 2147483647;
   for (let x = 88; x < 222; x += 7) for (let z = -150; z < 190; z += 7) {
     const xx = x + r() * 3, zz = z + r() * 3; if (!inPoly(islePts, xx + 4, zz) || !inPoly(islePts, xx - 4, zz) || !inPoly(islePts, xx, zz + 4) || !inPoly(islePts, xx, zz - 4)) continue;
-    if (zz < -110 && xx < 140) continue; if (zz > 100 && zz < 150 && xx < 140) continue; if (Math.abs(xx - 95) < 12 && Math.abs(zz - 90) < 8) continue; if (xx < 96) continue;   // fort, port, motel, Malecón
+    if (zz < -110 && xx < 140) continue; if (zz > 100 && zz < 150 && xx < 140) continue; if (Math.abs(xx - 95) < 12 && Math.abs(zz - 90) < 8) continue; if (xx < 96) continue; if (Math.abs(xx - GARAGE[0]) < 10 && zz > GARAGE[1] - 19 && zz < GARAGE[1] + 11) continue;   // fort, port, motel, Malecón
     const barrio = xx < 128 && zz > -60 && zz < 50, dens = barrio ? 0.92 : 0.55; if (r() > dens) continue;
     const w = 3 + r() * 2.5, d = 3 + r() * 2.5, h = 2 + r() * 2.6, y = groundY(xx, zz) - 0.6;
     (barrio ? bar : gs).push(boxG(w, h, d, xx, y, zz));
@@ -217,13 +220,18 @@ for (const pts of [mainPts, islePts]) { const g = new THREE.ExtrudeGeometry(land
 { const [x, z] = W(362, 446), gs = [boxG(22, 6, 10, x, LAND_H, z), boxG(11, 9, 8, x, LAND_H, z)]; for (const dx of [-4.5, 4.5]) { gs.push(boxG(3, 15, 3, x + dx, LAND_H, z)); const c = new THREE.ConeGeometry(2.4, 3, 4); c.rotateY(Math.PI / 4); c.translate(x + dx, LAND_H + 16.5, z); gs.push(c.toNonIndexed()); }
   const dm = new THREE.SphereGeometry(2.6, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2); dm.translate(x, LAND_H + 9, z); gs.push(dm.toNonIndexed()); addMesh(mergeGeometries(gs.map(g => g.index ? g.toNonIndexed() : g)), null); }
 // the alley: two tall walls with a slot between, a fire escape
-{ const [x, z] = W(404, 480); addMesh(mergeGeometries([boxG(5, 9, 14, x - 3.6, LAND_H, z), boxG(5, 8, 14, x + 3.6, LAND_H, z)]), 'alley');
+{ const [x, z] = ALLEY; addMesh(mergeGeometries([boxG(5, 9, 14, x - 3.6, LAND_H, z), boxG(5, 8, 14, x + 3.6, LAND_H, z)]), 'alley');   // the alley: behind the warehouses, off the docks
   const fe = []; for (let k = 0; k < 4; k++) fe.push(boxG(0.4, 0.15, 3, x - 1, LAND_H + 2 + k * 2, z - 2 + k * 0.4)); addMesh(mergeGeometries(fe), 'alley'); }
 // the precinct: a squat block, a flagpole, the lot behind with two cars
 { const [x, z] = W(452, 507); addMesh(mergeGeometries([boxG(13, 6, 9, x, LAND_H, z), boxG(15, 0.6, 11, x, LAND_H + 6, z), boxG(5, 1.2, 2, x + 2, LAND_H, z + 5.5)]), 'precinct');
   addMesh(boxG(0.25, 7, 0.25, x + 5, LAND_H + 6.6, z + 3), 'precinct'); addMesh(mergeGeometries([boxG(2, 1.1, 4, x - 4, LAND_H, z - 10), boxG(2, 1.1, 4, x + 1, LAND_H, z - 10)]), 'precinct'); }
-// the cathedral's bell gable on the plaza
-{ const [x, z] = W(300, 290); addMesh(mergeGeometries([boxG(8, 6, 16, x, LAND_H, z + 8), boxG(9, 15, 2.5, x, LAND_H, z)]), null); }
+// the Cathedral of Our Lady of the Waters on the plaza: a long nave, a crossing dome, twin spires over a rose window that faces the bay
+{ const [x, z] = CATH, gs = [boxG(26, 9, 11, x - 4, LAND_H, z), boxG(9, 9, 22, x - 8, LAND_H, z)];   // nave (runs east-west), transept
+  const ro = new THREE.ConeGeometry(6.5, 4, 4, 1); ro.rotateY(Math.PI / 4); ro.scale(2.05, 1, 0.86); ro.translate(x - 4, LAND_H + 11, z); gs.push(ro.toNonIndexed());
+  const dm = new THREE.SphereGeometry(4, 14, 7, 0, Math.PI * 2, 0, Math.PI / 2); dm.translate(x - 8, LAND_H + 11, z); gs.push(dm.toNonIndexed()); gs.push(boxG(0.4, 3, 0.4, x - 8, LAND_H + 15, z));
+  for (const dz of [-4, 4]) { gs.push(boxG(4, 20, 4, x + 9.5, LAND_H, z + dz)); const sp = new THREE.ConeGeometry(2.6, 9, 8); sp.translate(x + 9.5, LAND_H + 24.5, z + dz); gs.push(sp.toNonIndexed()); }
+  const rose = new THREE.TorusGeometry(2.2, 0.3, 6, 16); rose.rotateY(Math.PI / 2); rose.translate(x + 11.6, LAND_H + 11, z); gs.push(rose.toNonIndexed());
+  addMesh(mergeGeometries(gs.map(g => g.index ? g.toNonIndexed() : g)), null); }
 // the city wall
 { const gs = []; for (let i = 0; i < 12; i++) { const [x0, z0] = W(226 + i * 20.3, 108 + i * 1.7); gs.push(boxG(11, 2, 1.5, x0 + 5, LAND_H, z0)); } addMesh(mergeGeometries(gs), null); }
 // the pier and its Ferris wheel
@@ -243,23 +251,45 @@ inkLine('M480,150 C494,210 474,260 490,322 C504,392 480,440 494,520 C503,590 474
 inkLine('M792,690 C784,600 776,500 778,440 C780,380 770,320 772,260 C774,220 778,196 792,180', () => LAND_H + 0.15, 'malecon');
 inkLine('M792,704 C860,700 912,650 908,560 C904,470 900,380 870,300 C846,236 820,196 800,176', (x, z) => groundY(x, z) + 0.2, null, 0.6, true);
 // the seawall along the Malecón
-{ const pts = samplePath('M792,690 C784,600 776,500 778,440 C780,380 770,320 772,260 C774,220 778,196 792,180', 60), gs = []; for (let i = 0; i < pts.length - 1; i++) { const [x0, z0] = pts[i], [x1, z1] = pts[i + 1]; gs.push(boxG(0.8, 1.2, Math.hypot(x1 - x0, z1 - z0) + 0.2, (x0 + x1) / 2 - 2.5, LAND_H, (z0 + z1) / 2, Math.atan2(x1 - x0, z1 - z0))); } addMesh(mergeGeometries(gs), 'malecon'); }
-// the Hotel Osario on the Malecón: a crenellated coquina castle round a skylit atrium
-{ const [x, z] = W(795, 590); addMesh(mergeGeometries([boxG(10, 7, 16, x + 4, LAND_H, z), boxG(5, 10, 5, x + 4, LAND_H, z - 7), boxG(5, 10, 5, x + 4, LAND_H, z + 7), boxG(4, 1.2, 4, x + 4, LAND_H + 7, z)]), 'hotel'); }
+{ const pts = samplePath('M792,690 C784,600 776,500 778,440 C780,380 770,320 772,260 C774,220 778,196 792,180', 60), gs = []; for (let i = 0; i < pts.length - 1; i++) { const [x0, z0] = pts[i], [x1, z1] = pts[i + 1]; if (z0 > HOTEL[1] - 22) continue;   /* (the hotel's own block runs down to the water there) */ gs.push(boxG(0.8, 1.2, Math.hypot(x1 - x0, z1 - z0) + 0.2, (x0 + x1) / 2 - 2.5, LAND_H, (z0 + z1) / 2, Math.atan2(x1 - x0, z1 - z0))); } addMesh(mergeGeometries(gs), 'malecon'); }
+// Hotel Osario at the foot of the Skyway: a crenellated coquina castle on the water, a stepped tower over it (the tallest thing on Isla Luz),
+// HOTEL OSARIO across its crown facing the bay; the open-roof Municipal Garage across the Malecón, the skybridge over the road between them
+{ const [x, z] = HOTEL, gs = [boxG(16, 7, 20, x, LAND_H, z)];
+  for (const [dx, dz] of [[-7, -9], [7, -9], [-7, 9], [7, 9]]) gs.push(boxG(2.6, 9, 2.6, x + dx, LAND_H, z + dz));   // garitas at the corners
+  for (let i = -3; i <= 3; i++) gs.push(boxG(1.2, 1, 1.2, x - 8, LAND_H + 7, z + i * 2.8));                     // crenellations on the bay face
+  gs.push(boxG(9, 12, 10, x + 1, LAND_H + 7, z), boxG(6.5, 8, 7, x + 1, LAND_H + 19, z), boxG(4, 3, 4.5, x + 1, LAND_H + 27, z));   // the tower, stepping in
+  gs.push(boxG(0.4, 3.2, 9, x - 2.6, LAND_H + 27, z));                                                             // the rooftop sign, facing the bay
+  addMesh(mergeGeometries(gs), 'hotel');
+  const [gx, gz] = GARAGE; addMesh(mergeGeometries([boxG(14, 5, 26, gx, LAND_H, gz - 4), boxG(14.4, 0.9, 26.4, gx, LAND_H + 5, gz - 4)]), 'hotel', { edge: 0.8 });
+  addMesh(boxG(gx - x - 14, 1.6, 3, (x + 7 + gx - 7) / 2, LAND_H + 5.5, z - 2), 'hotel');
+  /* the Ammonite Club (the casino), just up the Malecón from the hotel and straight across from the garage's exit: a white podium on the water,
+     a slab tower with a gold crown and spire, its own skybridge over the road to the garage's top deck */
+  { const cz = gz - 21.5, cs = [boxG(14, 6, 14, x, LAND_H, cz), boxG(10, 11, 7, x, LAND_H + 6, cz), boxG(7, 4, 5, x, LAND_H + 17, cz), boxG(0.5, 5, 0.5, x, LAND_H + 21, cz)];
+    for (const dx of [-7, 7]) cs.push(boxG(2.2, 6, 2.2, x + dx * 0.95, LAND_H, cz - 6.8));   /* the rounded streamline corners, roughly */
+    addMesh(mergeGeometries(cs), null); addMesh(boxG(gx - x - 14, 1.6, 3, (x + 7 + gx - 7) / 2, LAND_H + 5.5, cz + 5), null); } }   /* (not part of the hotel stop: it doesn't light up red with it) */
+// the water tower over the docks: four legs, a round tank with COQUINA CITY painted round it, a witch's-hat roof
+{ const [x, z] = WTOWER, gs = []; for (const [dx, dz] of [[-2, -2], [2, -2], [-2, 2], [2, 2]]) gs.push(boxG(0.4, 13, 0.4, x + dx, LAND_H, z + dz));
+  for (const y of [4, 8.5]) gs.push(boxG(4.4, 0.25, 0.25, x, LAND_H + y, z - 2), boxG(4.4, 0.25, 0.25, x, LAND_H + y, z + 2), boxG(0.25, 0.25, 4.4, x - 2, LAND_H + y, z), boxG(0.25, 0.25, 4.4, x + 2, LAND_H + y, z));
+  const tk = new THREE.CylinderGeometry(3.4, 3.4, 4.5, 16); tk.translate(x, LAND_H + 15.25, z); gs.push(tk.toNonIndexed());
+  const rf = new THREE.ConeGeometry(3.7, 2.6, 16); rf.translate(x, LAND_H + 18.8, z); gs.push(rf.toNonIndexed());
+  addMesh(mergeGeometries(gs.map(g => g.index ? g.toNonIndexed() : g)), 'warehouse'); }
 // the Old Town docks: sheds, cranes over the water, the warehouse
 { const [x, z] = W(448, 655), gs = [boxG(16, 6, 10, x, LAND_H, z), boxG(14, 4, 6, x - 2, LAND_H, z + 10), boxG(12, 4, 6, x + 2, LAND_H, z - 10)];
   for (const dz of [-8, 6]) { const cx = x + 13, cz = z + dz; gs.push(boxG(0.6, 12, 0.6, cx - 1.5, LAND_H, cz), boxG(0.6, 12, 0.6, cx + 1.5, LAND_H, cz), boxG(14, 1, 1, cx + 3, LAND_H + 12, cz), boxG(2.4, 1.6, 2, cx, LAND_H + 13, cz)); }
   addMesh(mergeGeometries(gs), 'warehouse'); const fen = []; for (let i = 0; i < 20; i++) fen.push(boxG(0.15, 1.6, 0.15, x - 10, LAND_H, z - 20 + i * 2)); addMesh(mergeGeometries(fen), 'warehouse', { edge: 0.5 }); }
-// the fort: an eight-pointed star of coquina walls on the point, sentry boxes on the corners
-{ const [x, z] = W(784, 152), s = new THREE.Shape(); for (let i = 0; i <= 8; i++) { const a = i / 8 * Math.PI * 2, rr = i % 2 ? 9 : 15; const px = Math.cos(a) * rr, pz = Math.sin(a) * rr; i ? s.lineTo(px, pz) : s.moveTo(px, pz); }
+// Castillo Coquina: an eight-pointed star of coquina walls on Old Town's bayfront point, sentry boxes on the corners
+{ const [x, z] = FORT, s = new THREE.Shape(); for (let i = 0; i <= 8; i++) { const a = i / 8 * Math.PI * 2, rr = i % 2 ? 9 : 15; const px = Math.cos(a) * rr, pz = Math.sin(a) * rr; i ? s.lineTo(px, pz) : s.moveTo(px, pz); }
   const g = new THREE.ExtrudeGeometry(s, { depth: 6, bevelEnabled: false }); g.rotateX(-Math.PI / 2); g.translate(x, LAND_H, z); const gs = [g.toNonIndexed()];
   for (let i = 0; i < 8; i += 2) { const a = i / 8 * Math.PI * 2, gx = x + Math.cos(a) * 15, gz = z - Math.sin(a) * 15; const c = new THREE.CylinderGeometry(0.9, 0.9, 2, 8); c.translate(gx, LAND_H + 7, gz); gs.push(c.toNonIndexed()); const d = new THREE.SphereGeometry(0.95, 8, 4, 0, Math.PI * 2, 0, Math.PI / 2); d.translate(gx, LAND_H + 8, gz); gs.push(d.toNonIndexed()); }
   addMesh(mergeGeometries(gs), 'fort'); }
-// the cemetery under the walls: tombs and crosses, a little domed chapel
+// the cemetery on Isla Luz's north bluff: tombs and crosses, a little domed chapel
 { const [x, z] = W(852, 116), gs = []; for (let i = 0; i < 40; i++) { const tx = x - 9 + (i % 10) * 2, tz = z - 3 + Math.floor(i / 10) * 2.2, y = groundY(tx, tz); if (i % 3) gs.push(boxG(0.8, 1, 1.4, tx, y, tz)); else { gs.push(boxG(0.25, 1.8, 0.25, tx, y, tz), boxG(1, 0.25, 0.25, tx, y + 1.2, tz)); } }
   gs.push(boxG(3, 2.4, 3, x + 11, groundY(x + 11, z), z)); addMesh(mergeGeometries(gs), 'cemetery'); }
-// the lighthouse on Punta Luz, with a beam that sweeps the bay
-const lhPos = new THREE.Vector3(W(1016, 132)[0], 0, W(1016, 132)[1]); lhPos.y = groundY(lhPos.x, lhPos.z);
+// the Ánimas Light: a lighthouse alone on its own little rock in the middle of the bay, seen from both shores (a keeper's cottage, a landing)
+{ const s2 = new THREE.Shape(); for (let i = 0; i <= 14; i++) { const a = i / 14 * Math.PI * 2, rr = 9 + 1.2 * Math.sin(i * 2.3) + (i % 4 ? 0 : 0.8); const px = ISLET[0] + Math.cos(a) * rr * 1.2, pz = ISLET[1] + Math.sin(a) * rr; i ? s2.lineTo(px, -pz) : s2.moveTo(px, -pz); }
+  const g = new THREE.ExtrudeGeometry(s2, { depth: LAND_H, bevelEnabled: false, curveSegments: 1 }); g.rotateX(-Math.PI / 2); addMesh(g, 'light', { bias: -0.25, edge: 1 });
+  addMesh(mergeGeometries([boxG(4, 2.4, 3, ISLET[0] + 4, LAND_H, ISLET[1] + 2), boxG(1.6, 0.4, 9, ISLET[0] - 2, 1.2, ISLET[1] + 12)]), 'light'); }
+const lhPos = new THREE.Vector3(ISLET[0] - 2, LAND_H, ISLET[1] - 1);
 { const gs = []; for (let k = 0; k < 6; k++) { const c = new THREE.CylinderGeometry(1.4 - k * 0.12, 1.5 - k * 0.12, 3, 10); c.translate(lhPos.x, lhPos.y + 1.5 + k * 3, lhPos.z); gs.push(c.toNonIndexed()); } const cap = new THREE.ConeGeometry(1.3, 2, 10); cap.translate(lhPos.x, lhPos.y + 20.5, lhPos.z); gs.push(cap.toNonIndexed()); addMesh(mergeGeometries(gs), null); }
 const beam = new THREE.Group(); beam.position.set(lhPos.x, lhPos.y + 18.6, lhPos.z); scene.add(beam);
 { const pos = []; for (let k = -3; k <= 3; k++) pos.push(0, 0, 0, 180, -6, k * 4); const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); beam.add(new THREE.LineSegments(g, lineMat(0.35))); }
@@ -267,7 +297,7 @@ const beam = new THREE.Group(); beam.position.set(lhPos.x, lhPos.y + 18.6, lhPos
 const boats = [];
 for (let i = 0; i < 9; i++) { const b = new THREE.Group(), hull = new THREE.BoxGeometry(5, 1, 1.6); hull.translate(0, 0.5, 0); const sail = new THREE.BufferGeometry(); sail.setAttribute('position', new THREE.Float32BufferAttribute([0.2, 1, 0, 0.2, 7, 0, 2.6, 1.2, 0], 3)); sail.computeVertexNormals();
   b.add(new THREE.Mesh(hull, hatchMat({ bias: 0.1 })), new THREE.LineSegments(new THREE.EdgesGeometry(hull), lineMat(0.9)), new THREE.LineSegments(new THREE.EdgesGeometry(sail), lineMat(0.9)));
-  const [x, z] = [-10 + Math.random() * 80, -150 + Math.random() * 270]; b.position.set(x, 0.3, z); b.rotation.y = Math.random() * 6; scene.add(b); boats.push({ b, ph: Math.random() * 6, v: 0.6 + Math.random() }); }
+  let x, z; do { x = -10 + Math.random() * 80; z = -150 + Math.random() * 270; } while (Math.hypot(x - ISLET[0], z - ISLET[1]) < 20); b.position.set(x, 0.3, z); b.rotation.y = Math.random() * 6; scene.add(b); boats.push({ b, ph: Math.random() * 6, v: 0.6 + Math.random() }); }
 // palms along Bayshore and the Malecón (tiny ink asterisks on sticks)
 { const pos = [], add = (x, z) => { const y = groundY(x, z) + 0.2; pos.push(x, y, z, x + 0.3, y + 5, z); for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2; pos.push(x + 0.3, y + 5, z, x + 0.3 + Math.cos(a) * 2, y + 4.2, z + Math.sin(a) * 2); } };
   for (const [d, off] of [['M480,150 C494,210 474,260 490,322 C504,392 480,440 494,520 C503,590 474,640 464,700', -2], ['M792,690 C784,600 776,500 778,440 C780,380 770,320 772,260 C774,220 778,196 792,180', 3]]) samplePath(d, 30).forEach(([x, z]) => add(x + off, z));
@@ -276,13 +306,13 @@ for (let i = 0; i < 9; i++) { const b = new THREE.Group(), hull = new THREE.BoxG
 /* ---------------- the stops ---------------- */
 const at = (mx, my, y = 0) => { const [x, z] = W(mx, my); return new THREE.Vector3(x, (y || groundY(x, z)) + 2, z); };
 const STOPS = [
-  { id: 'hotel', scene: 'hotel', where: 'ISLA LUZ', name: 'Hotel Osario', t: at(795, 590), yaw: 0.9, pitch: 0.62, dist: 170, cap: ['HOME, IF YOU CAN CALL IT THAT. ROOM 212, BY THE WEEK.', 'THE BONES CAME OUT OF THIS ISLAND. THE MONEY CAME FROM SOMEWHERE ELSE.'], art: 'motel' },
+  { id: 'hotel', scene: 'hotel', where: 'ISLA LUZ', name: 'Hotel Osario', t: at(768, 645, 10), yaw: 0.9, pitch: 0.62, dist: 170, cap: ['HOME, IF YOU CAN CALL IT THAT. ROOM 212, BY THE WEEK.', 'THE BONES CAME OUT OF THIS ISLAND. THE MONEY CAME FROM SOMEWHERE ELSE.'], art: 'motel' },
   { id: 'skyway', scene: 'drive', where: 'ÁNIMAS BAY', name: 'Ánimas Skyway', t: new THREE.Vector3().lerpVectors(SK0, SK1, 0.5).setY(10), yaw: 0.25, pitch: 0.5, dist: 250, cap: ['ONE ROAD BETWEEN THE ISLAND AND THE BADGE.', 'FOUR MILES OF CONCRETE AND NOTHING TO DO BUT THINK.'], art: 'skyway' },
   { id: 'precinct', scene: 'precinct', where: 'OLD TOWN', name: 'The Precinct', t: at(455, 505), yaw: -0.7, pitch: 0.62, dist: 160, cap: ['VERA KEEPS THE COFFEE HOT AND THE CHIEF\'S DOOR SHUT.', 'THE CHIEF WANTS IT CLOSED BY FRIDAY. WHY SO QUICK?'], art: 'precinct' },
-  { id: 'alley', scene: 'alley', where: 'OLD TOWN', name: 'The Alley', t: at(395, 470), yaw: -1.2, pitch: 0.7, dist: 130, cap: ['TUESDAY. 11:40 P.M.', 'A KID IN A PURPLE HOODIE RAN. TWO WHITE MASKS RAN AFTER HIM.'], art: 'alley' },
+  { id: 'alley', scene: 'alley', where: 'OLD TOWN DOCKS', name: 'The Alley', t: at(416, 626), yaw: -1.2, pitch: 0.7, dist: 130, cap: ['TUESDAY. 11:40 P.M.', 'A KID IN A PURPLE HOODIE RAN. TWO WHITE MASKS RAN AFTER HIM.'], art: 'alley' },
   { id: 'malecon', scene: 'malecon', where: 'ISLA LUZ', name: 'El Malecón', t: at(790, 400), yaw: 1.25, pitch: 0.55, dist: 210, cap: ['THE BARRIO STACKS UP THE HILL LIKE A HAND OF CARDS.', 'EVERYBODY UP THERE SAW SOMETHING. NOBODY SAYS SO.'], art: 'malecon' },
-  { id: 'warehouse', scene: 'warehouse', where: 'OLD TOWN', name: 'The Warehouse', t: at(448, 655), yaw: -0.6, pitch: 0.65, dist: 160, cap: ['BERNARD WORKS THESE DOCKS.', 'OR HE DID, TILL TUESDAY.'], art: 'warehouse' },
-  { id: 'fort', scene: 'fort', where: 'ISLA LUZ', name: 'Castillo Coquina', t: at(784, 152, 8), yaw: 2.2, pitch: 0.5, dist: 190, cap: ['FOUR HUNDRED YEARS OF WATCHING FOR SHIPS.', 'TONIGHT IT WATCHES THE SUN GO DOWN ON A CROOKED TOWN.'], art: 'fort' },
+  { id: 'warehouse', scene: 'docks', where: 'OLD TOWN DOCKS', name: 'The Warehouse', t: at(448, 655), yaw: -0.6, pitch: 0.65, dist: 160, cap: ['BERNARD WORKS THESE DOCKS.', 'OR HE DID, TILL TUESDAY.'], art: 'warehouse' },
+  { id: 'fort', scene: 'fort', where: 'OLD TOWN', name: 'Castillo Coquina', t: at(468, 168, 8), yaw: -1.1, pitch: 0.5, dist: 190, cap: ['FOUR HUNDRED YEARS OF WATCHING FOR SHIPS.', 'TONIGHT IT WATCHES THE SUN GO DOWN ON A CROOKED TOWN.'], art: 'fort' },
   { id: 'cemetery', scene: 'cemetery', where: 'ISLA LUZ', name: 'The Cemetery', t: at(830, 130), yaw: 2.6, pitch: 0.55, dist: 170, cap: ['THE DEAD GET THE BEST VIEW IN COQUINA CITY.', 'OLD TOWN ACROSS THE WATER, PRETENDING IT DIDN\'T SEE A THING.'], art: 'cemetery' },
 ];
 const OVER = { t: new THREE.Vector3(10, 0, 0), yaw: 0.15, pitch: 0.95, dist: 640 };
@@ -291,10 +321,10 @@ const OVER = { t: new THREE.Vector3(10, 0, 0), yaw: 0.15, pitch: 0.95, dist: 640
 const $ = (id) => document.getElementById(id);
 const EMB = window.parent !== window;
 const toGame = (msg) => { try { window.parent.postMessage({ caineMap: true, ...msg }, '*'); } catch (e) {} };
-const NEAR = { doorway: 'alley', lot: 'precinct', front: 'precinct', office: 'precinct', room212: 'hotel' };   // scenes without their own place go to the closest one
+const NEAR = { doorway: 'alley', lot: 'precinct', front: 'precinct', office: 'precinct', room212: 'hotel', skybridge: 'hotel', garage: 'hotel', garageout: 'hotel', warehouse: 'docks' };   // scenes without their own place go to the closest one
 const here = location.hash.slice(1), hereStop = STOPS.findIndex(s => s.scene === (NEAR[here] || here));
 const labelsEl = $('labels');
-const DISTRICTS = [{ name: 'Old Town', p: new THREE.Vector3(-190, 2, 130) }, { name: 'Isla Luz', p: new THREE.Vector3(175, 4, 178) }, { name: 'Ánimas Bay', p: new THREE.Vector3(14, 0.3, -125) }];
+const DISTRICTS = [{ name: 'Old Town', p: new THREE.Vector3(-190, 2, 130) }, { name: 'Isla Luz', p: new THREE.Vector3(175, 4, 178) }, { name: 'Ánimas Bay', p: new THREE.Vector3(10, 0.3, 30) }, { name: 'Ánimas Light', p: new THREE.Vector3(ISLET[0], 4, ISLET[1] + 24) }];
 DISTRICTS.forEach(d => { d.el = document.createElement('div'); d.el.className = 'district'; d.el.textContent = d.name; labelsEl.appendChild(d.el); });
 const TRANS = 'here';   // the reel shoots where you're standing; the map never dives
 let hover = -1, mode = 'map', diveI = -1, diveT = 0, sent = false, d0 = null, wantSnap = null;
@@ -303,7 +333,7 @@ STOPS.forEach((s, i) => {
   el.innerHTML = `<b>${s.name}</b>` + (i === hereStop ? '<small>you are here</small>' : !s.scene ? '<small>not built yet</small>' : '');
   el.onclick = () => dive(i); el.onpointerenter = () => hover = i; el.onpointerleave = () => hover = -1; labelsEl.appendChild(el); s.el = el;
   s.ax = s.id === 'fort' ? 88 : s.id === 'cemetery' ? 12 : 50; el.style.setProperty('--ax', s.ax + '%');
-  s.anchor = s.t.clone().add(new THREE.Vector3(0, s.id === 'skyway' ? 4 : s.id === 'fort' ? 1 : s.id === 'hotel' ? 9 : 5, 0)); s.ground = (s.id === 'cemetery' ? at(818, 134) : s.t.clone()).setY(s.t.y - 1.5);
+  s.anchor = s.t.clone().add(new THREE.Vector3(0, s.id === 'skyway' ? 4 : s.id === 'fort' ? 1 : s.id === 'hotel' ? 22 : 5, 0)); s.ground = (s.id === 'cemetery' ? at(818, 134) : s.t.clone()).setY(s.t.y - 1.5);
 });
 addEventListener('message', (e) => { if (e.data && e.data.caineMapFromPhone) $('closeBtn').textContent = '✕ BACK TO THE PHONE'; });
 if (EMB) {  $('closeBtn').hidden = false; if (innerWidth < 700) $('closeBtn').textContent = '✕'; $('closeBtn').onclick = () => toGame({ close: true }); addEventListener('keydown', (e) => { if (e.key === 'Escape') toGame({ close: true }); }); }
