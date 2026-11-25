@@ -87,6 +87,8 @@
   #devDock { position: fixed; left: 12px; top: 12px; z-index: 7; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; font: 13px 'Bebas Neue', Impact, sans-serif; letter-spacing: .18em; }
   #devDock[hidden] { display: none; }
   #devDock button, #devDock select { background: rgba(0,0,0,.78); color: #e2b23a; border: 1px solid #e2b23a; padding: 7px 12px; font: inherit; letter-spacing: inherit; cursor: pointer; }
+  #perfPanel { position: fixed; left: 12px; top: calc(50px + env(safe-area-inset-top, 0px)); z-index: 6; pointer-events: none; background: rgba(0,0,0,.78); border: 1px solid rgba(226,178,58,.6); color: #ddd6c4; font: 11px/1.45 'Courier New', monospace; padding: 8px 10px; max-width: min(calc(100vw - 24px), 360px); }   /* up top under the DEV button (its menu opens over it), clear of the controls */
+  #perfPanel[hidden] { display: none; } #perfPanel i { display: inline-block; width: 70px; color: #e2b23a; font-style: normal; } #perfPanel b { font-size: 14px; }
   #devDockBody { display: flex; flex-direction: column; gap: 6px; } #devDockBody[hidden] { display: none; }
   #freeTag { position: fixed; left: 50%; bottom: 70px; transform: translateX(-50%); z-index: 6; background: rgba(0,0,0,.72); color: #e2b23a; border: 1px solid #e2b23a; padding: 6px 12px; font: 12px 'Bebas Neue', Impact, sans-serif; letter-spacing: .22em; white-space: nowrap; pointer-events: none; }
   #freeX { position: fixed; right: 14px; top: 12px; z-index: 6; background: rgba(0,0,0,.72); color: #e2b23a; border: 1px solid #e2b23a; font: 14px 'Bebas Neue', Impact, sans-serif; letter-spacing: .2em; padding: 6px 12px; }
@@ -240,6 +242,53 @@ const canvas = document.getElementById('scene');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
+/* ---------------------------------------------------------
+   PERF — the dev-mode stats panel (DEV ▸ Stats). Frame rate and frame time, what the graphics chip is asked to draw each frame,
+   how long each scene took to build and to show its first frame, and what the page downloaded. "Copy stats" puts it all on the clipboard.
+   --------------------------------------------------------- */
+const Perf = (() => {
+  let on = false; try { on = localStorage.getItem('caineStats') === '1'; } catch (e) {}
+  const el = document.createElement('div'); el.id = 'perfPanel'; el.hidden = true;
+  const builds = {}, firsts = {}; let pending = null, firstFrameAt = 0, frames = [], jank = [], last = performance.now(), shown = 0, text = '';
+  const fmtB = (b) => b > 1048576 ? (b / 1048576).toFixed(1) + ' MB' : (b / 1024).toFixed(0) + ' KB';
+  function sync() { el.hidden = !on; renderer.info.autoReset = !on; try { localStorage.setItem('caineStats', on ? '1' : '0'); } catch (e) {} }
+  function sceneStats() { let lights = 0, shadows = 0, meshes = 0; scene.traverseVisible(o => { if (o.isLight && o.intensity > 0) { lights++; if (o.castShadow) shadows++; } if (o.isMesh || o.isPoints || o.isLine) meshes++; }); return { lights, shadows, meshes }; }
+  function download() { let total = 0, music = 0; const nav = performance.getEntriesByType('navigation')[0]; if (nav) total += nav.transferSize || nav.encodedBodySize || 0;
+    for (const r of performance.getEntriesByType('resource')) { const b = r.transferSize || r.encodedBodySize || 0; if (/\.mp3/.test(r.name)) music += b; else total += b; } return { total, music, nav }; }
+  function render(now) {
+    const n = frames.length, avg = n ? frames.reduce((a, b) => a + b, 0) / n : 0, worst = n ? Math.max(...frames) : 0, fps = avg ? 1000 / avg : 0;
+    const i = renderer.info, st = sceneStats(), d = download(), key = typeof currentKey !== 'undefined' ? currentKey : '?';
+    const pr = renderer.getPixelRatio(), w = renderer.domElement.width, h = renderer.domElement.height;
+    const mem = performance.memory ? fmtB(performance.memory.usedJSHeapSize) : 'n/a';
+    const col = fps >= 55 ? '#7fd17f' : fps >= 30 ? '#e2b23a' : '#e2574c';
+    const rows = [
+      ['FPS', `<b style="color:${col}">${fps.toFixed(0)}</b>  avg ${avg.toFixed(1)} ms · worst ${worst.toFixed(0)} ms`],
+      ['Hitches', `${jank.filter(t => now - t < 10000).length} frames over 50 ms (last 10 s)`],
+      ['Draw', `${i.render.calls} calls · ${(i.render.triangles / 1000).toFixed(0)}k tris`],
+      ['Scene', `${key} · ${st.meshes} objects · ${st.lights} lights (${st.shadows} shadow)`],
+      ['GPU', `${i.programs ? i.programs.length : '?'} shaders · ${i.memory.geometries} geos · ${i.memory.textures} tex`],
+      ['Screen', `${w}×${h} @ ${pr.toFixed(2)}x`],
+      ['Built', builds[key] != null ? `${builds[key].toFixed(0)} ms` + (firsts[key] != null ? ` · first frame ${firsts[key].toFixed(0)} ms` : '') : 'cached'],
+      ['Start', firstFrameAt ? `first frame at ${(firstFrameAt / 1000).toFixed(1)} s` + (d.nav ? ` · page ready ${(d.nav.domContentLoadedEventEnd / 1000).toFixed(1)} s` : '') : '…'],
+      ['Download', `${fmtB(d.total)} (+ ${fmtB(d.music)} music, streamed)`],
+      ['Memory', mem],
+    ];
+    el.innerHTML = rows.map(([k, v]) => `<div><i>${k}</i>${v}</div>`).join('');
+    text = rows.map(([k, v]) => k + ': ' + v.replace(/<[^>]+>/g, '')).join('\n') + '\nAll builds: ' + Object.entries(builds).map(([k, v]) => `${k} ${v.toFixed(0)}ms` + (firsts[k] != null ? `/${firsts[k].toFixed(0)}` : '')).join(', ') + '\n' + navigator.userAgent;
+  }
+  return {
+    get on() { return on; }, toggle() { on = !on; sync(); }, el, init() { document.body.appendChild(el); sync(); },
+    build(key, fn) { const t = performance.now(), r = fn(); builds[key] = performance.now() - t; return r; },
+    sceneStart(key) { pending = { key, t: performance.now() }; },
+    frameStart() { if (on) renderer.info.reset(); },
+    frameEnd() { const now = performance.now(), ft = now - last; last = now;
+      if (!firstFrameAt) firstFrameAt = now;
+      if (pending) { firsts[pending.key] = now - pending.t; pending = null; }
+      if (!on) return; frames.push(ft); if (frames.length > 60) frames.shift(); if (ft > 50) jank.push(now);
+      if (now - shown > 500) { shown = now; jank = jank.filter(t => now - t < 10000); render(now); } },
+    copy() { const t = 'The Fall of Caine — stats\n' + text; (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).catch(() => { const a = document.createElement('textarea'); a.value = t; document.body.appendChild(a); a.select(); try { document.execCommand('copy'); } catch (e) {} a.remove(); }); },
+  };
+})();
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 
@@ -8472,7 +8521,7 @@ function loadScene(key, { instant = false, spawn = null } = {}) {
   const go = () => {
     if (S) { S.onExit && S.onExit(); scene.remove(S.group); }
     window.__closeTalk && window.__closeTalk();   // leaving a scene ends any conversation
-    S = built[key] || (built[key] = BUILDERS[key]());
+    S = built[key] || (built[key] = Perf.build(key, () => BUILDERS[key]())); Perf.sceneStart(key);
     currentKey = key;
     scene.add(S.group); scene.fog = S.fog; renderer.toneMappingExposure = S.exposure; Skyline.apply(S);
     if (!S.drive) Life.auto(S, key);
@@ -8770,10 +8819,12 @@ function driveChoice(dt) {
   const sel = document.createElement('select'); sel.innerHTML = '<option value="">Jump to scene…</option>' + listed.map(([k, t]) => `<option value="${k}">${t}</option>`).join('');
   sel.onchange = () => { if (sel.value) { Guide.skip(); Intro.abort(); loadScene(sel.value); } sel.value = ''; }; /* a dev jump drops the walkthrough */ body.append(sel);
   const rc = document.createElement('button'); rc.textContent = 'Reset clues'; rc.onclick = () => { Evidence.reset(); loadScene(currentKey); }; body.append(rc);
+  Perf.init(); const sb = document.createElement('button'), sc = document.createElement('button'); const syncS = () => { sb.textContent = 'Stats: ' + (Perf.on ? 'on' : 'off'); sc.hidden = !Perf.on; };
+  sb.onclick = () => { Perf.toggle(); syncS(); }; sc.textContent = 'Copy stats'; sc.onclick = () => { Perf.copy(); sc.textContent = 'Copied'; setTimeout(() => sc.textContent = 'Copy stats', 1200); }; syncS(); body.append(sb, sc);
   const rl = document.createElement('button'); rl.textContent = 'Reload'; rl.onclick = () => location.reload(); body.append(rl);   // a fresh start (no #scene in the address = the opening plays)
   dock.querySelector('#devDockBtn').onclick = (e) => { e.stopPropagation(); body.hidden = !body.hidden; };
   dock.addEventListener('pointerdown', e => e.stopPropagation());
-  const syncDock = () => { dock.hidden = !on; if (!on) body.hidden = true; }; syncDock();
+  const syncDock = () => { dock.hidden = !on; if (!on) body.hidden = true; if (!on && Perf.on) { Perf.toggle(); syncS(); } }; syncDock();
   let taps = 0, tapT = 0, toastT = 0;
   logo.addEventListener('pointerdown', e => {
     e.preventDefault(); e.stopPropagation();
@@ -8781,7 +8832,6 @@ function driveChoice(dt) {
     if (taps < 3) return;
     taps = 0; on = !on; devSec.hidden = !on; syncDock();
     try { localStorage.setItem('caineDev', on ? '1' : '0'); } catch (e) {}
-    toast.textContent = on ? 'Dev mode on' : 'Dev mode off'; toast.style.opacity = 1; clearTimeout(toastT); toastT = setTimeout(() => toast.style.opacity = 0, 1400);
   });
 }
 
@@ -10725,6 +10775,7 @@ const clock = new THREE.Clock();
    ========================================================= */
 
 renderer.setAnimationLoop(() => {
+  Perf.frameStart();
   const dt = Math.min(clock.getDelta(), 0.05), now = performance.now() / 1000;
   Calm.update(dt, now); Ambience.update(dt);
   keyWalk(dt); mouseSteer(); Ripple.update(dt); driveChoice(dt);
@@ -10738,6 +10789,7 @@ renderer.setAnimationLoop(() => {
   drawGrain(); Ink.update(dt); Reel.update(dt);
   Reel.render(scene, camera);
   PhoneUI.render(dt);
+  Perf.frameEnd();
 });
 </script>
 </body>
