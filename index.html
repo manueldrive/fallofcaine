@@ -105,6 +105,7 @@
   #dlgCatch { position: fixed; inset: 0; z-index: 8; display: none; }
   #dlg { position: fixed; left: 0; right: 0; bottom: 0; z-index: 9; padding: 80px max(6%, 22px) calc(26px + env(safe-area-inset-bottom, 0px)); background: linear-gradient(to top, #000 0%, rgba(0,0,0,.9) 45%, rgba(0,0,0,.7) 70%, transparent 100%); opacity: 0; transform: translateY(20px); transition: opacity .35s, transform .35s; pointer-events: none; font-family: 'Special Elite', 'Courier New', monospace; }
   body.talking #lbTop { transform: none; } body.talking #dlgCatch { display: block; } body.talking #dlg { opacity: 1; transform: none; pointer-events: auto; }
+  body.intro #bottomBar, body.intro #hint, body.intro #propBtn, body.intro #topRight, body.intro #phoneBtn, body.intro #guide { opacity: 0 !important; pointer-events: none !important; }
   body.talking #bottomBar, body.talking #hint, body.talking #propBtn { opacity: 0 !important; pointer-events: none !important; }
   /* a line that waits on you doing something (look through his eyes, look up): the talk stays open, the world comes back into focus, and only the one control it needs shows */
   body.talking.dlgFree #dlgCatch { display: none; } body.talking.dlgFree #scene { filter: none; }
@@ -184,6 +185,7 @@
 </script>
 </head>
 <body>
+<script>if (!location.hash || location.hash.startsWith('#intro')) document.body.classList.add('intro');   /* the start screen: no toolbar, not even for a frame while the game loads */</script>
 <canvas id="scene"></canvas>
 <canvas id="grain" width="200" height="200"></canvas>
 <div id="vignette"></div>
