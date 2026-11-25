@@ -5262,6 +5262,7 @@ function buildHotel({ beam = true } = {}) {
   const group = new THREE.Group(), add = makeAdder(group);
   const WX = 9, WZ = 9, WELL = 5.6, F2 = 4.2, F3 = 8.0, TOP = 11.6;   // walls at ±9; open well ±5.6; gallery floors; skylight base
   const r = 0.27;
+  let lv = 1;   /* which floor he's on: 1 the lobby, 2 the second-floor gallery (212's floor: Eddie, the walkway doors). The lift moves him between them */
 
   // ---------- materials
   const planks = canvasTex(1024, (g, s) => { const rows = 14, h = s / rows; for (let rr = 0; rr < rows; rr++) { let x = -Math.random() * 300; while (x < s) { const w = 200 + Math.random() * 280, v = 62 + Math.random() * 30; g.fillStyle = `rgb(${v + 30},${v * .66 + 6},${v * .38})`; g.fillRect(x, rr * h, w, h); g.strokeStyle = 'rgba(0,0,0,.1)'; for (let k = 0; k < 5; k++) { const yy = rr * h + Math.random() * h; g.beginPath(); g.moveTo(x, yy); g.bezierCurveTo(x + w / 3, yy + 3, x + w * 2 / 3, yy - 3, x + w, yy); g.stroke(); } g.fillStyle = 'rgba(0,0,0,.55)'; g.fillRect(x, rr * h, 3, h); x += w; } g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(0, rr * h, s, 2); } noise(g, s, 16); stains(g, s, 40, .1); }, [6, 6]);
@@ -5306,13 +5307,50 @@ function buildHotel({ beam = true } = {}) {
   }
 
   // ---------- the stained-glass skylight: a hipped lantern of amber and rose panes on dark ribs, the rain running over it
-  const glassTex = canvasTex(512, (g, s) => { g.fillStyle = '#2a1c10'; g.fillRect(0, 0, s, s);
-    const n = 4, c = s / n; for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) { const rose = (i + j) % 3 === 0; g.fillStyle = rose ? '#c8603a' : '#e8b84a'; g.fillRect(i * c + 3, j * c + 3, c - 6, c - 6);
-      g.strokeStyle = rose ? '#7a2a1a' : '#9a6a20'; g.lineWidth = 3; if (rose) { g.strokeRect(i * c + 12, j * c + 12, c - 24, c - 24); } else { g.beginPath(); g.ellipse(i * c + c / 2, j * c + c / 2, c * 0.32, c * 0.2, 0, 0, 7); g.stroke(); } }
-    for (let i = 0; i < 300; i++) { g.fillStyle = `rgba(255,255,255,${Math.random() * .08})`; g.fillRect(Math.random() * s, Math.random() * s, 2, 6); } }, [8, 3]);
-  const skyM = new THREE.MeshStandardMaterial({ map: glassTex, emissiveMap: glassTex, emissive: 0xffffff, emissiveIntensity: 0.42, side: THREE.DoubleSide, roughness: .2 });
+  /* the skylight glass: one design per face of the lantern, so looking up the four faces meet as a sunburst at the apex.
+     From the eaves up: a border of rose scallop fans, honey and amber rays, a row of oxblood diamonds, an ammonite medallion
+     (the fossil again) in peacock blue and gold, and pale gold rays closing to the peak. Mottled like hand-blown glass, leaded in black.
+     The face narrows toward the apex, so shapes up there are drawn stretched sideways to read true once they're on the glass. */
+  /* the skylight glass: one leaded design per face of the lantern, laid on as a triangle (eaves along the bottom, the peak at the top centre),
+     so the four faces meet as a sunburst. Rays of honey, amber and peacock blue fan up from the eaves; across them a border of rose scallop
+     fans, a row of oxblood diamonds, an ammonite medallion (the fossil again), and pale gold closing to the peak. Mottled like hand-blown
+     glass and leaded in black. (A face is 12.4 m along the eaves and 7 m up the slope, so round things are drawn 1.78× taller than wide.) */
+  const glassTex = canvasTex(1024, (g, s) => {
+    const C = { amber: '#d98a2a', honey: '#efc15a', pale: '#f6dc96', rose: '#b8443a', ox: '#7a1e1a', teal: '#2f7f88', deep: '#1c4f66', gold: '#e8b64a', lead: '#140d08' }, L = 7, AY = 1.78;
+    g.fillStyle = C.lead; g.fillRect(0, 0, s, s);
+    const tri = new Path2D(); tri.moveTo(0, s); tri.lineTo(s, s); tri.lineTo(s / 2, 0); tri.closePath(); g.save(); g.clip(tri);
+    // the rays
+    const n = 18; for (let k = 0; k < n; k++) { const x0 = k * s / n, x1 = (k + 1) * s / n; const w = new Path2D(); w.moveTo(s / 2, 0); w.lineTo(x0, s); w.lineTo(x1, s); w.closePath(); g.fillStyle = k % 4 === 1 ? C.teal : k % 2 ? C.amber : C.honey; g.fill(w); g.strokeStyle = C.lead; g.lineWidth = L; g.stroke(w); }
+    const band = (y0, y1, col) => { g.fillStyle = C.lead; g.fillRect(0, s * y0 - L, s, L * 2); g.fillRect(0, s * y1 - L, s, L * 2); if (col) { g.fillStyle = col; g.fillRect(0, s * y0 + L, s, s * (y1 - y0) - L * 2); } };
+    // pale gold at the peak
+    { const p = new Path2D(); p.moveTo(s / 2, 0); p.lineTo(s / 2 - s * 0.11, s * 0.22); p.lineTo(s / 2 + s * 0.11, s * 0.22); p.closePath(); g.fillStyle = C.pale; g.fill(p); g.fillStyle = C.lead; g.fillRect(0, s * 0.22 - L, s, L * 2); }
+    // the ammonite medallion
+    { const cx = s / 2, cy = s * 0.43, rx = 1.05 / 12.4 * s, ry = rx * AY; g.save(); g.translate(cx, cy); g.scale(rx / 100, ry / 100);
+      g.beginPath(); g.arc(0, 0, 112, 0, 7); g.fillStyle = C.lead; g.fill(); g.beginPath(); g.arc(0, 0, 104, 0, 7); g.fillStyle = C.gold; g.fill(); g.beginPath(); g.arc(0, 0, 92, 0, 7); g.fillStyle = C.lead; g.fill();
+      for (let k = 0; k < 8; k++) { const a0 = k / 8 * Math.PI * 2; g.beginPath(); g.moveTo(0, 0); g.arc(0, 0, 86, a0, a0 + Math.PI / 4); g.closePath(); g.fillStyle = k % 2 ? C.teal : C.deep; g.fill(); }
+      g.strokeStyle = C.gold; g.lineWidth = 11; g.lineCap = 'round'; g.beginPath(); for (let t = 0; t < 15; t += 0.05) { const r = 3.5 * Math.exp(0.215 * t); if (r > 80) break; const x = r * Math.cos(t), y = r * Math.sin(t); t ? g.lineTo(x, y) : g.moveTo(x, y); } g.stroke();
+      g.strokeStyle = C.lead; g.lineWidth = 4; for (let t = 4; t < 15; t += 0.5) { const ro = 3.5 * Math.exp(0.215 * t), ri = ro * Math.exp(-0.215 * Math.PI * 2); if (ro > 80) break; g.beginPath(); g.moveTo(ri * Math.cos(t), ri * Math.sin(t)); g.lineTo(ro * Math.cos(t), ro * Math.sin(t)); g.stroke(); }
+      g.restore(); }
+    // a row of oxblood diamonds across the rays
+    { band(0.62, 0.74, C.honey); const y = s * 0.68, h = s * 0.12 - L * 2, n2 = 11;
+      for (let k = 0; k < n2; k++) { const cx = (k + 0.5) * s / n2, w = h / AY * 0.9; const d = new Path2D(); d.moveTo(cx, y - h / 2 + 4); d.lineTo(cx + w / 2, y); d.lineTo(cx, y + h / 2 - 4); d.lineTo(cx - w / 2, y); d.closePath(); g.strokeStyle = C.lead; g.lineWidth = L * 1.5; g.stroke(d); g.fillStyle = k % 2 ? C.ox : C.rose; g.fill(d); } }
+    // rose scallop fans along the eaves
+    { band(0.88, 1.01, C.ox); const n3 = 9, w = s / n3, r = Math.min(w * 0.46, s * 0.11 / AY * 1.0);
+      for (let k = 0; k < n3; k++) { const cx = (k + 0.5) * w; g.save(); g.translate(cx, s); g.scale(1, AY * 0.62);
+        g.beginPath(); g.arc(0, 0, r, Math.PI, 0); g.closePath(); g.fillStyle = C.lead; g.fill(); g.beginPath(); g.arc(0, 0, r - 6, Math.PI, 0); g.closePath(); g.fillStyle = C.rose; g.fill();
+        g.beginPath(); g.arc(0, 0, r * 0.38, Math.PI, 0); g.closePath(); g.fillStyle = C.gold; g.fill(); g.strokeStyle = C.lead; g.lineWidth = 4; for (let a = 1; a < 6; a++) { const t = Math.PI + a * Math.PI / 6; g.beginPath(); g.moveTo(Math.cos(t) * r * 0.38, Math.sin(t) * r * 0.38); g.lineTo(Math.cos(t) * (r - 6), Math.sin(t) * (r - 6)); g.stroke(); } g.restore(); } }
+    // hand-blown mottling, then a few seeds (bubbles)
+    for (let i = 0; i < 1100; i++) { const x = Math.random() * s, y = Math.random() * s, r = 6 + Math.random() * 28, gr = g.createRadialGradient(x, y, 0, x, y, r), lt = Math.random() < 0.5;
+      gr.addColorStop(0, lt ? 'rgba(255,240,200,.15)' : 'rgba(40,10,0,.13)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2); }
+    for (let i = 0; i < 380; i++) { g.fillStyle = 'rgba(255,250,230,.25)'; g.beginPath(); g.arc(Math.random() * s, Math.random() * s, 0.8 + Math.random() * 1.6, 0, 7); g.fill(); }
+    g.restore(); g.strokeStyle = C.lead; g.lineWidth = L * 2; g.stroke(tri);   // the ribs
+  });
+  const skyM = new THREE.MeshStandardMaterial({ map: glassTex, emissiveMap: glassTex, emissive: 0xd8dcf0, emissiveIntensity: 0.26, side: THREE.DoubleSide, roughness: .2 });
   { const hw = WELL + 0.6, peak = 3.2;
-    const pyr = new THREE.Mesh(new THREE.ConeGeometry(hw * Math.SQRT2, peak, 4, 1, true), skyM); pyr.rotation.y = Math.PI / 4; pyr.position.y = TOP + peak / 2; group.add(pyr);
+    const pg = new THREE.BufferGeometry(), P = [], U = []; const cs = [[-hw, -hw], [hw, -hw], [hw, hw], [-hw, hw]];   /* four triangles, each with the whole design on it (a cone's own UVs shear it) */
+    for (let k = 0; k < 4; k++) { const [ax, az] = cs[k], [bx, bz] = cs[(k + 1) % 4]; P.push(ax, 0, az, bx, 0, bz, 0, peak, 0); U.push(0, 0, 1, 0, 0.5, 1); }
+    pg.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); pg.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2)); pg.computeVertexNormals();
+    const pyr = new THREE.Mesh(pg, skyM); pyr.position.y = TOP; group.add(pyr);
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) { const rib = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.16, Math.hypot(hw * Math.SQRT2, peak)), woodD); rib.position.set(sx * hw / 2, TOP + peak / 2, sz * hw / 2); rib.lookAt(0, TOP + peak, 0); group.add(rib); }
     for (let k = -3; k <= 3; k++) for (const rot of [0, Math.PI / 2]) { const t = Math.abs(k) / 3.5, L = hw * 2 * (1 - 0); const rb = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.1), woodD); rb.visible = false; group.add(rb); }
     // a frieze of small blue scroll windows under the lantern, like the clerestory in the photo
@@ -5335,6 +5373,7 @@ function buildHotel({ beam = true } = {}) {
     let n = 1;
     for (const [axis, sgn] of [['z', -1], ['x', 1], ['z', 1], ['x', -1]]) for (let k = -1; k <= 1; k++) {
       const off = k * 5.4, num = fl + String(n++).padStart(2, '0');
+      if ((fl === 2 && axis === 'x' && sgn > 0 && k === 0) || (fl === 2 && axis === 'z' && sgn < 0 && k === -1)) continue;   /* 205's slot is the walkway doors; 201's is the gallery lift */
       const d = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 2.3), mat({ map: doorTex(num), roughness: .55 }));
       const fr = new THREE.Mesh(new THREE.BoxGeometry(1.4, 2.6, 0.1), woodD);
       const wallPos = axis === 'z' ? [off, sgn * (WZ - 0.02)] : [sgn * (WX - 0.02), off], ry = axis === 'z' ? (sgn < 0 ? 0 : Math.PI) : (sgn > 0 ? -Math.PI / 2 : Math.PI / 2);
@@ -5404,18 +5443,26 @@ function buildHotel({ beam = true } = {}) {
     for (const sd of [-1, 1]) { const d = box(0.6, 2.2, 0.04, doors, LIFTX + sd * 0.31, 1.1, -WZ + 0.13); for (let k = 0; k < 4; k++) box(0.5, 0.02, 0.01, woodD, LIFTX + sd * 0.31, 0.4 + k * 0.5, -WZ + 0.16, false); }
     const dial = new THREE.Mesh(new THREE.CircleGeometry(0.22, 24, 0, Math.PI), new THREE.MeshStandardMaterial({ color: 0xd8c08a, emissive: 0xffc870, emissiveIntensity: .5, side: THREE.DoubleSide })); dial.position.set(LIFTX, 2.45, -WZ + 0.13); group.add(dial);
     const nd = box(0.012, 0.18, 0.01, mat({ color: 0x111111 }), LIFTX - 0.05, 2.52, -WZ + 0.14, false); nd.rotation.z = 0.6; }
-  // ---------- the bellhop, by the end of the desk: oxblood jacket, pillbox cap, a brass luggage cart
-  const BX = -3.5, BZ = -6.0;
-  const bell = makePerson({ coat: 0x6a1a14, pants: 0x161214, skin: 0x7a5a44, hat: 'cap', badge: false, tie: 0x111111 }); bell.root.position.set(BX, 0, BZ); bell.root.rotation.y = -1.25; group.add(bell.root);
+  const LIFT2X = -5.4;
+  { box(1.6, 2.7, 0.1, woodD, LIFT2X, F2 + 1.35, -WZ + 0.06); const doors = mat({ color: 0xb08a3a, metalness: .85, roughness: .35 });
+    for (const sd of [-1, 1]) { box(0.6, 2.2, 0.04, doors, LIFT2X + sd * 0.31, F2 + 1.1, -WZ + 0.13); for (let k = 0; k < 4; k++) box(0.5, 0.02, 0.01, woodD, LIFT2X + sd * 0.31, F2 + 0.4 + k * 0.5, -WZ + 0.16, false); }
+    const dial = new THREE.Mesh(new THREE.CircleGeometry(0.22, 24, 0, Math.PI), new THREE.MeshStandardMaterial({ color: 0xd8c08a, emissive: 0xffc870, emissiveIntensity: .5, side: THREE.DoubleSide })); dial.position.set(LIFT2X, F2 + 2.45, -WZ + 0.13); group.add(dial); }
+  /* the lift: a short fade to black and he steps out on the other floor */
+  const liftFade = document.getElementById('liftFade') || (() => { const d = document.createElement('div'); d.id = 'liftFade'; d.style.cssText = 'position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .35s;z-index:20'; document.body.appendChild(d); return d; })();
+  const liftTo = (n) => { liftFade.style.opacity = 1; route = [];
+    setTimeout(() => { lv = n; const sp = n === 2 ? { x: LIFT2X, z: -WZ + 2.6, h: 0 } : { x: LIFTX, z: -WZ + 2.6, h: 0 }; pos.set(sp.x, n === 2 ? F2 : 0, sp.z); heading = sp.h; route = []; updateCamera(0, true); setTimeout(() => liftFade.style.opacity = 0, 120); }, 380); };
+  // ---------- the bellhop, up on the gallery outside 212, at the rail across from the skull: oxblood jacket, pillbox cap, a brass luggage cart
+  const BX = -6.35, BZ = 0.5;   /* just along the rail from where you'd stop to look at the skull, so he's beside the view, not in it */
+  const bell = makePerson({ coat: 0x6a1a14, pants: 0x161214, skin: 0x7a5a44, hat: 'cap', badge: false, tie: 0x111111 }); bell.root.position.set(BX, F2, BZ); bell.root.rotation.y = 0.35; group.add(bell.root);
   bell.armR.sh.rotation.x = -0.15; bell.armL.sh.rotation.set(-0.1, 0, 0.12);
   { const cart = new THREE.Group(); const br = brassM; for (const [x, z] of [[-0.35, -0.22], [0.35, -0.22], [-0.35, 0.22], [0.35, 0.22]]) { const w = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.03, 10), mat({ color: 0x111111 })); w.rotation.z = Math.PI / 2; w.position.set(x, 0.05, z); cart.add(w); }
     const base = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.04, 0.5), mat({ color: 0x5a1a14, roughness: .7 })); base.position.y = 0.12; cart.add(base);
     for (const x of [-0.4, 0.4]) { const up = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 1.4, 8), br); up.position.set(x, 0.8, 0); cart.add(up); }
     const arch = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.015, 6, 20, Math.PI), br); arch.position.y = 1.5; cart.add(arch);
     const s1 = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.3, 0.4), mat({ color: 0x3a2a1c, roughness: .6 })); s1.position.set(0, 0.29, 0); cart.add(s1); const s2 = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.22, 0.32), mat({ color: 0x6a5a40, roughness: .6 })); s2.position.set(0.04, 0.55, 0); s2.rotation.y = 0.2; cart.add(s2);
-    cart.traverse(o => { if (o.isMesh) o.castShadow = true; }); cart.position.set(BX - 0.9, 0, BZ - 0.9); cart.rotation.y = 0.3; group.add(cart); }
+    cart.traverse(o => { if (o.isMesh) o.castShadow = true; }); cart.position.set(BX - 1.3, F2, BZ - 1.2); cart.rotation.y = 1.4; group.add(cart); }
   // ---------- the way to the skybridge: green doors in the east wall past the stair, a lit sign over them, a runner leading there
-  const SBZ = -3.6;
+  const SBZ = 0, nWalk = group.children.length;   /* on the gallery now: built at floor height, then lifted a storey */
   { const green = mat({ color: 0x1f3a2a, roughness: .45, metalness: .2 });
     box(0.14, 2.9, 2.0, woodD, WX - 0.07, 1.45, SBZ);
     for (const sd of [-1, 1]) { box(0.06, 2.4, 0.78, green, WX - 0.12, 1.2, SBZ + sd * 0.4); const gl = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 1.1), new THREE.MeshStandardMaterial({ color: 0xd8b878, emissive: 0xffc880, emissiveIntensity: .45 })); gl.rotation.y = -Math.PI / 2; gl.position.set(WX - 0.16, 1.55, SBZ + sd * 0.4); group.add(gl); box(0.04, 0.05, 0.5, brassM, WX - 0.2, 1.05, SBZ + sd * 0.4, false); }
@@ -5427,6 +5474,7 @@ function buildHotel({ beam = true } = {}) {
     const run = canvasTex(256, (g, q) => { g.fillStyle = '#4a1612'; g.fillRect(0, 0, q, q); g.fillStyle = '#b08a3a'; g.fillRect(0, 10, q, 8); g.fillRect(0, q - 18, q, 8); noise(g, q, 20); }, [6, 1]);
     const rn = add(new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.4), mat({ map: run, roughness: 1 })), false); rn.rotation.x = -Math.PI / 2; rn.position.set(WX - 1.0, 0.012, SBZ);   // just a mat at the doors
     const hl = new THREE.PointLight(0xffc870, 4, 5, 1.6); hl.position.set(WX - 0.9, 1.6, SBZ); group.add(hl); }
+  for (let i = nWalk; i < group.children.length; i++) group.children[i].position.y += F2;
   const dino = Fossil.trex(); dino.rotation.y = Math.PI + 0.5; dino.position.set(0.3 - 1.35 * 0.878, 0.4, 0.4 + 1.35 * 0.479); group.add(dino);   // head toward the door and the stair, tail down the plinth
   // the plinth and its plaque
   const plinth = new THREE.Mesh(new THREE.BoxGeometry(11.2, 0.4, 3.0), Kit.coquina(3, 0.2, { tone: 'ochre', stucco: 0.1, moss: false, mildew: 0.2, lichen: 0 })); plinth.position.set(0.3, 0.2, 0.4); plinth.rotation.y = 0.5; plinth.receiveShadow = true; group.add(plinth);
@@ -5467,38 +5515,61 @@ function buildHotel({ beam = true } = {}) {
   const dinoBits = [];   /* the skeleton as a string of spheres, for the camera's line-of-sight test */
   { dino.updateMatrixWorld(true); const bb = new THREE.Box3(), c = new THREE.Vector3();
     dino.traverse(o => { if (o.isMesh) { o.geometry.computeBoundingSphere(); const sp = o.geometry.boundingSphere; c.copy(sp.center).applyMatrix4(o.matrixWorld); const r = sp.radius * o.matrixWorld.getMaxScaleOnAxis(); if (r > 0.12 && c.y > 1.2) dinoBits.push({ x: c.x, y: c.y, z: c.z, r: Math.min(r, 1.2) + 0.2 }); } }); }
-  const cpulse = portalMarker(group, 0, WZ - 0.8), spulse = portalMarker(group, LIFTX, -WZ + 1.0), bpulse = portalMarker(group, WX - 0.75, SBZ);
+  const lift = (n) => { const k = group.children.length; return () => { for (let i = k - 2; i < k; i++) group.children[i].position.y += n; }; };
+  const cpulse = portalMarker(group, 0, WZ - 0.8), spulse = portalMarker(group, LIFTX, -WZ + 1.0);
+  const bpulse = portalMarker(group, WX - 0.75, SBZ); lift(F2)(); const l2pulse = portalMarker(group, LIFT2X, -WZ + 1.0); lift(F2)(); const rpulse = portalMarker(group, -WX + 0.75, 5.4); lift(F2)();
+  const P1 = [{ x: 0, z: WZ - 0.8, to: 'drive', spawn: 'hotel', label: 'Your car' }, { x: LIFTX, z: -WZ + 1.0, to: 'lift', label: 'Lift · up', act: () => liftTo(2) }];
+  const P2 = [{ x: -WX + 0.75, z: 5.4, to: 'room212', spawn: 'hotel', label: 'Room 212' }, { x: WX - 0.75, z: SBZ, to: 'skybridge', spawn: 'hotel', label: 'Walkway · garage' }, { x: LIFT2X, z: -WZ + 1.0, to: 'lift', label: 'Lift · lobby', act: () => liftTo(1) }];
+  const PAT2 = [{ p: [-7.0, 1.0], wait: 3, face: 1.2 }, { p: [-7.2, -7.2], wait: 2.5, face: 0.8 }, { p: [0, -7.2], wait: 2.5, face: 0 }, { p: [7.2, -3.0], wait: 2.5, face: -1.6 }, { p: [3.0, 7.2], wait: 2.5, face: Math.PI }];   // round the gallery, stopping at the rail
+  const bellProp = { id: 'bellhop', talk: 'bellhop', mesh: bell.head, label: 'Talk', reach: 1.9, onEnd: () => Guide.heard(), when: () => !(BELLHOP.stage >= 2 && Guide.step === 'bridge') };
 
   return {
     group,
     name: 'Hotel Osario', dinoBits,
-    props: [{ id: 'bellhop', talk: 'bellhop', mesh: bell.head, label: 'Talk', reach: 1.9, onEnd: () => Guide.heard(), when: () => !(BELLHOP.stage >= 2 && Guide.step === 'bridge') }]   /* (once he's pointed you to the car, the prompt steps aside so the walkway is the one thing on screen) */,
+    get props() { return lv === 2 ? [bellProp] : []; }, set props(v) {},   /* Eddie's upstairs: only talk to him from the gallery (his prompt steps aside once he's pointed you to the car) */
     exposure: 1.3,
     fog: new THREE.FogExp2(0x1a120a, 0.012),
     bounds: { minX: -WX, maxX: WX, minZ: -WZ, maxZ: WZ },
     blocked(x, z) {
       if (Math.abs(x) > WX - r - 0.05 || Math.abs(z) > WZ - r - 0.05) return true;
+      if (lv === 2) {   // the gallery: a ring round the well, the rail on the inside
+        if (Math.abs(x) < WELL + r && Math.abs(z) < WELL + r) return true;
+        if (circBlock(x, z, BX, BZ, 0.25, r) || circBlock(x, z, BX - 1.3, BZ - 1.2, 0.55, r)) return true;   // Eddie and his cart
+        for (const [px, pz] of [[-8.0, 7.9], [7.9, -5.6], [-8.0, -7.8], [3.6, -7.9], [-3.6, -7.9], [-7.9, 6.6]]) if (circBlock(x, z, px, pz, 0.38, r)) return true;
+        return false; }
       if (onPlinth(x, z, r)) return true;
       if (rectBlock(x, z, -2.7, 2.7, -WZ, -WZ + 2.65, r)) return true;            // front desk
-      if (circBlock(x, z, BX, BZ, 0.25, r) || rectBlock(x, z, BX - 1.4, BX - 0.4, BZ - 1.2, BZ - 0.6, r)) return true;   // the bellhop and his cart
       if (rectBlock(x, z, STX0 - 0.1, WX, STZ0, STZ1, r)) return true;             // the stair
       for (const [cx, cz] of colAt) if (circBlock(x, z, cx, cz, 0.32, r)) return true;
       if (rectBlock(x, z, -WX, -6.6, 2.4, 5.6, r) || rectBlock(x, z, -WX, -6.6, -5.0, -2.8, r)) return true;   // chairs
       for (const [px, pz] of [[-8.0, 7.9], [7.9, -5.6], [-8.0, -7.8], [3.6, -7.9], [-3.6, -7.9], [-7.9, 6.6]]) if (circBlock(x, z, px, pz, 0.38, r)) return true;
       return false;
     },
-    groundY() { return 0; },
-    start: { x: 0, z: WZ - 3.0, heading: Math.PI },
-    spawns: { front: { x: 0, z: WZ - 3.0, heading: Math.PI }, car: { x: 0, z: WZ - 3.0, heading: Math.PI }, room212: { x: LIFTX, z: -WZ + 1.9, heading: 0.35 }, skybridge: { x: WX - 1.5, z: SBZ, heading: -Math.PI / 2 } },   // out of the lift by the desk; back in through the green doors
-    portals: [{ x: 0, z: WZ - 0.8, to: 'drive', spawn: 'hotel', label: 'Your car' }, { x: LIFTX, z: -WZ + 1.0, to: 'room212', spawn: 'hotel', label: 'Lift · up to 212' }, { x: WX - 0.75, z: SBZ, to: 'skybridge', spawn: 'hotel', label: 'Walkway · garage' }],
-    patrol: [
+    groundY() { return lv === 2 ? F2 : 0; },
+    get level() { return lv; },
+    get start() { lv = 1; return { x: 0, z: WZ - 3.0, heading: Math.PI }; },
+    /* reading a spawn sets the floor: in by car or the front door, the lobby; out of 212 or back off the walkway, the gallery */
+    spawns: { get front() { lv = 1; return { x: 0, z: WZ - 3.0, heading: Math.PI }; }, get car() { lv = 1; return { x: 0, z: WZ - 3.0, heading: Math.PI }; },
+      get room212() { lv = 2; return { x: -WX + 1.6, z: 5.2, heading: 2.8 }; }, get skybridge() { lv = 2; return { x: WX - 1.6, z: SBZ, heading: -Math.PI / 2 }; } },
+    get portals() { return lv === 2 ? P2 : P1; },
+    get patrol() { return lv === 2 ? PAT2 : this._p1; },
+    _p1: [
       { p: [0, 5.8], wait: 3, face: Math.PI },                 // look up at it from the door
       { p: [-4.6, 3.6], wait: 2.5, face: Math.PI * 0.75 },      // the skull
       { p: [-1.0, -5.6], wait: 2, face: 0 },                    // at the desk
       { p: [4.8, -3.8], wait: 2.5, face: -Math.PI * 0.6 },      // the tail
       { p: [5.0, 4.4], wait: 2, face: Math.PI },
     ],
-    overhead(pos, outPos, outLook) {   /* high in the atrium, round the well from him: the whole lobby, the skeleton and the galleries laid out below,
+    overhead(pos, outPos, outLook) {
+      if (lv === 2) {   /* on the gallery: hang in the well in front of him, just under the floor above, looking back at him against the doors — stepping aside along the rail if the skull's in the way */
+        const nx = Math.abs(pos.x) > WELL ? -Math.sign(pos.x) : 0, nz = Math.abs(pos.z) > WELL ? -Math.sign(pos.z) : 0, tx = -nz, tz = nx, lim = WELL - 0.5, Y = F2 + 2.75;
+        const hit = (cx, cy, cz) => { for (let k = 0; k <= 16; k++) { const t = k / 16, x = cx + (pos.x - cx) * t, y = cy + (pos.y + 1.2 - cy) * t, z = cz + (pos.z - cz) * t; if (dinoBits.some(b => Math.hypot(x - b.x, y - b.y, z - b.z) < b.r + (k === 0 ? 1.6 : 0.6))) return true; if (k > 0 && k < 16 && colAt.some(([qx, qz]) => Math.hypot(x - qx, z - qz) < 0.45)) return true; } return false; };   // (nor a corner post between us)   // (the camera itself keeps well clear of the bones)
+        let best = null; for (const d of [4.4, 3.4, 5.4]) { for (const sd of [0, 1.5, -1.5, 3, -3, 4.5, -4.5]) { const cx = THREE.MathUtils.clamp(pos.x + nx * d + tx * sd, -lim, lim), cz = THREE.MathUtils.clamp(pos.z + nz * d + tz * sd, -lim, lim); if (!hit(cx, Y, cz)) { best = [cx, cz]; break; } } if (best) break; }
+        best = best || [THREE.MathUtils.clamp(pos.x + nx * 4.4, -lim, lim), THREE.MathUtils.clamp(pos.z + nz * 4.4, -lim, lim)];
+        const g = hotelCam.g || (hotelCam.g = new THREE.Vector3(best[0], Y, best[1])); if (Math.hypot(best[0] - g.x, best[1] - g.z) > 3.5 || hit(g.x, Y, g.z)) g.set(best[0], Y, best[1]); else { g.x += (best[0] - g.x) * 0.06; g.z += (best[1] - g.z) * 0.06; } g.y = Y;   /* a cut rather than a glide through the skull */
+        outPos.copy(g); outLook.set(pos.x, F2 + 1.0, pos.z); return; }
+      hotelCam.g = null;
+      /* high in the atrium, round the well from him: the whole lobby, the skeleton and the galleries laid out below,
                                           him walking through it. It picks a spot with a clear line to him (no gallery floor, no skeleton, no pillar in the way) and holds it while it can */
       const lim = WELL - 0.35, Y = F3 + 1.4, base = Math.atan2(pos.x, pos.z);
       const camAt = (a, v) => v.set(THREE.MathUtils.clamp(Math.sin(a) * 7.5, -lim, lim), Y, THREE.MathUtils.clamp(Math.cos(a) * 7.5, -lim, lim));
@@ -5525,9 +5596,9 @@ function buildHotel({ beam = true } = {}) {
       outLook.set(pos.x * 0.92, 0.7, pos.z * 0.92); }
     },
     camOK(v) { return Math.abs(v.x) < WX - 0.4 && Math.abs(v.z) < WZ - 0.4 && v.y < TOP; },
-    camClamp(v) { v.x = THREE.MathUtils.clamp(v.x, -WX + 0.5, WX - 0.5); v.z = THREE.MathUtils.clamp(v.z, -WZ + 0.5, WZ - 0.5); v.y = Math.min(v.y, F2 - 0.8); },
+    camClamp(v) { v.x = THREE.MathUtils.clamp(v.x, -WX + 0.5, WX - 0.5); v.z = THREE.MathUtils.clamp(v.z, -WZ + 0.5, WZ - 0.5); v.y = Math.min(v.y, (lv === 2 ? F3 : F2) - 0.8); },
     update(dt, now) {
-      cpulse(now); spulse(now); bpulse(now);
+      cpulse(now); spulse(now); bpulse(now); l2pulse(now); rpulse(now);
       { const want = Math.atan2(pos.x - BX, pos.z - BZ) - bell.root.rotation.y, d = Math.atan2(Math.sin(want), Math.cos(want)); bell.head.rotation.y += (THREE.MathUtils.clamp(d, -1.1, 1.1) - bell.head.rotation.y) * Math.min(1, dt * 3); bell.chest.rotation.x = Math.sin(now * 1.3) * 0.012; }   // he watches you cross the lobby
       for (const l of lights) l.pl.intensity = l.base * (0.92 + 0.05 * Math.sin(now * 6 + l.ph) + 0.03 * Math.sin(now * 13 + l.ph * 2));
       rainTex.offset.y = (now * 0.12) % 1;
@@ -9325,9 +9396,9 @@ const Guide = (() => {
     if (st === 'msg') { say('New message', touch ? 'tap your phone, then Messages' : 'click your phone (or press P), then Messages'); nudge('phoneBtn', true); }
     if (st === 'hat') { nudge('phoneBtn', false); say('Grab your hat', touch ? 'on the desk · drag to walk there' : 'on the desk · WASD or arrows to walk'); }   /* the walking lesson: walk to the hat */
     if (st === 'walk') { nudge('phoneBtn', false); say('Head for the door', touch ? 'or tap where to go' : 'or click where to go'); }
-    if (st === 'bellhop') { say('Talk to the bellhop', 'by the front desk'); }
+    if (st === 'bellhop') { say('Talk to the bellhop', 'by the rail outside your room'); }
     if (st === 'look') { say('Look up at her', (touch ? 'tap the eye' : 'click the eye or press C') + ' to see through his eyes · drag to look up at the skeleton'); nudge('camToggle', true); }
-    if (st === 'bridge') { nudge('camToggle', false); say('Take the walkway to your car', 'the green doors past the grand stair'); }
+    if (st === 'bridge') { nudge('camToggle', false); say('Take the walkway to your car', 'the green doors across the gallery'); }
     if (st === null) { el.classList.remove('on'); nudge('phoneBtn', false); nudge('camToggle', false); try { localStorage.setItem('caineTut', 'done'); } catch (e) {} }
   };
   const _f = new THREE.Vector3(), _d = new THREE.Vector3();
@@ -9356,7 +9427,8 @@ const Guide = (() => {
       const now = performance.now(); if (now - blockT > 1500) { blockT = now; if (step === 'look') say('Look up at her first', (touch ? 'tap the eye' : 'click the eye or press C') + ' · then the bellhop will point you on'); else if (step === 'after') say('Hear him out', 'the bellhop has something to tell you'); else say('Talk to the bellhop first', 'by the front desk'); el.classList.add('on'); }
       return true; },
     /* POV during the look step opens already facing the skeleton, tilted up at her */
-    aimDino(force) { if ((step !== 'look' && !force) || currentKey !== 'hotel' || !S || !S.dinoBits || !S.dinoBits.length) return; let x = 0, y = 0, z = 0; for (const b of S.dinoBits) { x += b.x; y += b.y; z += b.z; } const n = S.dinoBits.length; x /= n; y /= n; z /= n;
+    aimDino(force) { if ((step !== 'look' && !force) || currentKey !== 'hotel' || !S || !S.dinoBits || !S.dinoBits.length) return; const bits = pos.y > 2 ? [...S.dinoBits].sort((a, b) => b.y - a.y).slice(0, 8) : S.dinoBits;   /* from the gallery: straight at the skull, eye to eye */
+      let x = 0, y = 0, z = 0; for (const b of bits) { x += b.x; y += b.y; z += b.z; } const n = bits.length; x /= n; y /= n; z /= n;
       heading = Math.atan2(x - pos.x, z - pos.z); povPitch = THREE.MathUtils.clamp(Math.atan2(y - (pos.y + 1.66), Math.hypot(x - pos.x, z - pos.z)), -1.0, 0.75); manualUntil = performance.now() / 1000 + 6; }, _go(st) { go(st); } };
 })();
 setInterval(() => document.getElementById('phoneBtn').classList.toggle('unread', PhoneUI.unread > 0 && !document.body.classList.contains('intro')), 400);   // a gold dot on the phone while a message waits
@@ -10352,12 +10424,12 @@ const BELLHOP = (() => {   // Eddie, the bellhop: first the bones, then (once yo
     get stage() { return stage; }, set stage(v) { stage = v; },
     start: () => stage === 0 ? { line: "Morning, Mr. Caine. Rough night? You look like you fell out of bed. Did you sleep in that suit?", replies: [{ t: 'Something like that.', go: 'dino' }, { t: "What's with the bones?", go: 'dino' }] }
       : stage === 1 ? { line: "Go on, look up at her. I'll wait.", wait: EYE_WAIT }
-      : { line: pick2(["Walkway's through the green doors past the grand stair, Mr. Caine.", "Car's in the municipal garage. Green doors, by the stair. Up and over."]) },
+      : { line: pick2(["Walkway's the green doors, other side of the gallery, Mr. Caine.", "Car's in the municipal garage. Green doors across the way. Over the street."]) },
     dino: { line: "Ain't she something? The old girl. Old man Osario dug her out of the coquina pits and built the whole hotel around her. Go on, look up at her. Nobody ever looks up.", do: () => { stage = 1; }, wait: EYE_WAIT },
     /* through his eyes now: Eddie keeps talking while you look her over */
     look: { line: "Up there. Forty feet of her, nose to tail.", free: true, wait: { hint: () => touchUI ? 'drag to look her over' : 'drag to look her over', until: (dt) => dinoSeen(dt), go: 'after' } },
     after: { line: "Told ya. Gives me the creeps on the night shift. Those eyes follow you up the stairs.", replies: [{ t: "Where'd I leave my car?", go: 'car' }] },
-    car: { line: "Municipal garage, same as always. Walkway's through the green doors past the grand stair. Up the steps, across the street, and you're on the roof deck. Can't miss the sign.", do: () => { stage = 2; }, replies: [{ t: 'Thanks, Eddie.', do: () => { if (camMode === 'street') btnO.onclick(); } }] },
+    car: { line: "Municipal garage, same as always. Walkway's this floor, the green doors on the far side of the gallery. Straight across the street and you're on the roof deck. Can't miss the sign.", do: () => { stage = 2; }, replies: [{ t: 'Thanks, Eddie.', do: () => { if (camMode === 'street') btnO.onclick(); } }] },
   };
 })();
 const VERA = (() => {
