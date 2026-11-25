@@ -89,6 +89,7 @@
   #devDock button, #devDock select { background: rgba(0,0,0,.78); color: #e2b23a; border: 1px solid #e2b23a; padding: 7px 12px; font: inherit; letter-spacing: inherit; cursor: pointer; }
   #perfPanel { position: fixed; left: 12px; top: calc(50px + env(safe-area-inset-top, 0px)); z-index: 6; pointer-events: none; background: rgba(0,0,0,.78); border: 1px solid rgba(226,178,58,.6); color: #ddd6c4; font: 11px/1.45 'Courier New', monospace; padding: 8px 10px; max-width: min(calc(100vw - 24px), 360px); }   /* up top under the DEV button (its menu opens over it), clear of the controls */
   #perfPanel[hidden] { display: none; } #perfPanel i { display: inline-block; width: 70px; color: #e2b23a; font-style: normal; } #perfPanel b { font-size: 14px; }
+  body.noGrain #grain { display: none !important; }
   #devDockBody { display: flex; flex-direction: column; gap: 6px; } #devDockBody[hidden] { display: none; }
   #freeTag { position: fixed; left: 50%; bottom: 70px; transform: translateX(-50%); z-index: 6; background: rgba(0,0,0,.72); color: #e2b23a; border: 1px solid #e2b23a; padding: 6px 12px; font: 12px 'Bebas Neue', Impact, sans-serif; letter-spacing: .22em; white-space: nowrap; pointer-events: none; }
   #freeX { position: fixed; right: 14px; top: 12px; z-index: 6; background: rgba(0,0,0,.72); color: #e2b23a; border: 1px solid #e2b23a; font: 14px 'Bebas Neue', Impact, sans-serif; letter-spacing: .2em; padding: 6px 12px; }
@@ -3125,6 +3126,7 @@ function buildSkybridge() {
    THE FALL — the title screen's scene. Nothing but black, Caine dropping through it, a cold light from somewhere
    far above just catching his hat brim and shoulders, motes and rain streaking up past us as he falls away.
    ========================================================= */
+const INK_INTRO = /[?&]ink\b/.test(location.search) || (() => { try { return localStorage.getItem('caineInkIntro') === '1'; } catch (e) { return false; } })();   // try-out: the opening in the icon's hand-inked style
 const FALL_MODE = 'tunnel';   // the one opening: the slow drift down the tunnel (the bare-dark take is retired)
 function buildVoid() {
   const group = new THREE.Group();
@@ -3151,8 +3153,15 @@ function buildVoid() {
       for (let k = 0; k < n; k++) { const a = k * 2, b = a + 1, c = ((k + 1) % n) * 2, d = c + 1; I.push(a, b, c, b, d, c); }
       const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setIndex(I); return g; })();
     const mats = [new THREE.MeshBasicMaterial({ color: 0x24242a, side: THREE.DoubleSide }), new THREE.MeshBasicMaterial({ color: 0x121216, side: THREE.DoubleSide }), new THREE.MeshBasicMaterial({ color: 0xc9a23a, side: THREE.DoubleSide })];
+    /* INK_INTRO (?ink): the icon's look — hand-inked bands in cream, ink and gold, each ring drawn a little unsteadily, in a warm brown-black */
+    const inkMats = [0xa89e88, 0x0b0b0d, 0xb08a2c, 0x0b0b0d, 0x2c2723, 0x0b0b0d].map(c => new THREE.MeshBasicMaterial({ color: c, side: THREE.DoubleSide }));
+    const wobbly = (seed) => { let sd = seed * 9301 + 49297; const rn = () => ((sd = (sd * 9301 + 49297) % 233280) / 233280) - 0.5; const P = [], I = [], n = prof.length;
+      for (const [x, y] of prof) { const jx = rn() * 0.07, jy = rn() * 0.07; P.push((x + jx) * 4.2, 0, -(y + jy) * 4.2, (x + jx * 0.6) * 3.55, 0, -(y + jy * 0.6) * 3.55); }
+      for (let k = 0; k < n; k++) { const a = k * 2, b = a + 1, c = ((k + 1) % n) * 2, d = c + 1; I.push(a, b, c, b, d, c); }
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setIndex(I); return g; };
+    const inkG = INK_INTRO ? [1, 2, 3, 4, 5, 6].map(wobbly) : null;
     // a solid sleeve of the same shape behind the rings, so the gaps read as depth, not void
-    for (let k = 0; k < 46; k++) { const m = new THREE.Mesh(ringG, k % 7 === 0 ? mats[2] : mats[k % 2]); m.position.y = 6 - k * 1.5; m.scale.setScalar(1 + (k % 2) * 0.04); group.add(m); movers.push({ m, span: 46 * 1.5, ring: true }); }
+    for (let k = 0; k < 46; k++) { const m = INK_INTRO ? new THREE.Mesh(inkG[k % 6], inkMats[k % 6]) : new THREE.Mesh(ringG, k % 7 === 0 ? mats[2] : mats[k % 2]); m.position.y = 6 - k * 1.5; m.scale.setScalar(1 + (k % 2) * 0.04); group.add(m); movers.push({ m, span: 46 * 1.5, ring: true }); }
     const glow = new THREE.PointLight(0xffcf6a, 30, 60, 1.4); glow.position.set(0, -40, 0); group.add(glow);
   }
   const poseDrift = (tt) => {   // the first take: face-down, slowly turning over, limbs loose
@@ -3168,7 +3177,7 @@ function buildVoid() {
   return {
     group, grade: NOIR, name: 'The Fall', cutscene: true,
     exposure: 1.05,
-    fog: new THREE.FogExp2(0x000000, mode === 'tunnel' ? 0.04 : 0.09),
+    fog: new THREE.FogExp2(INK_INTRO ? 0x1a1714 : 0x000000, mode === 'tunnel' ? (INK_INTRO ? 0.05 : 0.04) : 0.09),
     bounds: { minX: -1, maxX: 1, minZ: -1, maxZ: 1 },
     blocked() { return false; }, groundY() { return 0; },
     start: { x: 0, z: 0, heading: 0 }, patrol: [{ p: [0, 0] }],
@@ -5355,7 +5364,7 @@ function buildHotel({ beam = true } = {}) {
   { const n = 18, run = (STZ1 - STZ0) / n, rise = F2 / n;
     for (let i = 0; i < n; i++) { const z = STZ1 - (i + 0.5) * run, y = (i + 1) * rise; box(STX1 - STX0, rise, run, woodM, (STX0 + STX1) / 2, y - rise / 2, z); box(STX1 - STX0, 0.02, 0.08, mat({ color: 0x111111 }), (STX0 + STX1) / 2, y + 0.01, z - run / 2 + 0.05, false); }
     const side = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.2, Math.hypot(STZ1 - STZ0, F2)), woodD); side.position.set(STX0, F2 / 2 + 0.6, (STZ0 + STZ1) / 2); side.rotation.x = Math.atan2(F2, STZ1 - STZ0); group.add(side);
-    const t = railTex.clone(); t.needsUpdate = true; t.repeat.set(5, 1); const bal = new THREE.Mesh(new THREE.PlaneGeometry(Math.hypot(STZ1 - STZ0, F2), 1.0), railM.clone()); bal.material.map = t; bal.rotation.y = Math.PI / 2; bal.rotation.z = -Math.atan2(F2, STZ1 - STZ0); bal.rotation.order = 'YXZ'; bal.position.set(STX0, F2 / 2 + 0.5, (STZ0 + STZ1) / 2); group.add(bal);
+    const t = railTex.clone(); t.needsUpdate = true; t.repeat.set(5, 1); const bal = new THREE.Mesh(new THREE.PlaneGeometry(Math.hypot(STZ1 - STZ0, F2), 1.0), railM.clone()); bal.material.map = t; bal.rotation.y = Math.PI / 2; bal.rotation.z = Math.atan2(F2, STZ1 - STZ0); bal.rotation.order = 'YXZ';   /* (sloped up toward the top step, same as the handrail — it was tilted the wrong way) */ bal.position.set(STX0, F2 / 2 + 0.5, (STZ0 + STZ1) / 2); group.add(bal);
     // the gilt-framed mirrors and candle sconces climbing the stair wall
     for (let i = 0; i < 2; i++) { const z = STZ1 - 1.2 - i * 2.2, y = 1.6 + (STZ1 - z) / (STZ1 - STZ0) * F2;   // two, kept under the gallery floor (a third climbed into Room 205's door)
       const mf = new THREE.Mesh(new THREE.BoxGeometry(0.06, 1.6, 1.1), mat({ color: 0x2f4a30, roughness: .5 })); mf.position.set(WX - 0.04, y, z); group.add(mf);
@@ -8821,10 +8830,14 @@ function driveChoice(dt) {
   const rc = document.createElement('button'); rc.textContent = 'Reset clues'; rc.onclick = () => { Evidence.reset(); loadScene(currentKey); }; body.append(rc);
   Perf.init(); const sb = document.createElement('button'), sc = document.createElement('button'); const syncS = () => { sb.textContent = 'Stats: ' + (Perf.on ? 'on' : 'off'); sc.hidden = !Perf.on; };
   sb.onclick = () => { Perf.toggle(); syncS(); }; sc.textContent = 'Copy stats'; sc.onclick = () => { Perf.copy(); sc.textContent = 'Copied'; setTimeout(() => sc.textContent = 'Copy stats', 1200); }; syncS(); body.append(sb, sc);
+  { let off = false; try { off = localStorage.getItem('caineGrain') === '0'; } catch (e) {} document.body.classList.toggle('noGrain', off && on);
+    const gb = document.createElement('button'), syncG = () => gb.textContent = 'Grain: ' + (document.body.classList.contains('noGrain') ? 'off' : 'on'); syncG();
+    gb.onclick = () => { const o = document.body.classList.toggle('noGrain'); try { localStorage.setItem('caineGrain', o ? '0' : '1'); } catch (e) {} syncG(); }; body.append(gb); }   /* film grain on/off (remembered) */
+  const ib = document.createElement('button'); ib.textContent = 'Intro: ' + (INK_INTRO ? 'inked' : 'classic'); ib.onclick = () => { try { localStorage.setItem('caineInkIntro', INK_INTRO ? '0' : '1'); } catch (e) {} location.href = location.pathname; }; body.append(ib);   /* try the hand-inked opening (reloads to the start) */
   const rl = document.createElement('button'); rl.textContent = 'Reload'; rl.onclick = () => location.reload(); body.append(rl);   // a fresh start (no #scene in the address = the opening plays)
   dock.querySelector('#devDockBtn').onclick = (e) => { e.stopPropagation(); body.hidden = !body.hidden; };
   dock.addEventListener('pointerdown', e => e.stopPropagation());
-  const syncDock = () => { dock.hidden = !on; if (!on) body.hidden = true; if (!on && Perf.on) { Perf.toggle(); syncS(); } }; syncDock();
+  const syncDock = () => { dock.hidden = !on; if (!on) { body.hidden = true; document.body.classList.remove('noGrain'); } else { let off = false; try { off = localStorage.getItem('caineGrain') === '0'; } catch (e) {} document.body.classList.toggle('noGrain', off); } if (!on && Perf.on) { Perf.toggle(); syncS(); } }; syncDock();
   let taps = 0, tapT = 0, toastT = 0;
   logo.addEventListener('pointerdown', e => {
     e.preventDefault(); e.stopPropagation();
@@ -8943,7 +8956,7 @@ function keyWalk(dt) {
    ========================================================= */
 const grain = document.getElementById('grain'), gctx = grain.getContext('2d'), gimg = gctx.createImageData(200, 200);
 let grainTick = 0;
-function drawGrain() {
+function drawGrain() { if (document.body.classList.contains('noGrain')) return;   // (dev: grain off)
   if ((grainTick = (grainTick + 1) % 3) && typeof PhoneUI !== 'undefined' && PhoneUI.isOpen) return;   // with the phone up, the grain shifts slower so it reads as texture, not flicker
   const d = gimg.data;
   for (let i = 0; i < d.length; i += 4) { const v = Math.random() * 255; d[i] = d[i + 1] = d[i + 2] = v; d[i + 3] = 255; }
@@ -8959,6 +8972,7 @@ function resize() {
 }
 addEventListener('resize', resize); resize();
 
+const NOISE_BEDS = false;   // filtered-noise rain, roof, waves and wind under every scene
 const Ambience = (() => {
   const MIX = { docks: { rain: .5, waves: .45 }, garageout: { rain: .45 }, garage: { rain: .3, roof: .15 }, skybridge: { roof: .55, rain: .15 }, alley: { rain: .55 }, lot: { rain: .6 }, front: { rain: .5, waves: .35 }, doorway: { rain: .45 }, cemetery: { rain: .35, wind: .3 }, fort: { rain: .45, waves: .6, wind: .35 },
     drive: { rain: .5, waves: .2 }, malecon: { rain: .5, waves: .45 }, hotel: { roof: .5 }, room212: { roof: .65, rain: .12 }, precinct: { roof: .25 }, office: { roof: .3 }, warehouse: { roof: .45 } };
@@ -8966,7 +8980,7 @@ const Ambience = (() => {
   function noiseBuf(c, sec = 3) { const b = c.createBuffer(1, c.sampleRate * sec, c.sampleRate), d = b.getChannelData(0); let last = 0; for (let i = 0; i < d.length; i++) { const w = Math.random() * 2 - 1; last = (last + 0.02 * w) / 1.02; d[i] = w * 0.6 + last * 3.5; } return b; }
   function chan(type, freq, q) { const src = ctx.createBufferSource(); src.buffer = noiseBuf(ctx); src.loop = true; const f = ctx.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q; const g = ctx.createGain(); g.gain.value = 0; src.connect(f).connect(g).connect(ctx.destination); src.start(); return { g, f }; }
   function start() { if (ctx) return; try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
-    ch.rain = chan('highpass', 1200, 0.4); ch.rain2 = chan('bandpass', 3200, 0.8); ch.waves = chan('lowpass', 420, 0.7); ch.wind = chan('bandpass', 380, 0.5); ch.roof = chan('lowpass', 900, 0.6);
+    if (NOISE_BEDS) { ch.rain = chan('highpass', 1200, 0.4); ch.rain2 = chan('bandpass', 3200, 0.8); ch.waves = chan('lowpass', 420, 0.7); ch.wind = chan('bandpass', 380, 0.5); ch.roof = chan('lowpass', 900, 0.6); }   /* the rain/roof/sea hiss: off for now (it read as loud static) */
     { /* an idling flathead: a low saw chugging at firing rate, through a muffler */ const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = 36; const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 160; f.Q.value = 2;
       const am = ctx.createGain(); am.gain.value = 0.6; const lfo = ctx.createOscillator(); lfo.frequency.value = 12; const ld = ctx.createGain(); ld.gain.value = 0.4; lfo.connect(ld).connect(am.gain);
       const g = ctx.createGain(); g.gain.value = 0; o.connect(f).connect(am).connect(g).connect(ctx.destination); o.start(); lfo.start(); ch.idle = { g, o }; } }
