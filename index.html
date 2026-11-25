@@ -5613,8 +5613,16 @@ function buildRoom212() {
       part(0.64, 0.3, 0.6, 0, 0.21, 0); part(0.56, 0.1, 0.52, 0, 0.41, 0.02); part(0.64, 0.62, 0.15, 0, 0.62, -0.25); part(0.11, 0.24, 0.6, -0.27, 0.48, 0); part(0.11, 0.24, 0.6, 0.27, 0.48, 0);
       for (const [x, z] of [[-0.26, -0.24], [0.26, -0.24], [-0.26, 0.24], [0.26, 0.24]]) part(0.05, 0.06, 0.05, x, 0.03, z, woodD);
       ac.position.set(AC.x, 0, AC.z); ac.rotation.y = 0.75; group.add(ac); group.userData.armchair = AC;
+      /* a paperback left face-up on the seat: MONOCLE, a detective novel (cover art: covers/monocle.jpg once it's in; a plain placeholder till then) */
+      { const cv = document.createElement('canvas'); cv.width = 256; cv.height = 384; const g = cv.getContext('2d'); g.fillStyle = '#7a1e1a'; g.fillRect(0, 0, 256, 384); g.strokeStyle = '#e8dcc0'; g.lineWidth = 4; g.strokeRect(14, 14, 228, 356);
+        g.beginPath(); g.arc(128, 190, 52, 0, 7); g.stroke(); g.beginPath(); g.moveTo(170, 230); g.quadraticCurveTo(200, 300, 150, 340); g.stroke(); g.fillStyle = '#e8dcc0'; g.textAlign = 'center'; g.font = 'bold 40px Georgia, serif'; g.fillText('MONOCLE', 128, 80);
+        const ct = new THREE.CanvasTexture(cv); ct.colorSpace = THREE.SRGBColorSpace; group.userData.novelTex = ct;
+        const page = mat({ color: 0xe6dcc4, roughness: .95 }), back = mat({ color: 0x6a1a16, roughness: .8 }), front = new THREE.MeshStandardMaterial({ map: ct, roughness: .75, emissive: 0xe2b23a, emissiveIntensity: 0 });
+        new THREE.TextureLoader().load('covers/monocle.jpg', (t) => { t.colorSpace = THREE.SRGBColorSpace; front.map = t; front.needsUpdate = true; }, undefined, () => {});
+        const nv = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.025, 0.2), [page, page, front, back, page, page]); nv.castShadow = nv.receiveShadow = true;
+        nv.position.set(0.06, 0.475, 0.06); nv.rotation.y = -0.5; ac.add(nv); group.userData.novel = nv; }
       }
-    /* ...no: on the writing desk by the window, on top of the case file — easy to spot, and fetching it shows you the notebook beside it */
+    /* ...no: on the writing desk by the window, on top of the case file — easy to spot */
     hat.position.set(0.98, 0.855, -2.36); hat.rotation.set(0.04, 1.1, 0.03);
     { const hl = new THREE.SpotLight(0xffe2b0, 7, 3.2, 0.32, 0.7, 1.2); hl.position.set(0.7, 2.6, -1.3); hl.target.position.set(0.98, 0.85, -2.36); group.add(hl, hl.target); group.userData.hatLight = hl; }   /* a soft top light, so a black hat reads against the dark desk (it goes when he takes it) */
     group.add(hat); group.userData.hat = hat; hat.visible = !HatState.on;
@@ -5673,8 +5681,6 @@ function buildRoom212() {
     const label = new THREE.Mesh(new THREE.CylinderGeometry(0.041, 0.041, 0.08, 12, 1, true), mat({ color: 0xd8c8a0, roughness: .8 })); label.position.set(DK.x0 + 0.14, 0.87, dz - 0.1); group.add(label);
     cyl(0.03, 0.026, 0.07, new THREE.MeshStandardMaterial({ color: 0xcfd8dc, roughness: .05, transparent: true, opacity: .35 }), DK.x0 + 0.3, 0.818, dz + 0.1, 12);
     cyl(0.027, 0.024, 0.03, glassM, DK.x0 + 0.3, 0.8, dz + 0.1, 12);
-    // his revolver? no. His notebook: the thing you can pick up
-    group.userData.nb = box(0.13, 0.025, 0.19, new THREE.MeshStandardMaterial({ color: 0x2a1c14, roughness: .6, emissive: 0xe2b23a, emissiveIntensity: 0 }), dx + 0.42, 0.795, dz + 0.12); group.userData.nb.rotation.y = -0.3;
     // the chair, pushed back as if he'd stood up fast
     const ch = new THREE.Group(); const seat = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.05, 0.42), woodM); seat.position.y = 0.46; ch.add(seat);
     for (const [x, z] of [[-0.19, -0.18], [0.19, -0.18], [-0.19, 0.18], [0.19, 0.18]]) { const l = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.46, 0.04), woodD); l.position.set(x, 0.23, z); ch.add(l); }
@@ -5766,7 +5772,7 @@ function buildRoom212() {
     spawns: { hotel: { x: doorX, z: doorZ, heading: 0 }, wake: { x: -2.05, z: 1.6, heading: 0 } },
     clock,
     portals: [{ x: doorX, z: doorZ, to: 'hotel', spawn: 'room212', label: 'The gallery' }],
-    props: [{ id: 'notebook', mesh: group.userData.nb, label: 'Read notebook' }, { id: 'hat', mesh: group.userData.hat, label: 'Put on your hat', reach: 1.6, act: () => HatState.take(group.userData.hat), when: () => !HatState.on && Guide.step !== 'msg' && !PhoneUI.isOpen && !Intro.active }],   /* (not until the Chief's text is read and the phone's down) */
+    props: [{ id: 'novel', mesh: group.userData.novel, label: 'Pick up the novel', reach: 1.3, when: () => !Guide.locked && !Intro.active }, { id: 'hat', mesh: group.userData.hat, label: 'Put on your hat', reach: 1.6, act: () => HatState.take(group.userData.hat), when: () => !HatState.on && Guide.step !== 'msg' && !PhoneUI.isOpen && !Intro.active }],   /* (not until the Chief's text is read and the phone's down) */
     patrol: [
       { p: [BX1 + 0.5, -0.5], wait: 3, face: Math.PI * 0.8 },     // stand in the stripes, looking out
       { p: [-0.6, RZ + 0.75], wait: 3.5, face: Math.PI },          // at the window, through the blinds
@@ -9827,7 +9833,21 @@ function drawHudTo(g, W, t) {
   const crowHeld = makeCrowbar(); crowHeld.visible = false; pScene.add(crowHeld); crowHeld.userData.bar.material = crowHeld.userData.bar.material.clone();
   /* a torch beam to look at things by: whatever he's turning over gets its own warm key light and a cool rim, whatever the room is like */
   const inspKey = new THREE.DirectionalLight(0xffe2b0, 0), inspRim = new THREE.DirectionalLight(0x9fb4e0, 0); inspKey.position.set(0.6, 1.0, 0.8); inspRim.position.set(-0.8, 0.3, -1.0); pScene.add(inspKey, inspRim);
-  const GROUP = { notebook: book, map: mapG, crowbar: crowHeld };
+  /* the paperback from the armchair in 212 (MONOCLE): cover art on the front, the blurb on the back — turn it over in your hands */
+  const novelHeld = (() => {
+    const bc = document.createElement('canvas'); bc.width = 512; bc.height = 768; const g = bc.getContext('2d');
+    g.fillStyle = '#1c1512'; g.fillRect(0, 0, 512, 768); g.strokeStyle = 'rgba(236,226,200,.6)'; g.lineWidth = 3; g.strokeRect(10, 10, 492, 748);
+    g.fillStyle = '#e2b23a'; g.textAlign = 'center'; g.font = 'bold 22px Georgia, serif'; g.fillText('A  DETECTIVE  NOVEL', 256, 80);
+    g.fillStyle = '#ece2c8'; g.font = 'italic 30px Georgia, serif'; g.fillText('"He saw everything', 256, 170); g.fillText('through one good eye —', 256, 210); g.fillText('and trusted none of it."', 256, 250);
+    g.font = '21px Georgia, serif'; const blurb = ['In a harbor town that never sleeps', 'sober, a gentleman thief turns up', 'dead in a locked hotel room. The', 'only witness is a monocle on the', 'carpet — and the only man who can', 'read what it saw is the detective', 'the city would rather forget.'];
+    blurb.forEach((l, i) => g.fillText(l, 256, 330 + i * 34));
+    g.fillStyle = '#e2b23a'; g.fillRect(186, 590, 140, 2); g.fillStyle = '#ece2c8'; g.font = 'bold 18px Georgia, serif'; g.fillText('PULP HOUSE PAPERBACKS · 25¢', 256, 690);
+    const back = new THREE.CanvasTexture(bc); back.colorSpace = THREE.SRGBColorSpace;
+    const front = new THREE.MeshStandardMaterial({ color: 0x8a6a50, roughness: .7 }); new THREE.TextureLoader().load('covers/monocle.jpg', (t) => { t.colorSpace = THREE.SRGBColorSpace; front.map = t; front.color.set(0xffffff); front.needsUpdate = true; }, undefined, () => {});
+    const page = new THREE.MeshStandardMaterial({ color: 0xe6dcc4, roughness: .95 }), spine = new THREE.MeshStandardMaterial({ color: 0x5a1814, roughness: .8 });
+    const m = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.2, 0.022), [page, spine, page, page, front, new THREE.MeshStandardMaterial({ map: back, roughness: .8 })]);
+    const g2 = new THREE.Group(); g2.add(m); g2.visible = false; pScene.add(g2); return g2; })();
+  const GROUP = { notebook: book, map: mapG, crowbar: crowHeld, novel: novelHeld };
   const inspectCard = document.createElement('div'); inspectCard.id = 'inspectCard'; document.body.appendChild(inspectCard);
   const wp = new THREE.Vector3();
   function pickUp(pr) {
@@ -9839,18 +9859,20 @@ function drawHudTo(g, W, t) {
     pr.mesh.getWorldPosition(wp); heading = Math.atan2(wp.x - pos.x, wp.z - pos.z);
     if (pr.id === 'notebook' && nb.turn < 0) nb.chars = 0;
     if (pr.id === 'map') { mp.open = 0; mp.want = 1; }
+    if (pr.id === 'novel') { pv.yaw = -0.35; pv.pitch = 0; pv.spin = 0; pr.mesh.visible = false; inspectCard.innerHTML = '<em>' + (matchMedia('(pointer: coarse)').matches ? 'drag to turn it · tap to flip it over' : 'drag to turn it · click to flip it over') + '</em>'; inspectCard.classList.add('show'); }
     if (pr.review) { inHand = Object.assign({}, pr, { id: pr.review, inspect: null, view: true }); }
     if (pr.inspect || pr.review) { pv.yaw = -0.5; pv.pitch = 0.15; if (pr.group) pr.group.visible = false; }   /* the details (what he notices) come later */
     propBtn.textContent = pr.inspect ? '✓ Take it' : pr.review ? '✕ Put it back' : pr.view ? '✕ Step back' : '✕ Put down'; pr.ui && pr.ui.enter(); propBtn.classList.add('held', 'show'); haptic('click');
   }
   function putDown() { if (!inHand) return; inHand.ui && inHand.ui.exit();
+    if (inHand.id === 'novel') { inHand.mesh.visible = true; inspectCard.classList.remove('show'); }
     if (inHand.inspect) { inspectCard.classList.remove('show'); Found.add(inHand.id); if (inHand.id === 'crowbar') Clues.found('crowbar', 'Warehouse 7 · dropped by the crates', ['CROWBAR', 'W-7 · paint worn at the claw']); if (inHand.group) inHand.group.parent && inHand.group.parent.remove(inHand.group);
       if (S.props) S.props = S.props.filter(p => p !== inHand); foundToast(inHand.inspect.name); }
     inHand = null; propBtn.classList.remove('held'); haptic('click'); }
   function foundToast(name) { const t = document.getElementById('devToast'); t.textContent = name + ' · in your coat'; t.style.opacity = 1; clearTimeout(foundToast.t); foundToast.t = setTimeout(() => t.style.opacity = 0, 2200); }
   function propAction() {
     if (!inHand) return; haptic('click');
-    if (inHand.inspect || inHand.review) { pv.spin = (pv.spin || 0) + Math.PI; return; }
+    if (inHand.inspect || inHand.review || inHand.id === 'novel') { pv.spin = (pv.spin || 0) + Math.PI; return; }
     if (inHand.view) { pv.zoom = pv.zoom > 1.4 ? 1 : 2.1; return; }
     if (inHand.id === 'notebook') { if (nb.turn < 0) nb.turn = 0; }
     else mp.want = mp.want ? 0 : 1;
@@ -9872,7 +9894,7 @@ function drawHudTo(g, W, t) {
     const dx = e.clientX - pDrag.x, dy = e.clientY - pDrag.y; pDrag.x = e.clientX; pDrag.y = e.clientY; pDrag.moved += Math.abs(dx) + Math.abs(dy);
     if (pDrag.board) { if (pDrag.moved >= 8) inHand.ui.move(e.clientX, e.clientY); return; }
     if (inHand.view) { const s = 0.004 / pv.zoom; pv.yaw = Math.max(-1, Math.min(1, pv.yaw + dx * s)); pv.pitch = Math.max(-1, Math.min(1, pv.pitch + dy * s)); return; }
-    if (inHand.inspect || inHand.review) { pv.yaw += dx * 0.01; pv.pitch = Math.max(-1.3, Math.min(1.3, pv.pitch + dy * 0.008)); return; }
+    if (inHand.inspect || inHand.review || inHand.id === 'novel') { pv.yaw += dx * 0.01; pv.pitch = Math.max(-1.3, Math.min(1.3, pv.pitch + dy * 0.008)); return; }
     pv.yaw = Math.max(-0.6, Math.min(0.6, pv.yaw + dx * 0.006)); pv.pitch = Math.max(-0.5, Math.min(0.5, pv.pitch + dy * 0.005));
   }, true);
   const pLift = e => { pTouches.delete(e.pointerId); if (pTouches.size < 2) pPinch0 = 0; };
@@ -9904,7 +9926,12 @@ function drawHudTo(g, W, t) {
     for (const id in GROUP) {
       const g = GROUP[id], on = inHand && inHand.id === id, kk = on ? kp : (g.userData.k || 0) * Math.max(0, 1 - dt * 6);
       g.userData.k = kk; g.visible = kk > 0.01; if (!g.visible) continue;
-      if (id === 'crowbar') { inspKey.intensity = 2.6 * kk; inspRim.intensity = 1.6 * kk; }
+      if (id === 'crowbar' || id === 'novel') { inspKey.intensity = 2.6 * kk; inspRim.intensity = 1.6 * kk; }
+      if (id === 'novel') {   /* held up in both hands, a little tilted; turn it over to read the back */
+        if (pv.spin) { const st = Math.min(pv.spin, dt * 5); pv.yaw += st; pv.spin -= st; }
+        g.scale.setScalar(portrait ? 0.58 : 0.62); g.position.set(0, (portrait ? 0.014 : 0.01) - (1 - kk) * 0.3 + Math.sin(pt * 1.3) * 0.0018, -(portrait ? 0.42 : 0.34) / pv.zoom);
+        g.rotation.set(0, 0, 0); g.rotateX(-0.08 + pv.pitch + (1 - kk) * 0.8); g.rotateY(pv.yaw); g.rotateZ(0.04 + Math.sin(pt * 0.9) * 0.008);
+        continue; }
       if (id === 'crowbar') {   /* held up across the view, turning slowly until you take hold of it */
         if (!pDrag.on) pv.yaw += dt * 0.25; if (pv.spin) { const st = Math.min(pv.spin, dt * 5); pv.yaw += st; pv.spin -= st; }
         g.scale.setScalar(portrait ? 0.52 : 0.8); g.position.set(0, (portrait ? 0.0 : 0.01) - (1 - kk) * 0.35 + Math.sin(pt * 1.3) * 0.002, -(portrait ? 1.15 : 0.72) / pv.zoom);
@@ -9982,7 +10009,7 @@ function drawHudTo(g, W, t) {
       if (k > 0.01 || kp > 0.01) lightFromWorld(dt);
       grain.style.opacity = (0.09 * (1 - Math.min(1, Math.max(k, kp)) * 0.5)).toFixed(3);   // keep about half the grain so it doesn't go clinically clean
       phone.visible = k > 0.01;
-      if (!phone.visible) { if (book.visible || mapG.visible || crowHeld.visible) { renderer.autoClear = false; renderer.clearDepth(); renderer.render(pScene, pCam); renderer.autoClear = true; } return; }
+      if (!phone.visible) { if (book.visible || mapG.visible || crowHeld.visible || novelHeld.visible) { renderer.autoClear = false; renderer.clearDepth(); renderer.render(pScene, pCam); renderer.autoClear = true; } return; }
       const portrait = innerWidth < innerHeight;
       phone.position.set(portrait ? 0 : 0.06, (portrait ? 0.008 : 0.002) - (1 - k) * 0.2 + Math.sin(pt * 1.3) * 0.0012, (portrait ? -0.17 : -0.2) / view.zoom);
       const vy = camApp() ? 0 : view.yaw, vp = camApp() ? 0 : view.pitch;
