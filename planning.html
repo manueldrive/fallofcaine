@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Planning · The Fall of Caine</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#0b0b0b">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Special+Elite&family=Great+Vibes&display=swap">
+<style>
+  :root { --ink: #0e0c0b; --panel: #171412; --line: #2e2823; --cream: #ece4cf; --dim: #a59c88; --gold: #e2b23a; --red: #9c2b22; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--ink); color: var(--cream); font: 15px/1.55 Georgia, 'Times New Roman', serif; }
+  a { color: var(--gold); }
+  header { position: sticky; top: 0; z-index: 10; background: linear-gradient(#0e0c0b, #0e0c0bf2); border-bottom: 1px solid var(--line); padding: 14px 20px 0; }
+  .brand { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .brand i { font: 26px 'Great Vibes', cursive; color: var(--cream); }
+  .brand b { font: 34px/1 'Bebas Neue', Impact, sans-serif; letter-spacing: .12em; }
+  .brand span { font: 13px 'Bebas Neue', Impact, sans-serif; letter-spacing: .35em; color: var(--gold); }
+  .brand a.play { margin-left: auto; font: 14px 'Bebas Neue', Impact, sans-serif; letter-spacing: .25em; text-decoration: none; border: 1px solid var(--gold); padding: 5px 12px; }
+  nav { display: flex; gap: 4px; margin-top: 10px; overflow-x: auto; }
+  nav button { background: none; border: 0; border-bottom: 2px solid transparent; color: var(--dim); font: 17px 'Bebas Neue', Impact, sans-serif; letter-spacing: .22em; padding: 8px 14px 9px; cursor: pointer; white-space: nowrap; }
+  nav button.on { color: var(--cream); border-color: var(--gold); }
+  main { padding: 18px 20px 60px; max-width: 1400px; margin: 0 auto; }
+  section.tab { display: none; } section.tab.on { display: block; }
+  h2 { font: 28px 'Bebas Neue', Impact, sans-serif; letter-spacing: .14em; margin: 0 0 4px; }
+  h3 { font: 15px 'Bebas Neue', Impact, sans-serif; letter-spacing: .3em; color: var(--gold); margin: 22px 0 8px; font-weight: normal; }
+  .sub { color: var(--dim); font-style: italic; margin: 0 0 12px; }
+  .tw { font-family: 'Special Elite', 'Courier New', monospace; }
+  /* map */
+  .mapwrap { display: grid; grid-template-columns: 1fr 300px; gap: 16px; }
+  .mapframe { width: 100%; height: min(76vh, 760px); border: 1px solid var(--line); background: #000; }
+  .districts .d { border: 1px solid var(--line); background: var(--panel); padding: 12px 14px; margin-bottom: 10px; }
+  .districts .d b { font: 18px 'Bebas Neue', Impact, sans-serif; letter-spacing: .14em; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .chip { background: #221d19; border: 1px solid var(--line); color: var(--cream); font: 13px 'Bebas Neue', Impact, sans-serif; letter-spacing: .14em; padding: 4px 9px; cursor: pointer; }
+  .chip:hover, .chip.on { border-color: var(--gold); color: var(--gold); }
+  /* locations */
+  .locs { display: grid; grid-template-columns: 260px 1fr; gap: 20px; align-items: start; }
+  .loclist { position: sticky; top: 112px; max-height: calc(100vh - 130px); overflow: auto; border: 1px solid var(--line); background: var(--panel); }
+  .loclist h4 { margin: 0; padding: 10px 12px 4px; font: 12px 'Bebas Neue', Impact, sans-serif; letter-spacing: .35em; color: var(--gold); font-weight: normal; }
+  .loclist button { display: flex; gap: 10px; align-items: center; width: 100%; background: none; border: 0; border-left: 3px solid transparent; color: var(--cream); text-align: left; padding: 6px 10px; cursor: pointer; font: 15px Georgia, serif; }
+  .loclist button img { width: 54px; height: 34px; object-fit: cover; border: 1px solid #000; }
+  .loclist button.on { background: #221d19; border-left-color: var(--gold); }
+  .viewer { position: relative; border: 1px solid var(--line); background: #000; aspect-ratio: 16 / 10; overflow: hidden; }
+  .viewer img, .viewer iframe { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border: 0; }
+  .vbar { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; align-items: center; }
+  .vbar button { background: #1d1916; border: 1px solid var(--line); color: var(--cream); font: 14px 'Bebas Neue', Impact, sans-serif; letter-spacing: .18em; padding: 6px 12px; cursor: pointer; }
+  .vbar button.on { border-color: var(--gold); color: var(--gold); }
+  .vbar small { color: var(--dim); font-style: italic; margin-left: 6px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; }
+  ul.list { list-style: none; margin: 0; padding: 0; }
+  ul.list li { border-bottom: 1px dashed var(--line); padding: 7px 0; }
+  ul.list li b { font-weight: normal; color: var(--cream); }
+  ul.list li em { color: var(--dim); font-size: 13.5px; display: block; }
+  .tag { display: inline-block; font: 11px 'Bebas Neue', Impact, sans-serif; letter-spacing: .2em; padding: 1px 6px; margin-right: 6px; border: 1px solid var(--line); color: var(--dim); vertical-align: 2px; }
+  .tag.gold { color: var(--gold); border-color: #6b5520; } .tag.red { color: #e07a6a; border-color: #6a2a22; }
+  .card { background: var(--panel); border: 1px solid var(--line); padding: 14px 16px; }
+  textarea { width: 100%; min-height: 120px; background: #100e0d; color: var(--cream); border: 1px solid var(--line); padding: 10px; font: 14px/1.5 'Special Elite', 'Courier New', monospace; resize: vertical; }
+  .swatches { display: flex; gap: 6px; flex-wrap: wrap; }
+  .sw { width: 72px; } .sw i { display: block; height: 40px; border: 1px solid #000; } .sw small { display: block; color: var(--dim); font: 11px 'Courier New', monospace; margin-top: 3px; }
+  /* look & feel */
+  .lf { display: grid; grid-template-columns: 200px 1fr; gap: 22px; align-items: start; }
+  .lfnav { position: sticky; top: 112px; display: flex; flex-direction: column; gap: 2px; }
+  .lfnav a { color: var(--dim); text-decoration: none; font: 16px 'Bebas Neue', Impact, sans-serif; letter-spacing: .2em; padding: 6px 10px; border-left: 2px solid var(--line); }
+  .lfnav a:hover { color: var(--gold); border-color: var(--gold); }
+  .lfsec { margin-bottom: 40px; scroll-margin-top: 120px; }
+  .refs { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; margin-top: 12px; }
+  .ref { background: var(--panel); border: 1px solid var(--line); }
+  .ref img { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; cursor: zoom-in; }
+  .ref div { padding: 8px 10px 10px; font-size: 13.5px; color: var(--dim); } .ref div b { display: block; color: var(--cream); font-weight: normal; font-size: 14.5px; }
+  .rules li { margin-bottom: 6px; }
+  #zoom { position: fixed; inset: 0; background: #000e; display: none; align-items: center; justify-content: center; z-index: 50; cursor: zoom-out; } #zoom.on { display: flex; } #zoom img { max-width: 94vw; max-height: 92vh; }
+  @media (max-width: 860px) {
+    .mapwrap, .locs, .lf, .grid2 { grid-template-columns: 1fr; }
+    .loclist, .lfnav { position: static; max-height: none; }
+    .loclist { display: flex; overflow-x: auto; } .loclist h4 { display: none; } .loclist button { flex: 0 0 auto; width: auto; flex-direction: column; font-size: 12px; border-left: 0; border-bottom: 3px solid transparent; } .loclist button.on { border-bottom-color: var(--gold); }
+    .lfnav { flex-direction: row; overflow-x: auto; } .lfnav a { border-left: 0; border-bottom: 2px solid var(--line); white-space: nowrap; }
+    header { padding: 10px 12px 0; } main { padding: 14px 12px 50px; } .brand b { font-size: 28px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><i>The Fall of</i><b>CAINE</b><span>PLANNING · THE WRITERS' ROOM</span><a class="play" href="index.html">PLAY ▸</a></div>
+  <nav id="tabs"><button data-t="map" class="on">City map</button><button data-t="locs">Locations</button><button data-t="cast">Cast</button><button data-t="case">The case</button><button data-t="look">Look &amp; feel</button></nav>
+</header>
+<main>
+  <section class="tab on" id="t-map">
+    <h2>Coquina City</h2><p class="sub">The live case map from the game. Pick a place to open it under Locations.</p>
+    <div class="mapwrap"><iframe class="mapframe" data-src="casemap.html" title="Case map"></iframe><div class="districts" id="districts"></div></div>
+  </section>
+  <section class="tab" id="t-locs"><div class="locs"><div class="loclist" id="loclist"></div><div id="loc"></div></div></section>
+  <section class="tab" id="t-cast"><h2>The cast</h2><p class="sub">Who's in the game right now, where they stand, and what they're for. Faces are left to the comic panels; in the world everyone reads as a silhouette.</p><div id="cast" class="refs"></div></section>
+  <section class="tab" id="t-case"><h2>Case one · the body at W-7</h2><p class="sub">The first case as it plays today, beat by beat, and the four clues.</p><div id="case"></div></section>
+  <section class="tab" id="t-look"><div class="lf"><div class="lfnav" id="lfnav"></div><div id="look"></div></div></section>
+</main>
+<div id="zoom"><img alt=""></div>
+<script>
+const INFO = {"room212": {"key": "room212", "name": "Room 212", "props": [{"id": "novel", "label": "Read", "talk": null, "item": null, "note": null}, {"id": "hat", "label": "Wear", "talk": null, "item": null, "note": null}], "portals": [{"label": "The gallery", "to": "hotel"}], "clues": [], "lights": 10, "shadows": 3, "fog": "#05060a", "exposure": 1.35, "sky": null, "level": null}, "hotel": {"key": "hotel", "name": "Hotel Osario", "props": [{"id": "bellhop", "label": "Talk", "talk": "bellhop", "item": null, "note": null}], "portals": [{"label": "Room 212 (gallery)", "to": "room212"}, {"label": "Walkway \u00b7 garage (gallery)", "to": "skybridge"}, {"label": "Lift \u00b7 lobby / up", "to": null}, {"label": "Your car (lobby front door)", "to": "drive"}], "clues": [], "lights": 16, "shadows": 4, "fog": "#1a120a", "exposure": 1.3, "sky": null, "level": 1, "floors": true}, "skybridge": {"key": "skybridge", "name": "The Walkway", "props": [], "portals": [{"label": "Hotel Osario", "to": "hotel"}, {"label": "The garage", "to": "garage"}], "clues": [], "lights": 20, "shadows": 1, "fog": "#060607", "exposure": 1.3, "sky": "evening", "level": null}, "garage": {"key": "garage", "name": "Municipal Garage \u00b7 Roof", "props": [], "portals": [{"label": "Walkway", "to": "skybridge"}, {"label": "Your car", "to": "garageout"}], "clues": [], "lights": 29, "shadows": 3, "fog": "#050506", "exposure": 1.3, "sky": "rain", "level": null}, "garageout": {"key": "garageout", "name": "Leaving the garage", "props": [], "portals": [], "clues": [], "lights": 19, "shadows": 0, "fog": "#5e6064", "exposure": 1.2, "sky": "rain", "level": null}, "malecon": {"key": "malecon", "name": "El Malec\u00f3n", "props": [], "portals": [], "clues": [], "lights": 5, "shadows": 1, "fog": "#5e6064", "exposure": 1.2, "sky": "rain", "level": null}, "drive": {"key": "drive", "name": "The Drive", "props": [], "portals": [], "clues": [], "lights": 5, "shadows": 1, "fog": "#5e6064", "exposure": 1.2, "sky": "rain", "level": null}, "front": {"key": "front", "name": "Precinct Front", "props": [{"id": "chief", "label": "Talk", "talk": "chief", "item": null, "note": null}], "portals": [{"label": "Precinct", "to": "precinct"}, {"label": "Your car", "to": "drive"}], "clues": [], "lights": 17, "shadows": 3, "fog": "#16171a", "exposure": 1.3, "sky": "rain", "level": null}, "precinct": {"key": "precinct", "name": "The Precinct", "props": [{"id": "vera", "label": "Talk", "talk": "vera", "item": null, "note": null}, {"id": "keeper", "label": "Talk", "talk": "keeper", "item": null, "note": null}], "portals": [{"label": "Your office", "to": "office"}, {"label": "Parking lot", "to": "lot"}, {"label": "Front steps", "to": "front"}], "clues": [], "lights": 13, "shadows": 4, "fog": "#000000", "exposure": 1.35, "sky": null, "level": null}, "office": {"key": "office", "name": "The Office", "props": [{"id": "notebook", "label": "Read", "talk": null, "item": null, "note": null}, {"id": "map", "label": "Open", "talk": null, "item": null, "note": null}, {"id": "board", "label": "Study", "talk": null, "item": null, "note": null}], "portals": [{"label": "Squad room", "to": "precinct"}], "clues": [], "lights": 7, "shadows": 5, "fog": "#000000", "exposure": 1.2, "sky": null, "level": null}, "lot": {"key": "lot", "name": "The Parking Lot", "props": [], "portals": [{"label": "Precinct", "to": "precinct"}, {"label": "Your car", "to": "drive"}], "clues": [], "lights": 11, "shadows": 7, "fog": "#050506", "exposure": 1.3, "sky": "rain", "level": null}, "alley": {"key": "alley", "name": "The Alley", "props": [{"id": "clue-footprints", "label": "Photograph", "talk": null, "item": null, "note": null}], "portals": [{"label": "Cordage St. \u00b7 No. 14", "to": "doorway"}, {"label": "The docks", "to": "docks"}], "clues": [{"id": "footprints", "caption": "Footprints \u00b7 the alley", "note": ["FOOTPRINTS \u00b7 ALLEY", "two sets, running \u00b7 toward the docks"]}], "lights": 11, "shadows": 5, "fog": "#000000", "exposure": 1.15, "sky": "evening", "level": null}, "docks": {"key": "docks", "name": "The Docks", "props": [{"id": "guard", "label": "Talk", "talk": "guard", "item": null, "note": null}], "portals": [{"label": "Warehouse 7", "to": "warehouse"}, {"label": "The alley", "to": "alley"}, {"label": "Your car", "to": "drive"}], "clues": [], "lights": 13, "shadows": 0, "fog": "#15161a", "exposure": 1.5, "sky": "rain", "level": null}, "warehouse": {"key": "warehouse", "name": "The Warehouse", "props": [{"id": "crowbar", "label": "Take", "talk": null, "item": "Crowbar", "note": "Red paint worn to steel at the claw. Fresh scratches. Somebody used this recently."}], "portals": [{"label": "Out to the docks", "to": "docks"}], "clues": [], "lights": 3, "shadows": 1, "fog": "#000000", "exposure": 1.3, "sky": null, "level": null}, "doorway": {"key": "doorway", "name": "The Doorway", "props": [{"id": "clue-blood", "label": "Photograph", "talk": null, "item": null, "note": null}], "portals": [{"label": "The alley \u00b7 the docks", "to": "alley"}], "clues": [{"id": "blood", "caption": "Blood \u00b7 Cordage St. doorway", "note": ["BLOOD \u00b7 CORDAGE ST.", "spray on the arch \u00b7 drops down the steps"]}], "lights": 10, "shadows": 5, "fog": "#000000", "exposure": 1.1, "sky": null, "level": null}, "cemetery": {"key": "cemetery", "name": "The Cemetery", "props": [], "portals": [{"label": "Your car", "to": "drive"}], "clues": [], "lights": 3, "shadows": 1, "fog": "#7e8083", "exposure": 1.1, "sky": "mono", "level": null}, "fort": {"key": "fort", "name": "Castillo Coquina", "props": [], "portals": [{"label": "Your car", "to": "drive"}], "clues": [], "lights": 8, "shadows": 1, "fog": "#5e5c58", "exposure": 1.2, "sky": "mono", "level": null}, "void": {"key": "void", "name": "The Fall", "props": [], "portals": [], "clues": [], "lights": 3, "shadows": 0, "fog": "#000000", "exposure": 1.05, "sky": null, "level": null}};
+const DISTRICTS = [
+  { id: 'isla', name: 'Isla Luz', blurb: 'White collar and visitor-facing: the hotel, the casino, the parking garage. Where the Skyway lands.', keys: ['room212', 'hotel', 'skybridge', 'garage', 'garageout', 'malecon'] },
+  { id: 'bay', name: 'Ánimas Bay', blurb: 'The water between the two shores: the Skyway over it, the lighthouse on its own rock in the middle.', keys: ['drive'] },
+  { id: 'old', name: 'Old Town', blurb: 'Blue collar. Coquina walls, the precinct on the beachfront, the docks and Warehouse 7, the cathedral, the water tower, the Castillo.', keys: ['front', 'precinct', 'office', 'lot', 'alley', 'doorway', 'docks', 'warehouse', 'cemetery', 'fort'] },
+  { id: 'open', name: 'The opening', blurb: 'Before the city: the title screen.', keys: ['void'] },
+];
+const L = {
+  room212: { d: 'isla', beat: 'Where Caine wakes. The Chief\'s text, the hat on the desk, the MONOCLE paperback on the armchair. The walking lesson.', chars: ['Caine'],
+    light: 'One amber neon outside the window throws the blinds across the bed; a ceiling fan turns its shadow round the room; a bedside lamp; once the text is read, a cruiser\'s red and blue wash through the blinds onto the desk.',
+    arch: 'Second floor of the Hotel Osario. Faded green damask, oxblood carpet, an iron bed, a writing desk under the window, a velvet armchair in the corner. Cut away like a diorama.',
+    notes: 'Door opens straight onto the gallery outside, where Eddie is.' },
+  hotel: { d: 'isla', beat: 'Eddie the bellhop, the skeleton, and the way to the car. The eye-view lesson happens inside Eddie\'s talk. Two floors: the gallery (212, Eddie, the walkway doors) and the lobby (desk, grand stair, front door), joined by a lift.', chars: ['Eddie · bellhop'],
+    light: 'Moonlight through the stained-glass skylight throws its colours down the well onto the bones; warm sconces round the galleries; museum spots on the skull and ribs; a brass ring chandelier.',
+    arch: 'A coquina castle built round a skylit atrium (after Ripley\'s in St. Augustine). Three storeys of galleries with wrought-iron railings; the old exhibit halls are guest rooms. A tyrannosaur cut out of Isla Luz coquina in 1911 stands in the well. The skylight: a leaded sunburst with an ammonite medallion on each face.',
+    notes: 'The skull sits at gallery height, so from outside 212 you meet it eye to eye.' },
+  skybridge: { d: 'isla', beat: 'The walkway over the street, hotel to the garage roof. A breather; a voiceover line or two.', chars: ['Caine'],
+    light: 'Evening sky, the shared skyline, rain on the glass roof; lit windows across the street.', arch: 'A covered iron-and-glass bridge from the hotel\'s second floor to the municipal garage.', notes: '' },
+  garage: { d: 'isla', beat: 'The roof deck where Caine keeps the roadster. Get in the car.', chars: ['Caine'],
+    light: 'Rain, sodium lamp posts on the deck, the hotel lit across the gap, the skyline behind.', arch: 'Open concrete deck, parapets, a ramp down; the walkway lands in a little glass porch.', notes: '' },
+  garageout: { d: 'isla', beat: 'Driving out of the garage and turning onto the street. The Ammonite Club across the road.', chars: ['Doorman at the Ammonite Club'],
+    light: 'Neon and gold on the casino; floodlights on its fossil murals; wet street reflections; searchlights.', arch: 'The Ammonite Club: pale stucco tower, gold ledges, a marquee, hand-engraved fossil murals (an ammonite, a triceratops skull, a map of the city), a skybridge to the garage.', notes: '' },
+  malecon: { d: 'isla', beat: 'The seawall road. The merge: Skyway to the precinct, or the Malecón on to the cemetery. The title moment rises off the on-ramp into the sky.', chars: [],
+    light: 'Rain, sodium street lamps along the seawall, the lighthouse beam crossing the bay.', arch: 'A seawall boulevard with palms, gantry signs over the lanes, the bay on one side.', notes: '' },
+  drive: { d: 'bay', beat: 'The Skyway: the long bridge across Ánimas Bay between the two shores.', chars: [],
+    light: 'Night rain, cable lights, the lighthouse sweeping, both shores lit in the distance.', arch: 'A Sunshine Skyway-style cable bridge.', notes: '90-second gas limit is still in play; see open items.' },
+  front: { d: 'old', beat: 'The precinct\'s public face. The Chief waits on the steps to answer his text in person and sends Caine to the warehouse.', chars: ['Chief R.', 'Newsstand vendor', 'A beat cop'],
+    light: 'Twin green globes at the door, rain, warm windows, the bay and Coquina City beyond the seawall.', arch: 'Stone steps, carved lintel, flagpole, newsstand, call box, squad cars at the curb; Bayshore and the seawall across the street.', notes: '' },
+  precinct: { d: 'old', beat: 'The bullpen. Vera at the front desk (photos onto the murder board), Sgt. Okafor in Property (evidence lockers).', chars: ['Vera · front desk', 'Sgt. Okafor · Property', 'A desk cop', 'Two cops at the water cooler'],
+    light: 'Green banker\'s lamps, ceiling fixtures, a dark night outside the windows.', arch: 'Squad room with desks, the front counter, the evidence cage and lockers, doors to the office, the lot and the front steps.', notes: '' },
+  office: { d: 'old', beat: 'Caine\'s office. The notebook, the folded city map, and the murder board (photos, notes, red string).', chars: ['Caine'],
+    light: 'A desk lamp and the city through the blinds.', arch: 'A small cut-away office: desk, board, coat rack, window.', notes: '' },
+  lot: { d: 'old', beat: 'The lot behind the precinct, end of the alley. The car.', chars: [], light: 'Rain, a few pole lamps, wet tarmac.', arch: 'Back-of-house lot, fences, the precinct\'s rear wall.', notes: '' },
+  alley: { d: 'old', beat: 'Off Cordage Street, running out to the docks. The footprints clue. The chase on the tape ran down here.', chars: [],
+    light: 'A single caged lamp, wet cobbles, evening sky slot overhead.', arch: 'Narrow coquina walls, fire escapes, trash, the doorway at one end and the docks at the other.', notes: '' },
+  doorway: { d: 'old', beat: 'Cordage St. No. 14. The blood clue on the arch and steps.', chars: [],
+    light: 'A hard practical over the door; deep shadow.', arch: 'An arched coquina doorway with steps, the opening shot\'s set.', notes: '' },
+  docks: { d: 'old', beat: 'The waterfront yard. Warehouse 7, the night guard\'s booth (he has the security tape), the alley mouth.', chars: ['The night guard'],
+    light: 'Rain, sodium yard lamps, the booth\'s window, the bay and the lighthouse.', arch: 'Warehouse 7 on the north side, the quay to the east, the gate and the booth to the south, the Coquina City water tower over it all.', notes: '' },
+  warehouse: { d: 'old', beat: 'Inside Warehouse 7. The crowbar by the crates.', chars: [], light: 'Very dark: a few shafts through high windows, a hanging bulb.', arch: 'Timber and steel shed, crates, a table where two figures met (seen on the tape).', notes: '' },
+  cemetery: { d: 'old', beat: 'The trailer\'s hero shot: the fedora silhouette. Old Town across the water.', chars: ['A mourner in black'],
+    light: 'Black and white, mist, moonlight.', arch: 'Headstones, crosses, a bench, the city across the bay.', notes: '' },
+  fort: { d: 'old', beat: 'Castillo Coquina at sunset, high over the sea.', chars: [], light: 'Low sunset through the casemate arch.', arch: 'A coquina bastion; a ramp to a vaulted casemate; an arched gate onto a lookout ledge.', notes: '' },
+  void: { d: 'open', beat: 'The title screen: Caine falling down a tunnel of his own profile. START, the plunge, the alarm in the dark.', chars: ['Caine'],
+    light: 'Black, a cold light from far above, a gold ring every few.', arch: 'The tunnel: ring after ring of his profile (brim, nose, chin).', notes: 'There\'s an inked try-out of this (DEV ▸ Intro).' },
+};
+const CAST = [
+  { n: 'Caine', where: ['room212', 'hotel'], role: 'The detective. Fedora and trench, a silhouette. Wakes in 212.', img: 'plan/room212-house.jpg' },
+  { n: 'Chief R.', where: ['front'], role: 'Texts at dawn ("Don\'t make me send Rush."), waits on the precinct steps, briefs the case: body at W-7, no name.', img: 'plan/front-house.jpg' },
+  { n: 'Eddie', where: ['hotel'], role: 'The bellhop. Tells the skeleton\'s story, teaches the eye view, points Caine to the walkway.', img: 'plan/skull.jpg' },
+  { n: 'Vera', where: ['precinct'], role: 'Front desk. Takes the photos Caine sends and pins them on his board. (Placeholder lines: rewrite freely.)', img: 'plan/precinct-house.jpg' },
+  { n: 'Sgt. Okafor', where: ['precinct'], role: 'Property officer. Logs evidence; the lockers fill as the case does.', img: 'plan/precinct-mood.jpg' },
+  { n: 'The night guard', where: ['docks'], role: 'Booth at the yard gate. Has the security tape: three channels, the chase into the alley.', img: 'plan/docks-house.jpg' },
+  { n: 'Rush', where: [], role: 'Mentioned only ("Don\'t make me send Rush"). Not in the world yet.', img: '' },
+  { n: 'Lu & Ray', where: [], role: 'White skin-tight ski masks. Planned; not in the world yet.', img: '' },
+];
+const CLUES = [
+  { id: 'crowbar', n: 'Crowbar', where: 'warehouse', how: 'Pick it up (Take). Red paint worn to steel at the claw; fresh scratches.' },
+  { id: 'footprints', n: 'Footprints', where: 'alley', how: 'Photograph. Two sets, running, toward the docks.' },
+  { id: 'blood', n: 'Blood spatter', where: 'doorway', how: 'Photograph. Spray on the arch, drops down the steps.' },
+  { id: 'footage', n: 'Security footage', where: 'docks', how: 'Ask the night guard. A 3-channel tape: two figures at a table in the warehouse, the chase, the alley.' },
+];
+const BEATS = ['Wake in 212. The Chief\'s text on the phone.', 'Take the hat off the desk (the walking lesson).', 'Out onto the gallery: Eddie, the skeleton, the eye view.', 'The walkway to the garage roof; the roadster.', 'Out past the Ammonite Club; the merge; the title in the sky off the ramp.', 'The Skyway to Old Town; the Chief on the precinct steps.', 'The case goes into Notes. The docks, the warehouse, the alley, the doorway: four clues.', 'Open: what happens when all four are in (the case\'s ending).'];
+const LOOK = [
+  { id: 'lighting', n: 'Lighting', intro: 'Every place gets one strong key light that sets its mood, with the rest left to fall into shadow. Exteriors are rainy and noir; interiors can take more warmth.',
+    refs: [['room212-mood', 'Room 212', 'Amber neon through the blinds, fan shadow, a cop car\'s red and blue'], ['hotel-mood', 'Hotel Osario', 'Moonlight through stained glass onto the bones'], ['docks-mood', 'The Docks', 'Sodium yard lamps in the rain'], ['front-mood', 'Precinct Front', 'Green globes and warm windows'], ['alley-mood', 'The Alley', 'One caged lamp, wet stone'], ['skylight', 'The skylight', 'Colour comes from glass, neon and lamps, never from the sky']],
+    rules: ['Mostly black and white, with hints of gold.', 'Exteriors: rain, wet reflections, sodium and neon. Interiors: warmer, more colour allowed.', 'One key light per place; everything else in shadow.', 'Practical lights you can see (lamps, signs, globes) motivate the light.'] },
+  { id: 'city', n: 'Cityscape & architecture', intro: 'Florida and St. Augustine, with a little Puerto Rico. One shared skyline painted behind every exterior, from whichever shore you stand on.',
+    refs: [['garageout-house', 'The Ammonite Club', 'Isla Luz casino, fossil murals, gold ledges'], ['hotel-house', 'Hotel Osario', 'Coquina castle round a skylit well'], ['docks-house', 'Old Town docks', 'Warehouse 7, the water tower'], ['front-house', 'The precinct', 'Stone civic front on the beachfront'], ['fort-house', 'Castillo Coquina', 'The bastion over the sea'], ['cemetery-mood', 'The cemetery', 'Old Town across the water']],
+    rules: ['Old Town is blue collar: coquina walls, docks, the cathedral, the water tower.', 'Isla Luz is white collar and visitor-centric: the hotel, the casino, the garage.', 'Landmarks seen from both shores: the lighthouse on its rock in Ánimas Bay, the Skyway, the Hotel Osario (tall enough to see from the precinct).', 'Not open world: water, walls and doors limit where you can go, but the skyline makes it feel like a whole city.'] },
+  { id: 'palette', n: 'Palette & motifs', intro: 'The game\'s colours, and the images it keeps coming back to.',
+    swatches: [['#0e0c0b', 'ink'], ['#ece4cf', 'cream'], ['#e2b23a', 'gold'], ['#d4a93c', 'old gold'], ['#9c2b22', 'oxblood'], ['#2f7f88', 'peacock'], ['#3a3740', 'smoke']],
+    refs: [['mural', 'Fossil murals', 'Hand-engraved plates on the casino'], ['intro', 'The tunnel', 'His profile, ring after ring'], ['novel', 'MONOCLE', 'Pulp paperback in his room']],
+    rules: ['Fossils: the tyrannosaur, the ammonite (the casino, the skylight), the triceratops skull.', 'His profile as a shape: the tunnel, the icon.', 'Rain, red string, the fedora silhouette.', 'Hand-inked, printed feel for anything 2D (icon, covers, title).'] },
+  { id: 'people', n: 'Characters & wardrobe', intro: 'Low detail, perfect mood. Everyone reads as a heavily shadowed silhouette; faces belong to the comic panels.',
+    rules: ['Caine: fedora, long coat, collar up.', 'Uniforms: caps and badges; civilians: hats and suits; the bellhop in oxblood with a pillbox cap.', 'Lu & Ray: white skin-tight ski masks.', 'Rated M: the script stays as written, language and violence included.'] },
+  { id: 'type', n: 'Type & UI', intro: 'The interface stays out of the way.',
+    rules: ['One thing emphasised on screen at a time.', 'Interaction prompts are one word: Talk, Read, Wear, Take, Study, Open, Look.', 'Title: script "The Fall of" over block CAINE. UI labels: Bebas Neue. Notes and texts: typewriter (Special Elite).', 'The phone (the Elderberry) is the menu: Messages, Camera, Photos, Notes, Map, Snake.'],
+    fonts: true },
+  { id: 'sound', n: 'Sound & music', intro: 'Your own tracks carry the mood.',
+    rules: ['Tracks: theme, investigate, intense, unsure end.', 'Background rain/roof noise is off for now (it read as static); one-shots stay (the whoosh at START, pigeons, the car idling).', 'The Genesis 4:7 opening verse is out until it ties into the story.'] },
+  { id: 'feel', n: 'The feel', intro: 'Selah: an unhurried investigation where just walking around is a goal in itself (after Alba and Luma).',
+    rules: ['Tranquil, not rushed. Few timers.', 'Each place has mini sections so it feels complete.', 'Doors and walking through them, not glowing portals, move you between places.', 'Small living things everywhere: moths at lamps, rain rings, pigeons, steam.'] },
+];
+/* ---------- helpers */
+const $ = (s, r = document) => r.querySelector(s), esc = (t) => String(t).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+const NAME = Object.fromEntries(Object.entries(INFO).map(([k, v]) => [k, v.name]));
+const notesKey = (k) => 'cainePlanNotes:' + k;
+function show(t) { if (t === 'map') { const f = document.querySelector('.mapframe'); if (f && !f.src) f.src = f.dataset.src; }   /* (the map only loads once its tab is open: it sizes itself to what it can see)
+  */ document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.t === t)); document.querySelectorAll('section.tab').forEach(s => s.classList.toggle('on', s.id === 't-' + t)); history.replaceState(null, '', '#' + t + (t === 'locs' && cur ? '/' + cur : '')); }
+document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => show(b.dataset.t));
+document.addEventListener('click', e => { const im = e.target.closest('.ref img, .zoomable'); if (im) { $('#zoom img').src = im.src; $('#zoom').classList.add('on'); } });
+$('#zoom').onclick = () => $('#zoom').classList.remove('on');
+/* ---------- map tab */
+$('#districts').innerHTML = DISTRICTS.map(d => `<div class="d"><b>${d.name}</b><div class="sub" style="margin:4px 0 0">${d.blurb}</div><div class="chips">${d.keys.map(k => `<button class="chip" data-k="${k}">${esc(NAME[k] || k)}</button>`).join('')}</div></div>`).join('');
+document.addEventListener('click', e => { const c = e.target.closest('[data-k]'); if (c) { openLoc(c.dataset.k); show('locs'); } });
+/* ---------- locations tab */
+let cur = null, live = false, house = false, free = false;
+$('#loclist').innerHTML = DISTRICTS.map(d => `<h4>${d.name}</h4>` + d.keys.map(k => `<button data-loc="${k}"><img src="plan/${k}-mood.jpg" alt="" loading="lazy"><span>${esc(NAME[k] || k)}</span></button>`).join('')).join('');
+$('#loclist').addEventListener('click', e => { const b = e.target.closest('[data-loc]'); if (b) openLoc(b.dataset.loc); });
+function interactions(i) {
+  const out = []; for (const p of i.props || []) { const what = p.talk ? 'Talk to ' + ({ vera: 'Vera', keeper: 'Sgt. Okafor', chief: 'the Chief', guard: 'the night guard', bellhop: 'Eddie' }[p.talk] || p.talk) : p.item ? p.item + (p.note ? ' — ' + p.note : '') : ({ novel: 'the MONOCLE paperback', hat: 'his hat', notebook: 'his notebook', map: 'the city map', board: 'the murder board', 'clue-footprints': 'the footprints', 'clue-blood': 'the blood' }[p.id] || p.id);
+    out.push(`<li><span class="tag gold">${esc(p.label)}</span><b>${esc(what)}</b></li>`); }
+  for (const p of i.portals || []) out.push(`<li><span class="tag">Exit</span><b>${esc(p.label)}</b>${p.to && INFO[p.to] ? `<em>to ${esc(NAME[p.to])}</em>` : ''}</li>`);
+  return out.join('') || '<li><em>Nothing to pick up or talk to here yet.</em></li>'; }
+function openLoc(k) {
+  cur = k; live = false; house = false; free = false; const i = INFO[k] || {}, l = L[k] || {}, d = DISTRICTS.find(x => x.keys.includes(k));
+  document.querySelectorAll('#loclist button').forEach(b => b.classList.toggle('on', b.dataset.loc === k));
+  const clues = CLUES.filter(c => c.where === k);
+  $('#loc').innerHTML = `
+    <h2>${esc(i.name || k)}</h2><p class="sub">${d ? d.name : ''}${i.level ? '' : ''}</p>
+    <div class="viewer" id="viewer"><img id="vimg" src="plan/${k}-mood.jpg" alt=""></div>
+    <div class="vbar"><button id="bMood" class="on">Mood lighting</button><button id="bHouse">House lights</button><button id="bLive">Open live ▸</button><button id="bFree" hidden>Free camera</button><small id="vnote">Still frames. "Open live" loads the real scene to walk round.</small></div>
+    <div class="grid2">
+      <div><h3>What happens here</h3><p>${esc(l.beat || '')}</p>
+        <h3>Characters here</h3><ul class="list">${(l.chars || []).map(c => `<li><b>${esc(c)}</b></li>`).join('') || '<li><em>No one yet.</em></li>'}</ul>
+        <h3>Interactions</h3><ul class="list" id="inter">${interactions(i)}</ul>
+        <h3>Clues</h3><ul class="list">${clues.map(c => `<li><span class="tag red">Clue</span><b>${c.n}</b><em>${esc(c.how)}</em></li>`).join('') || '<li><em>No clues here.</em></li>'}</ul></div>
+      <div><h3>Lighting</h3><p>${esc(l.light || '')}</p>
+        <div class="card tw" style="font-size:13px">Lights in the set: ${i.lights ?? '?'} (${i.shadows ?? '?'} cast shadows)<br>Fog: ${i.fog ? `<span style="display:inline-block;width:12px;height:12px;background:${i.fog};border:1px solid #555;vertical-align:-1px"></span> ${i.fog}` : 'none'} · exposure ${i.exposure ?? 1}${i.sky ? ' · sky: ' + i.sky : ''}</div>
+        <h3>Architecture</h3><p>${esc(l.arch || '')}</p>
+        ${l.notes ? `<h3>Notes from the build</h3><p class="tw" style="font-size:13.5px">${esc(l.notes)}</p>` : ''}
+        <h3>Writer's notes</h3><textarea id="wn" placeholder="Ideas, lines, what should happen here… (saved on this device)"></textarea>
+        <div class="vbar"><button id="bCopy">Copy all notes</button><small id="saved"></small></div></div>
+    </div>`;
+  const wn = $('#wn'); try { wn.value = localStorage.getItem(notesKey(k)) || ''; } catch (e) {}
+  wn.oninput = () => { try { localStorage.setItem(notesKey(k), wn.value); $('#saved').textContent = 'Saved'; } catch (e) {} };
+  $('#bCopy').onclick = () => { const all = Object.keys(INFO).map(q => { let t = ''; try { t = localStorage.getItem(notesKey(q)) || ''; } catch (e) {} return t ? `## ${NAME[q]}\n${t}` : ''; }).filter(Boolean).join('\n\n') || '(no notes yet)'; navigator.clipboard && navigator.clipboard.writeText(all); $('#saved').textContent = 'Copied every location\'s notes'; };
+  const setLights = (h) => { house = h; $('#bMood').classList.toggle('on', !h); $('#bHouse').classList.toggle('on', h);
+    if (live) { const f = $('#viewer iframe'); f && f.contentWindow.postMessage({ cmd: 'lights', on: h }, '*'); } else $('#vimg').src = `plan/${k}-${h ? 'house' : 'mood'}.jpg`; };
+  $('#bMood').onclick = () => setLights(false); $('#bHouse').onclick = () => setLights(true);
+  $('#bLive').onclick = () => { if (live) { live = false; $('#viewer').innerHTML = `<img id="vimg" src="plan/${k}-${house ? 'house' : 'mood'}.jpg" alt="">`; $('#bLive').textContent = 'Open live ▸'; $('#bFree').hidden = true; $('#vnote').textContent = 'Still frames.'; return; }
+    live = true; $('#viewer').innerHTML = `<iframe src="index.html?plan${house ? '&house' : ''}#${k}" title="Live scene" allow="autoplay"></iframe>`; $('#bLive').textContent = '✕ Close live'; $('#bFree').hidden = false;
+    $('#vnote').textContent = 'Live: walk him round as in the game, or use the free camera (WASD/arrows + drag; on a phone, left thumb moves, right thumb looks).';
+  };
+  $('#bFree').onclick = () => { free = !free; $('#bFree').classList.toggle('on', free); const f = $('#viewer iframe'); f && f.contentWindow.postMessage({ cmd: 'free', on: free }, '*'); };
+  history.replaceState(null, '', '#locs/' + k);
+}
+addEventListener('message', e => { const d = e.data || {}; if (d.plan === 'info' && d.info && d.info.key === cur && !(INFO[cur] && INFO[cur].floors)) { INFO[cur] = Object.assign(INFO[cur] || {}, d.info); const el = $('#inter'); if (el) el.innerHTML = interactions(INFO[cur]); } });
+/* ---------- cast tab */
+$('#cast').innerHTML = CAST.map(c => `<div class="ref">${c.img ? `<img src="${c.img}" alt="">` : '<div style="aspect-ratio:16/10;background:#100e0d;display:flex;align-items:center;justify-content:center;color:#5a5248;font:14px Bebas Neue,Impact;letter-spacing:.3em">NOT IN THE WORLD YET</div>'}<div><b>${esc(c.n)}</b>${esc(c.role)}<div class="chips">${c.where.map(k => `<button class="chip" data-k="${k}">${esc(NAME[k])}</button>`).join('')}</div></div></div>`).join('');
+/* ---------- case tab */
+$('#case').innerHTML = `<div class="grid2"><div><h3>The beats</h3><ol class="rules">${BEATS.map(b => `<li>${esc(b)}</li>`).join('')}</ol></div>
+  <div><h3>The four clues</h3><ul class="list">${CLUES.map(c => `<li><span class="tag red">Clue</span><b>${c.n}</b> · <button class="chip" data-k="${c.where}">${esc(NAME[c.where])}</button><em>${esc(c.how)}</em></li>`).join('')}</ul>
+  <h3>Where it's written down</h3><p>Each clue ticks off a line in Caine's phone Notes (the case note), and photographs go to Vera, who pins them on the murder board in his office.</p></div></div>`;
+/* ---------- look & feel tab */
+$('#lfnav').innerHTML = LOOK.map(s => `<a href="#look/${s.id}" data-sec="${s.id}">${s.n}</a>`).join('');
+$('#lfnav').addEventListener('click', e => { const a = e.target.closest('a'); if (!a) return; e.preventDefault(); document.getElementById('lf-' + a.dataset.sec).scrollIntoView({ behavior: 'smooth' }); });
+$('#look').innerHTML = LOOK.map(s => `<div class="lfsec" id="lf-${s.id}"><h2>${s.n}</h2><p class="sub">${esc(s.intro)}</p>
+  ${s.swatches ? `<div class="swatches">${s.swatches.map(([c, n]) => `<div class="sw"><i style="background:${c}"></i><small>${n}<br>${c}</small></div>`).join('')}</div>` : ''}
+  ${s.fonts ? `<div class="card" style="display:flex;gap:28px;flex-wrap:wrap;align-items:baseline"><span style="font:34px 'Great Vibes',cursive">The Fall of</span><span style="font:40px 'Bebas Neue',Impact;letter-spacing:.1em">CAINE</span><span style="font:20px 'Bebas Neue',Impact;letter-spacing:.3em;color:var(--gold)">TALK · READ · TAKE</span><span class="tw" style="font-size:17px">Caine. Precinct. Now.</span></div>` : ''}
+  <ul class="rules">${s.rules.map(r => `<li>${esc(r)}</li>`).join('')}</ul>
+  ${s.refs ? `<div class="refs">${s.refs.map(([img, t, c]) => `<div class="ref"><img src="plan/${img}.jpg" alt="" loading="lazy"><div><b>${esc(t)}</b>${esc(c)}</div></div>`).join('')}</div>` : ''}</div>`).join('');
+/* ---------- deep links */
+{ const h = location.hash.slice(1); const [t, k] = h.split('/'); if (t === 'locs') { openLoc(INFO[k] ? k : 'room212'); show('locs'); } else if (['map', 'cast', 'case', 'look'].includes(t)) show(t); openLoc && !cur && openLoc('room212'); if (!t) show('map'); }
+</script>
+</body>
+</html>

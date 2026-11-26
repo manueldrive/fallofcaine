@@ -90,6 +90,8 @@
   #perfPanel { position: fixed; left: 12px; top: calc(50px + env(safe-area-inset-top, 0px)); z-index: 6; pointer-events: none; background: rgba(0,0,0,.78); border: 1px solid rgba(226,178,58,.6); color: #ddd6c4; font: 11px/1.45 'Courier New', monospace; padding: 8px 10px; max-width: min(calc(100vw - 24px), 360px); }   /* up top under the DEV button (its menu opens over it), clear of the controls */
   #perfPanel[hidden] { display: none; } #perfPanel i { display: inline-block; width: 70px; color: #e2b23a; font-style: normal; } #perfPanel b { font-size: 14px; }
   body.noGrain #grain { display: none !important; }
+  body.plan #bottomBar, body.plan #topRight, body.plan #guide, body.plan #hint, body.plan #propBtn, body.plan #devDock, body.plan #clueToast, body.plan #devToast, body.plan #perfPanel,
+  body.plan #mergeCue, body.plan #whereTo, body.plan #freeX, body.plan #freeTag, body.plan #inspectCard, body.plan #logo, body.plan #phoneBtn { display: none !important; }
   #devDockBody { display: flex; flex-direction: column; gap: 6px; } #devDockBody[hidden] { display: none; }
   #freeTag { position: fixed; left: 50%; bottom: 70px; transform: translateX(-50%); z-index: 6; background: rgba(0,0,0,.72); color: #e2b23a; border: 1px solid #e2b23a; padding: 6px 12px; font: 12px 'Bebas Neue', Impact, sans-serif; letter-spacing: .22em; white-space: nowrap; pointer-events: none; }
   #freeX { position: fixed; right: 14px; top: 12px; z-index: 6; background: rgba(0,0,0,.72); color: #e2b23a; border: 1px solid #e2b23a; font: 14px 'Bebas Neue', Impact, sans-serif; letter-spacing: .2em; padding: 6px 12px; }
@@ -8905,6 +8907,7 @@ function driveChoice(dt) {
     const gb = document.createElement('button'), syncG = () => gb.textContent = 'Grain: ' + (document.body.classList.contains('noGrain') ? 'off' : 'on'); syncG();
     gb.onclick = () => { const o = document.body.classList.toggle('noGrain'); try { localStorage.setItem('caineGrain', o ? '0' : '1'); } catch (e) {} syncG(); }; body.append(gb); }   /* film grain on/off (remembered) */
   const ib = document.createElement('button'); ib.textContent = 'Intro: ' + (INK_INTRO ? 'inked' : 'classic'); ib.onclick = () => { try { localStorage.setItem('caineInkIntro', INK_INTRO ? '0' : '1'); } catch (e) {} location.href = location.pathname; }; body.append(ib);   /* try the hand-inked opening (reloads to the start) */
+  const pl = document.createElement('button'); pl.textContent = 'Planning ↗'; pl.onclick = () => window.open('planning.html', '_blank'); body.append(pl);   /* the writers' room: map, locations, cast, the case, look & feel */
   const rl = document.createElement('button'); rl.textContent = 'Reload'; rl.onclick = () => location.reload(); body.append(rl);   // a fresh start (no #scene in the address = the opening plays)
   dock.querySelector('#devDockBtn').onclick = (e) => { e.stopPropagation(); body.hidden = !body.hidden; };
   dock.addEventListener('pointerdown', e => e.stopPropagation());
@@ -9275,12 +9278,18 @@ const Intro = (() => {
     el.querySelector('button').onclick = (e) => { e.stopPropagation(); plunge(); };
   }
   // ---- START: he falls out of frame, the title goes, everything goes black and quiet... then, out of the black, the alarm
-  function whoosh() { const c = audio(); if (!c) return; const len = c.sampleRate * 3.6, b = c.createBuffer(1, len, c.sampleRate), d = b.getChannelData(0); let last = 0;
-    for (let i = 0; i < len; i++) { const w = Math.random() * 2 - 1; last = (last + 0.04 * w) / 1.04; d[i] = last * 6; }
-    const src = c.createBufferSource(); src.buffer = b; const f = c.createBiquadFilter(); f.type = 'lowpass'; f.Q.value = 0.8; const g = c.createGain(); const t0 = c.currentTime;
-    f.frequency.setValueAtTime(200, t0); f.frequency.exponentialRampToValueAtTime(1700, t0 + 2.6); f.frequency.exponentialRampToValueAtTime(120, t0 + 3.5);
-    g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(0.12, t0 + 1.0); g.gain.linearRampToValueAtTime(0.5, t0 + 2.4); g.gain.linearRampToValueAtTime(0, t0 + 3.5);
-    src.connect(f).connect(g).connect(c.destination); src.start(); }
+  function whoosh() { const c = audio(); if (!c) return;   /* the fall: air rushing past, rising as he drops away, with a low rumble under it (waits for the tap to wake the sound up, so it isn't lost) */
+    const go = () => { const len = c.sampleRate * 4.4, b = c.createBuffer(1, len, c.sampleRate), d = b.getChannelData(0); let last = 0;
+      for (let i = 0; i < len; i++) { const w = Math.random() * 2 - 1; last = (last + 0.04 * w) / 1.04; d[i] = last * 6; }
+      const t0 = c.currentTime + 0.02;
+      const air = c.createBufferSource(); air.buffer = b; const f = c.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 0.7; const g = c.createGain();
+      f.frequency.setValueAtTime(260, t0); f.frequency.exponentialRampToValueAtTime(1900, t0 + 2.8); f.frequency.exponentialRampToValueAtTime(160, t0 + 4.2);
+      g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(0.3, t0 + 0.8); g.gain.linearRampToValueAtTime(0.95, t0 + 2.6); g.gain.linearRampToValueAtTime(0, t0 + 4.2);
+      air.connect(f).connect(g).connect(c.destination); air.start(t0);
+      const rum = c.createBufferSource(); rum.buffer = b; const rf = c.createBiquadFilter(); rf.type = 'lowpass'; rf.frequency.value = 110; const rg = c.createGain();
+      rg.gain.setValueAtTime(0, t0); rg.gain.linearRampToValueAtTime(0.9, t0 + 2.2); rg.gain.linearRampToValueAtTime(0, t0 + 4.3);
+      rum.connect(rf).connect(rg).connect(c.destination); rum.start(t0); };
+    c.state === 'running' ? go() : c.resume().then(go, go); }
   const timers = [];
   function abort() {   /* a dev jump out of the opening: take the title, the black and the verse down, and call off what was still to come */
     if (phase === 'off' || phase === 'done') return;
@@ -9295,14 +9304,14 @@ const Intro = (() => {
     S && S.plunge && S.plunge();
     const black = document.createElement('div'); black.id = 'abyss'; black.style.cssText = 'position:fixed;inset:0;z-index:42;background:#000;opacity:0;pointer-events:none;transition:opacity 1.6s ease-in 1.7s'; document.body.appendChild(black);
     requestAnimationFrame(() => requestAnimationFrame(() => { black.style.opacity = 1; }));
-    musicEl.play().then(() => { if (introQuiet) { musicEl.pause(); musicEl.currentTime = 0; } }).catch(() => {});   // unlock the music on this tap (phones), but keep it quiet for now
+    musicEl.muted = true; musicEl.play().then(() => { if (introQuiet) { musicEl.pause(); musicEl.currentTime = 0; } musicEl.muted = false; }).catch(() => { musicEl.muted = false; });   // unlock the music on this tap (phones) silently: muted, so you don't hear a first start before the real one in the dark   // unlock the music on this tap (phones), but keep it quiet for now
     const VERSE = false, gap = VERSE ? 0 : 6000;   /* the Genesis verse is off for now (not tied in yet): the dark is shorter without it */
     timers.push(setTimeout(() => verse(VERSE), 3600));                                            // in the black: Genesis 4:7, and the theme comes in
     timers.push(setTimeout(() => { pagerChirp(); }, 12400 - gap));   // then his phone goes off in the dark: the little two-tone pager chirp (old textAlert() kept below, unused)
     timers.push(setTimeout(() => { loadScene('room212', { instant: true, spawn: 'wake' }); }, 13700 - gap));   // eyes open on the chime   // ...and he's awake
   }
   function verse(show = true) {
-    if (!show) { introQuiet = false; started = true; musicEl.currentTime = 0; if (musicOn) musicEl.play().catch(() => {}); return; }   /* (just the theme coming in) */
+    if (!show) { introQuiet = false; started = true; musicEl.muted = false; musicEl.currentTime = 0; if (musicOn) musicEl.play().catch(() => {}); return; }   /* (just the theme coming in) */
     const v = document.createElement('div'); v.id = 'verse';
     v.innerHTML = '<p>If you do well, will you not be accepted? And if you do not do well, sin is crouching at the door. Its desire is contrary to you, but you must rule over it.</p><span>GENESIS 4:7 · ESV</span>';
     document.body.appendChild(v); requestAnimationFrame(() => requestAnimationFrame(() => v.classList.add('on')));
@@ -9432,7 +9441,28 @@ const Guide = (() => {
       heading = Math.atan2(x - pos.x, z - pos.z); povPitch = THREE.MathUtils.clamp(Math.atan2(y - (pos.y + 1.66), Math.hypot(x - pos.x, z - pos.z)), -1.0, 0.75); manualUntil = performance.now() / 1000 + 6; }, _go(st) { go(st); } };
 })();
 setInterval(() => document.getElementById('phoneBtn').classList.toggle('unread', PhoneUI.unread > 0 && !document.body.classList.contains('intro')), 400);   // a gold dot on the phone while a message waits
-if (!location.hash || location.hash.startsWith('#intro')) Intro.start();   // a fresh load opens on the fall
+/* PLAN — the game opened inside the planning page (index.html?plan#scene): no opening, no walkthrough, no HUD; the page drives it by message */
+const PLAN = /[?&]plan\b/.test(location.search);
+if (PLAN) { document.body.classList.add('plan'); Guide.skip(); HatState.on = true; loadScene(BUILDERS[location.hash.slice(1)] ? location.hash.slice(1) : 'hotel', { instant: true });
+  const work = new THREE.Group(); work.add(new THREE.HemisphereLight(0xffffff, 0x5a5a5a, 2.4)); { const d = new THREE.DirectionalLight(0xffffff, 1.4); d.position.set(6, 12, 8); work.add(d); }
+  let houseOn = false, savedFog = null, savedExp = 1;
+  const lights = (on) => { if (on === houseOn) return; houseOn = on;
+    if (on) { scene.add(work); savedFog = scene.fog; scene.fog = null; savedExp = renderer.toneMappingExposure; renderer.toneMappingExposure = 1.0; document.body.classList.add('noGrain'); }
+    else { scene.remove(work); scene.fog = savedFog; renderer.toneMappingExposure = savedExp; document.body.classList.remove('noGrain'); } };
+  const info = () => { if (!S) return null; const fog = S.fog; let nl = 0, ns = 0; S.group.traverse(o => { if (o.isLight) { nl++; if (o.castShadow) ns++; } });
+    return { key: currentKey, name: S.name, props: (S.props || []).map(p => ({ id: p.id, label: p.label, talk: p.talk || null, item: p.inspect ? p.inspect.name : null, note: p.inspect ? p.inspect.note : null })),
+      portals: (S.portals || []).map(p => ({ label: p.label, to: p.to })), clues: (S.clues || []).map(c => ({ id: c.id, caption: c.caption || '', note: c.note || null })),
+      lights: nl, shadows: ns, fog: fog ? '#' + fog.color.getHexString() : null, exposure: S.exposure || 1, sky: S.skyline ? (S.skyline.sky || null) : null, level: S.level || null }; };
+  const post = () => { const i = info(); if (!i) return; if (parent !== window) parent.postMessage({ plan: 'info', info: i }, '*'); else window.planInfo = i; };
+  if (/[?&]house\b/.test(location.search)) lights(true);   // (the planning page can open it with house lights already on)
+  let lastKey = null; setInterval(() => { if (!loading && currentKey !== lastKey) { lastKey = currentKey; if (houseOn) { const h = houseOn; houseOn = false; lights(h); } post(); } }, 400);
+  addEventListener('message', (e) => { const d = e.data || {}; if (!d.cmd) return;
+    if (d.cmd === 'scene' && d.key && d.key !== currentKey) { if (houseOn) lights(false), houseOn = true; FreeCam.on && FreeCam.set(false); loadScene(d.key, { instant: true, spawn: d.spawn }); }
+    if (d.cmd === 'lights') lights(!!d.on);
+    if (d.cmd === 'cam' && d.pos) { FreeCam.on && FreeCam.set(false); window.__shot && window.__shot(...d.pos); }
+    if (d.cmd === 'free') FreeCam.set(!!d.on);
+    if (d.cmd === 'info') post(); });
+} else if (!location.hash || location.hash.startsWith('#intro')) Intro.start();   // a fresh load opens on the fall
 else loadScene(BUILDERS[location.hash.slice(1)] ? location.hash.slice(1) : 'doorway', { instant: true });
 
 
