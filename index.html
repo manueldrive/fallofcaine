@@ -246,6 +246,7 @@ import * as THREE from 'three';
    Renderer
    ========================================================= */
 const canvas = document.getElementById('scene');
+const FOC = /[?&]foc\b/.test(location.search), FOC_KEYS = ['doorway', 'alley', 'lot', 'warehouse'];
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
@@ -8659,6 +8660,7 @@ function loadScene(key, { instant = false, spawn = null } = {}) {
     if (S) { S.onExit && S.onExit(); scene.remove(S.group); }
     window.__closeTalk && window.__closeTalk();   // leaving a scene ends any conversation
     S = built[key] || (built[key] = Perf.build(key, () => BUILDERS[key]())); Perf.sceneStart(key);
+    if (FOC && !S._foc) { S._foc = true; S.portals = focLinks(key, S); }   /* (the four-place test: doors re-pointed) */
     currentKey = key;
     scene.add(S.group); scene.fog = S.fog; renderer.toneMappingExposure = S.exposure; Skyline.apply(S);
     if (!S.drive) Life.auto(S, key);
@@ -9496,6 +9498,14 @@ const Guide = (() => {
       heading = Math.atan2(x - pos.x, z - pos.z); povPitch = THREE.MathUtils.clamp(Math.atan2(y - (pos.y + 1.66), Math.hypot(x - pos.x, z - pos.z)), -1.0, 0.75); manualUntil = performance.now() / 1000 + 6; }, _go(st) { go(st); } };
 })();
 setInterval(() => document.getElementById('phoneBtn').classList.toggle('unread', PhoneUI.unread > 0 && !document.body.classList.contains('intro')), 400);   // a gold dot on the phone while a message waits
+/* FOC TEST — a proof of concept (foctest.html → index.html?foc): just four places joined end to end, Cordage St. doorway ↔ the alley ↔ the parking lot ↔ Warehouse 7.
+   Each scene's own doors are re-pointed; nothing else in the city is reachable. The page outside shows where you are */
+function focLinks(key, sc) { const sp = sc.spawns || {};
+  if (key === 'doorway') return [{ x: 4.95, z: 3.4, to: 'alley', spawn: 'doorway', label: 'The alley' }];
+  if (key === 'alley') return [{ x: -0.8, z: 4.0, to: 'doorway', spawn: 'alley', label: 'Cordage St. · No. 14' }, { x: 0.2, z: -30.6, to: 'lot', spawn: 'alley', label: 'The parking lot' }];
+  if (key === 'lot') { const a = sp.alley, p = sp.precinct; return [{ x: a.x, z: a.z + 1.4, to: 'alley', spawn: 'lot', label: 'The alley' }, { x: p.x, z: p.z - 1.0, to: 'warehouse', spawn: 'docks', label: 'Warehouse 7' }]; }
+  if (key === 'warehouse') return [{ x: -12.4, z: 1.0, to: 'lot', spawn: 'precinct', label: 'The parking lot' }];
+  return sc.portals; }
 /* PLAN — the game opened inside the planning page (index.html?plan#scene): no opening, no walkthrough, no HUD; the page drives it by message */
 const PLAN = /[?&]plan\b/.test(location.search);
 if (PLAN) { document.body.classList.add('plan'); Guide.skip(); HatState.on = true; loadScene(BUILDERS[location.hash.slice(1)] ? location.hash.slice(1) : 'hotel', { instant: true });
@@ -9517,7 +9527,8 @@ if (PLAN) { document.body.classList.add('plan'); Guide.skip(); HatState.on = tru
     if (d.cmd === 'cam' && d.pos) { FreeCam.on && FreeCam.set(false); window.__shot && window.__shot(...d.pos); }
     if (d.cmd === 'free') FreeCam.set(!!d.on);
     if (d.cmd === 'info') post(); });
-} else if (!location.hash || location.hash.startsWith('#intro')) Intro.start();   // a fresh load opens on the fall
+} else if (FOC) { Guide.skip(); HatState.on = true; { let last = null; setInterval(() => { if (currentKey !== last && !loading) { last = currentKey; if (parent !== window) parent.postMessage({ foc: currentKey, name: S && S.name }, '*'); } }, 300); } loadScene(FOC_KEYS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'doorway', { instant: true }); }
+else if (!location.hash || location.hash.startsWith('#intro')) Intro.start();   // a fresh load opens on the fall
 else loadScene(BUILDERS[location.hash.slice(1)] ? location.hash.slice(1) : 'doorway', { instant: true });
 
 

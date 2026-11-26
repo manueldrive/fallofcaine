@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>FOC test · The Fall of Caine</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#0b0b0b">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap">
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  iframe { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; }
+  /* the route: four stops on a line, the one you're in lit gold (top centre, out of the game's own corners) */
+  #route { position: fixed; top: calc(10px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); z-index: 5; display: flex; align-items: center; gap: 0;
+    background: rgba(0,0,0,.62); border: 1px solid #3a332b; padding: 6px 12px; pointer-events: none; font: 12px 'Bebas Neue', Impact, sans-serif; letter-spacing: .18em; color: #8a8070; white-space: nowrap; }
+  #route b { color: #e2b23a; font-weight: normal; margin-right: 10px; letter-spacing: .3em; }
+  .stop { display: flex; align-items: center; gap: 5px; }
+  .stop i { width: 8px; height: 8px; border-radius: 50%; border: 1px solid #6a5f50; }
+  .stop.on { color: #f0e6cc; } .stop.on i { background: #e2b23a; border-color: #e2b23a; box-shadow: 0 0 8px #e2b23a; }
+  .line { width: 14px; height: 1px; background: #4a4238; margin: 0 6px; }
+  @media (max-width: 520px) { #route { font-size: 10px; padding: 5px 8px; } #route b { display: none; } .line { width: 8px; margin: 0 4px; } }
+</style>
+</head>
+<body>
+<iframe id="game" src="index.html?foc#doorway" title="The Fall of Caine — four-place test" allow="autoplay; fullscreen"></iframe>
+<div id="route"><b>FOC TEST</b>
+  <span class="stop" data-k="doorway"><i></i>Doorway</span><span class="line"></span>
+  <span class="stop" data-k="alley"><i></i>Alley</span><span class="line"></span>
+  <span class="stop" data-k="lot"><i></i>Parking lot</span><span class="line"></span>
+  <span class="stop" data-k="warehouse"><i></i>Warehouse</span>
+</div>
+<script>
+  const set = (k) => document.querySelectorAll('.stop').forEach(s => s.classList.toggle('on', s.dataset.k === k));
+  set('doorway');
+  addEventListener('message', (e) => { if (e.data && e.data.foc) set(e.data.foc); });
+  document.getElementById('game').focus();
+</script>
+</body>
+</html>
