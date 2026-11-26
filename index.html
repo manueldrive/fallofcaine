@@ -5563,7 +5563,7 @@ function buildHotel({ beam = true } = {}) {
   const P1 = [{ x: 0, z: WZ - 0.8, to: 'drive', spawn: 'hotel', label: 'Your car' }, { x: LIFTX, z: -WZ + 1.0, to: 'lift', label: 'Lift · up', act: () => liftTo(2) }];
   const P2 = [{ x: -WX + 0.75, z: 5.4, to: 'room212', spawn: 'hotel', label: 'Room 212' }, { x: WX - 0.75, z: SBZ, to: 'skybridge', spawn: 'hotel', label: 'Walkway · garage' }, { x: LIFT2X, z: -WZ + 1.0, to: 'lift', label: 'Lift · lobby', act: () => liftTo(1) }];
   const PAT2 = [{ p: [-7.0, 1.0], wait: 3, face: 1.2 }, { p: [-7.2, -7.2], wait: 2.5, face: 0.8 }, { p: [0, -7.2], wait: 2.5, face: 0 }, { p: [7.2, -3.0], wait: 2.5, face: -1.6 }, { p: [3.0, 7.2], wait: 2.5, face: Math.PI }];   // round the gallery, stopping at the rail
-  const bellProp = { id: 'bellhop', talk: 'bellhop', mesh: bell.head, label: 'Talk', reach: 1.9, shot: { pos: [-8.4, 7.4, -2.6], look: [-4.6, 3.4, 2.6] },   /* high on the wall side: both at the rail, the skeleton filling the left, the skull coming in at the top */ onEnd: () => Guide.heard(), when: () => !(BELLHOP.stage >= 2 && Guide.step === 'bridge') };
+  const bellProp = { id: 'bellhop', talk: 'bellhop', mesh: bell.head, label: 'Talk', reach: 1.9,   /* (no set angle: the talk stays on the gallery's own camera) */ onEnd: () => Guide.heard(), when: () => !(BELLHOP.stage >= 2 && Guide.step === 'bridge') };
 
   return {
     group,
