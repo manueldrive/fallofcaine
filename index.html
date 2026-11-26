@@ -3528,8 +3528,10 @@ function buildGarageOut() {
     cx = 6; cz = -22.4; yaw = Math.PI / 2; v = 0; leaving = false; lent = null; emb = false;
     car.g.position.set(cx, 2.9, cz); car.g.rotation.set(0, yaw, 0); heads.forEach(h => h.intensity = 0);
     hemiS.intensity = 0; sunS.intensity = 0; rain.visible = false; skyAlpha(self, 0);
+    bay.visible = false;   /* (from the roof the bay's shader isn't lit for the night yet and showed as a white slab past the street: hidden till he drives) */
   }
   function board(roof) {   /* he's in: from here to the Malecón it's all one drive */
+    bay.visible = true;
     R = roof; emb = true; cue = 0; moved = 0; hintT = 0; autoT = 0; leaving = false; lent = null;
     heads.forEach(h => h.intensity = 60); rain.visible = true;
     if (!self._sky) Skyline.apply(self); skyAlpha(self, 0);
