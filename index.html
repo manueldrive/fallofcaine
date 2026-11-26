@@ -3527,7 +3527,7 @@ function buildGarageOut() {
   function park() {   /* she waits in her space on the roof: lights off, the street's own light and rain not yet in play */
     cx = 6; cz = -22.4; yaw = Math.PI / 2; v = 0; leaving = false; lent = null; emb = false;
     car.g.position.set(cx, 2.9, cz); car.g.rotation.set(0, yaw, 0); heads.forEach(h => h.intensity = 0);
-    hemiS.intensity = 0; sunS.intensity = 0; rain.visible = false; skyAlpha(self, 0);
+    hemiS.intensity = 0.45; sunS.intensity = 0.2; rain.visible = false; skyAlpha(self, 0);   /* (a little of the street's own light, so from the roof it's a lit street below, not a grey void) */
     bay.visible = false;   /* (from the roof the bay's shader isn't lit for the night yet and showed as a white slab past the street: hidden till he drives) */
   }
   function board(roof) {   /* he's in: from here to the Malecón it's all one drive */
@@ -5563,7 +5563,7 @@ function buildHotel({ beam = true } = {}) {
   const P1 = [{ x: 0, z: WZ - 0.8, to: 'drive', spawn: 'hotel', label: 'Your car' }, { x: LIFTX, z: -WZ + 1.0, to: 'lift', label: 'Lift · up', act: () => liftTo(2) }];
   const P2 = [{ x: -WX + 0.75, z: 5.4, to: 'room212', spawn: 'hotel', label: 'Room 212' }, { x: WX - 0.75, z: SBZ, to: 'skybridge', spawn: 'hotel', label: 'Walkway · garage' }, { x: LIFT2X, z: -WZ + 1.0, to: 'lift', label: 'Lift · lobby', act: () => liftTo(1) }];
   const PAT2 = [{ p: [-7.0, 1.0], wait: 3, face: 1.2 }, { p: [-7.2, -7.2], wait: 2.5, face: 0.8 }, { p: [0, -7.2], wait: 2.5, face: 0 }, { p: [7.2, -3.0], wait: 2.5, face: -1.6 }, { p: [3.0, 7.2], wait: 2.5, face: Math.PI }];   // round the gallery, stopping at the rail
-  const bellProp = { id: 'bellhop', talk: 'bellhop', mesh: bell.head, label: 'Talk', reach: 1.9, onEnd: () => Guide.heard(), when: () => !(BELLHOP.stage >= 2 && Guide.step === 'bridge') };
+  const bellProp = { id: 'bellhop', talk: 'bellhop', mesh: bell.head, label: 'Talk', reach: 1.9, shot: { pos: [-8.4, 7.4, -2.6], look: [-4.6, 3.4, 2.6] },   /* high on the wall side: both at the rail, the skeleton filling the left, the skull coming in at the top */ onEnd: () => Guide.heard(), when: () => !(BELLHOP.stage >= 2 && Guide.step === 'bridge') };
 
   return {
     group,
@@ -7710,12 +7710,13 @@ function wheel(x, c, t) {
    out over Coquina City; the music drops. Any input brings it back. (V does it straight away.)
    --------------------------------------------------------- */
 const Vista = (() => {
-  let lastInput = performance.now() / 1000, k = 0, force = false, bgSet = false; const BLACK = new THREE.Color(0, 0, 0); const want = new THREE.Vector3(), look = new THREE.Vector3(), q = new THREE.Quaternion(), m4 = new THREE.Matrix4();
+  let lastInput = performance.now() / 1000, lastKey = null, k = 0, force = false, bgSet = false; const BLACK = new THREE.Color(0, 0, 0); const want = new THREE.Vector3(), look = new THREE.Vector3(), q = new THREE.Quaternion(), m4 = new THREE.Matrix4();
   const poke = () => { lastInput = performance.now() / 1000; force = false; };
-  addEventListener('pointerdown', poke, true); addEventListener('touchstart', poke, true); addEventListener('wheel', poke, true);
+  addEventListener('pointerdown', poke, true); addEventListener('touchstart', poke, true); addEventListener('wheel', poke, true); addEventListener('pointermove', (e) => { if (e.buttons || e.pointerType === 'touch') poke(); }, true);
   addEventListener('keydown', e => { if (e.code === 'KeyV' && !e.repeat) { force = !force; if (force) return; } poke(); }, true);
   function cam(dt, now) {
     const face = Skyline.face(S), busy = PhoneUI.isOpen || S.drive || S.cutscene || loading || walkAmt > 0.05;   // (cutscenes keep their own camera)
+    if (busy || currentKey !== lastKey) { lastInput = now; lastKey = currentKey; }   /* the idle look-at-the-city only after 30 s standing still in one place (holding a walk, or just arriving, resets it) */
     const on = face !== null && !busy && (force || now - lastInput > 30);
     k += ((on ? 1 : 0) - k) * Math.min(1, dt * (on ? 0.45 : 2.2));
     audio.volume = 0.6 * (1 - 0.55 * k);
@@ -10070,7 +10071,7 @@ function drawHudTo(g, W, t) {
   const wp = new THREE.Vector3();
   function pickUp(pr) {
     if (pr.act) { pr.act(); nearProp = null; propBtn.classList.remove('show'); return; }
-    if (pr.talk) { const w = pr; heading = Math.atan2(pr.mesh.getWorldPosition(wp).x - pos.x, wp.z - pos.z); faceTarget = null; Dialogue.open({ vera: VERA, keeper: KEEPER, bellhop: BELLHOP, guard: GUARD, chief: CHIEF }[pr.talk], { with: pr.id, onEnd: pr.onEnd }); /* add target: pr.mesh for an over-the-shoulder two-shot */ propBtn.classList.remove('show'); return; }
+    if (pr.talk) { const w = pr; heading = Math.atan2(pr.mesh.getWorldPosition(wp).x - pos.x, wp.z - pos.z); faceTarget = null; Dialogue.open({ vera: VERA, keeper: KEEPER, bellhop: BELLHOP, guard: GUARD, chief: CHIEF }[pr.talk], { with: pr.id, onEnd: pr.onEnd, shot: pr.shot }); /* add target: pr.mesh for an over-the-shoulder two-shot */ propBtn.classList.remove('show'); return; }
     if (open) setOpen(false);
     inHand = pr; pv.yaw = pv.pitch = 0; pv.zoom = 1;
     held.clear(); route = []; faceTarget = null;
@@ -10287,9 +10288,10 @@ const Dialogue = (() => {
   const catcher = document.getElementById('dlgCatch');
   let script = null, node = null, full = '', shown = 0, timer = null, talkingWith = null, onEnd = null, replies = [];
   // a two-shot while you talk: the camera eases round to frame both of you, over his shoulder
-  let target = null, side = 0, shotK = 0; const A = new THREE.Vector3(), B = new THREE.Vector3(), C = new THREE.Vector3(), L = new THREE.Vector3(), shotQ = new THREE.Quaternion(), m4 = new THREE.Matrix4();
+  let target = null, side = 0, shotK = 0, fixed = null;   /* fixed: a set camera for this talk ({ pos, look }), held for the whole conversation */ const A = new THREE.Vector3(), B = new THREE.Vector3(), C = new THREE.Vector3(), L = new THREE.Vector3(), shotQ = new THREE.Quaternion(), m4 = new THREE.Matrix4();
   function cam(dt) {
-    waitTick(dt); shotK += ((script && target && camMode !== 'street' ? 1 : 0) - shotK) * Math.min(1, dt * 2.5); if (shotK < 0.002 || !target) return;
+    waitTick(dt); if (fixed) { shotK += ((script && camMode !== 'street' ? 1 : 0) - shotK) * Math.min(1, dt * 4); if (shotK < 0.002) return; C.set(...fixed.pos); L.set(...fixed.look); m4.lookAt(C, L, THREE.Object3D.DEFAULT_UP); shotQ.setFromRotationMatrix(m4); const e = shotK * shotK * (3 - 2 * shotK); camera.position.lerp(C, e); camera.quaternion.slerp(shotQ, e); if (!script && shotK < 0.01) fixed = null; return; }
+    shotK += ((script && target && camMode !== 'street' ? 1 : 0) - shotK) * Math.min(1, dt * 2.5); if (shotK < 0.002 || !target) return;
     target.getWorldPosition(B); A.set(pos.x, pos.y + 1.55, pos.z);
     const dx = B.x - A.x, dz = B.z - A.z, d = Math.hypot(dx, dz) || 1, nx = -dz / d, nz = dx / d;
     if (!side) { const ok = (sg) => { const x = (A.x + B.x) / 2 + nx * sg * 2.1 - dx / d * 0.9, z = (A.z + B.z) / 2 + nz * sg * 2.1 - dz / d * 0.9; return !(S.blocked && S.blocked(x, z)); };
@@ -10304,7 +10306,7 @@ const Dialogue = (() => {
     if (node.wait && shown >= full.length && node.wait.until(dt)) { const g = node.wait.go; node.wait.done && node.wait.done(); say(g); } }
   function open(scr, opts = {}) {
     if (PhoneUI.isOpen) PhoneUI.close();
-    script = scr; talkingWith = opts.with || null; onEnd = opts.onEnd || null; target = opts.target || null; side = 0;
+    script = scr; talkingWith = opts.with || null; onEnd = opts.onEnd || null; target = opts.target || null; side = 0; fixed = opts.shot || null;
     held.clear(); route = [];
     const face = document.getElementById('dlgFace'); face.style.backgroundImage = scr.portrait ? `url(${scr.portrait})` : 'none';
     document.body.classList.toggle('hasFace', !!scr.portrait); document.body.classList.add('talking');
