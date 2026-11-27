@@ -6904,7 +6904,7 @@ const SkinRig = (() => {
     loaderP.then(L => L.load(o.url, (g) => {
       const model = S.model = g.scene, B = S.B;
       const m = Figure.rimify(new THREE.MeshStandardMaterial({ map: tex(o.base, true), color: new THREE.Color(o.bright ?? 1.45, o.bright ?? 1.45, o.bright ?? 1.45), normalMap: tex('det/caine_normal.jpg'), normalScale: new THREE.Vector2(0.9, 0.9), roughnessMap: tex('det/caine_rough.jpg'), roughness: 1 }), 0.2);
-      model.traverse(c => { if (c.isMesh) { c.material = m; c.castShadow = true; c.receiveShadow = true; c.frustumCulled = false; } if (c.isBone) B[c.name] = c; });
+      model.traverse(c => { if (c.isMesh) { if (!o.ownMat) c.material = m; else { c.material.map && (c.material.map.colorSpace = THREE.SRGBColorSpace); c.material.color.setScalar(o.bright ?? 1.8); c.material.roughness = 0.85; c.material.metalness = 0; c.material.side = THREE.DoubleSide; c.material = Figure.rimify(c.material); } c.castShadow = true; c.receiveShadow = true; c.frustumCulled = false; } if (c.isBone) B[c.name] = c; });
       // measure with the puppet in its rest pose (identity in its own frame)
       const saved = []; root.traverse(j => { if (j.isGroup) { saved.push([j, j.quaternion.clone(), j.position.clone()]); } });
       for (const j of [R.hips, R.chest, R.neck, R.head, R.skirt, R.armL.sh, R.armL.el, R.armR.sh, R.armR.el, R.legL.hip, R.legL.knee, R.legL.ankle, R.legR.hip, R.legR.knee, R.legR.ankle]) j && j.quaternion.identity();
@@ -6946,7 +6946,10 @@ const SkinRig = (() => {
   const setClassic = (on) => { classic = on; for (const S of all) applyLook(S); };
   return { attach, update, all, setClassic, applyLook, get classic() { return classic; } };
 })();
-const CaineModel = SkinRig.attach(CAINE, { url: 'det/detective.json', base: 'det/caine_base.jpg', onLoad(S, model, B) {
+/* NEW_CAINE (DEV ▸ Caine: new): the Tripo-made Caine (hat, coat and face modelled in), bound to this same skeleton, so every pose and walk drives him unchanged */
+const NEW_CAINE = /[?&]newcaine\b/.test(location.search) || (() => { try { return localStorage.getItem('caineNewModel') !== '0'; } catch (e) { return true; } })();   // the new Caine is the default; DEV can switch back to the old one
+const CaineModel = SkinRig.attach(CAINE, { url: NEW_CAINE ? 'det/caine_new.json' : 'det/detective.json', ownMat: NEW_CAINE, base: 'det/caine_base.jpg', onLoad(S, model, B) {
+  if (NEW_CAINE) { const h = CAINE.root.userData.hat; if (h) { h.visible = false; h.userData.noShow = true; } S.setHat = () => {}; return; }   /* (his own hat is part of the model) */
   // the fedora, fitted to his head: band just above the ears, set back over the hair, brim tipped down in front
   const hat = CAINE.root.userData.hat;
   if (hat && B['DEF-DEF_spine005']) { const from = { p: hat.parent, pos: hat.position.clone(), q: hat.quaternion.clone() }; S.moved.push({ o: hat, from, to: null }); model.add(hat); hat.position.set(0, 1.738, -0.028); hat.rotation.set(-0.1, 0, 0); hat.updateMatrixWorld(true);
@@ -7136,8 +7139,8 @@ function updateWalker(dt, now) {
   armL.sh.rotation.x = Math.sin(p) * 0.38 * a;  armL.el.rotation.x = -0.15 - Math.max(0, -Math.sin(p)) * 0.3 * a;
   armR.sh.rotation.x = -Math.sin(p) * 0.38 * a; armR.el.rotation.x = -0.15 - Math.max(0, Math.sin(p)) * 0.3 * a;
   hips.position.y = 0.95 - 0.02 * a + 0.028 * Math.cos(2 * p) * a + (1 - a) * Math.sin(now / 0.9) * 0.004;
-  hips.rotation.y = Math.sin(p) * 0.08 * a; hips.rotation.z = Math.sin(p) * 0.03 * a;
-  chest.rotation.y = -Math.sin(p) * 0.14 * a; chest.rotation.x = 0.06 * a;
+  hips.rotation.y = Math.sin(p) * 0.035 * a; hips.rotation.z = Math.sin(p) * 0.01 * a;   // a level, quiet pelvis (the coat rides on it)
+  chest.rotation.y = -Math.sin(p) * 0.095 * a; chest.rotation.x = 0.06 * a;
   head.rotation.y = Math.sin(p) * 0.06 * a; head.rotation.x = 0.05 * a - 0.03;
   skirt.rotation.x = -0.08 * a + Math.sin(2 * p) * 0.03 * a;
   // the detective's eye: his head turns to anything worth a look as he passes it (props, the people you can talk to)
@@ -8963,6 +8966,7 @@ function driveChoice(dt) {
   { let off = false; try { off = localStorage.getItem('caineGrain') === '0'; } catch (e) {} document.body.classList.toggle('noGrain', off && on);
     const gb = document.createElement('button'), syncG = () => gb.textContent = 'Grain: ' + (document.body.classList.contains('noGrain') ? 'off' : 'on'); syncG();
     gb.onclick = () => { const o = document.body.classList.toggle('noGrain'); try { localStorage.setItem('caineGrain', o ? '0' : '1'); } catch (e) {} syncG(); }; body.append(gb); }   /* film grain on/off (remembered) */
+  { const cb = document.createElement('button'); cb.textContent = 'Caine: ' + (NEW_CAINE ? 'new' : 'old'); cb.onclick = () => { try { localStorage.setItem('caineNewModel', NEW_CAINE ? '0' : '1'); } catch (e) {} location.reload(); }; body.append(cb); }   /* try the new model (reloads) */
   const ib = document.createElement('button'); ib.textContent = 'Intro: ' + (INK_INTRO ? 'inked' : 'classic'); ib.onclick = () => { try { localStorage.setItem('caineInkIntro', INK_INTRO ? '0' : '1'); } catch (e) {} location.href = location.pathname; }; body.append(ib);   /* try the hand-inked opening (reloads to the start) */
   const pl = document.createElement('button'); pl.textContent = 'Planning ↗'; pl.onclick = () => window.open('planning.html', '_blank'); body.append(pl);   /* the writers' room: map, locations, cast, the case, look & feel */
   const rl = document.createElement('button'); rl.textContent = 'Reload'; rl.onclick = () => location.reload(); body.append(rl);   // a fresh start (no #scene in the address = the opening plays)
